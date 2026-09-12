@@ -57,6 +57,44 @@ async function handleApi(request, env, pathname) {
     return json({ ok: true, username }, 200, authHeaders(cookie));
   }
 
+  if (pathname === "/api/profile") {
+    const me = await getSessionUser(request, env);
+
+    // PUT /api/profile —— 保存自己的简介（需登录，最多 1000 字）
+    if (method === "PUT") {
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      const body = await request.json().catch(() => ({}));
+      const text = typeof body.text === "string" ? body.text : "";
+      if ([...text].length > 1000) return json({ ok: false, error: "简介不能超过 1000 字" }, 400);
+
+      const data = { text, updatedAt: Date.now() };
+      await env.AUTH_KV.put(bioKey(me), JSON.stringify(data));
+      return json({ ok: true, username: me, ...data }, 200);
+    }
+
+    // GET /api/profile?u=xxx 查看指定用户；不带参数则看自己的
+    if (method === "GET") {
+      const url = new URL(request.url);
+      const target = (url.searchParams.get("u") || me || "").trim();
+      if (!target) return json({ username: null, text: "", updatedAt: null }, 200);
+      if (!isValidUsername(target)) return json({ ok: false, error: "用户名无效" }, 400);
+
+      const raw = await env.AUTH_KV.get(bioKey(target));
+      if (!raw) {
+        // 本人访问：允许空白简介进入编辑；他人访问：404
+        if (me && me.toLowerCase() === target.toLowerCase()) {
+          return json({ username: me, text: "", updatedAt: null }, 200);
+        }
+        // 用户存在但没写简介也返回空，方便分享主页链接
+        const exists = await env.AUTH_KV.get(userKey(target));
+        if (exists) return json({ username: target, text: "", updatedAt: null }, 200);
+        return json({ ok: false, error: "用户不存在" }, 404);
+      }
+      const data = JSON.parse(raw);
+      return json({ username: target, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
+    }
+  }
+
   if (pathname === "/api/login" && method === "POST") {
     const body = await request.json().catch(() => ({}));
     const username = (body.username || "").trim();
@@ -117,6 +155,14 @@ function validateCredentials(username, password) {
 
 function userKey(username) {
   return `user:${username.toLowerCase()}`;
+}
+
+function bioKey(username) {
+  return `bio:${username.toLowerCase()}`;
+}
+
+function isValidUsername(username) {
+  return /^[A-Za-z0-9_\u4e00-\u9fa5]{2,20}$/.test(username || "");
 }
 
 /* ---------------- 会话 ---------------- */

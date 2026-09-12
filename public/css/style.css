@@ -778,6 +778,122 @@ button { font: inherit; cursor: pointer; }
   .feature-grid { grid-template-columns: 1fr 1fr; }
 }
 
+/* ============ /profile/ 个人主页 ============ */
+.pf-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 120px 24px 80px;
+}
+.pf-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 36px 34px;
+  box-shadow: var(--shadow);
+}
+.pf-guest {
+  text-align: center;
+  padding: 56px 34px;
+}
+.pf-title { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+.pf-sub { margin-top: 10px; color: var(--ink-2); font-size: 14.5px; }
+.pf-sub a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.pf-guest .btn { margin-top: 24px; }
+
+.pf-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 26px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
+.pf-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.pf-name { font-size: 24px; font-weight: 800; }
+.pf-role { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+
+.pf-label {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+}
+.pf-textarea {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 15px;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.7;
+  background: var(--bg);
+  resize: vertical;
+  outline: none;
+  transition: border-color .2s;
+}
+.pf-textarea:focus { border-color: var(--ink); }
+.pf-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+.pf-counter { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pf-counter b { color: var(--ink); font-weight: 700; }
+.pf-saved {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  text-align: right;
+}
+.pf-share {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.pf-share-label { color: var(--ink-3); }
+.pf-share-link {
+  font-size: 12.5px;
+  background: var(--bg-alt);
+  padding: 5px 10px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  word-break: break-all;
+}
+
+.pf-bio {
+  white-space: normal;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--ink);
+}
+.pf-empty { color: var(--ink-3); font-size: 14px; }
+.pf-back-btn { margin-top: 28px; }
+
+/* 导航里的“个人主页”入口 */
+.nav-profile-link {
+  font-size: 14px;
+  color: var(--ink-2);
+  transition: color .2s;
+}
+.nav-profile-link:hover { color: var(--ink); }
+
 /* ============ 响应式 ============ */
 @media (max-width: 720px) {
   .nav-links { display: none; }

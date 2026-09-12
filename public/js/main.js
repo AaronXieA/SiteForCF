@@ -31,6 +31,7 @@ async function renderNavAuth() {
   const user = await Auth.currentUser();
   if (user) {
     box.innerHTML = `
+      <a class="nav-profile-link" href="/profile/">个人主页</a>
       <span class="nav-user">你好，<strong></strong></span>
       <button class="btn btn-ghost btn-small" id="logoutBtn">退出</button>
     `;
@@ -38,6 +39,7 @@ async function renderNavAuth() {
     box.querySelector("#logoutBtn").addEventListener("click", async () => {
       await Auth.logout();
       renderNavAuth();
+      if (typeof loadProfile === "function") loadProfile();
       showToast("已退出登录");
     });
   } else {
@@ -95,6 +97,7 @@ loginForm?.addEventListener("submit", async e => {
   if (res.ok) {
     closeAuthModal();
     renderNavAuth();
+    if (typeof loadProfile === "function") loadProfile();
     showToast(`欢迎回来，${res.username}`);
   } else {
     setMsg(loginForm, res.error || "登录失败", "err");
@@ -113,6 +116,7 @@ registerForm?.addEventListener("submit", async e => {
   if (res.ok) {
     closeAuthModal();
     renderNavAuth();
+    if (typeof loadProfile === "function") loadProfile();
     showToast(`注册成功，欢迎 ${res.username}`);
   } else {
     setMsg(registerForm, res.error || "注册失败", "err");

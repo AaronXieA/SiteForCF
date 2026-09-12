@@ -137,7 +137,7 @@ if (footerCopy) {
     if (copyClickCount >= 10) {
       copyClickCount = 0;
       showToast("🥚 彩蛋解锁，正在传送…");
-      setTimeout(() => { window.location.href = "https://114514.xrst.uk"; }, 700);
+      setTimeout(() => { window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; }, 700);
     } else if (copyClickCount >= 7) {
       showToast(`再点 ${10 - copyClickCount} 次…`, 1000);
     }

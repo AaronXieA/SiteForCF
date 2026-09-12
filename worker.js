@@ -95,6 +95,33 @@ async function handleApi(request, env, pathname) {
     }
   }
 
+  const ADMIN_USER = "AaronXie";
+
+  if (pathname === "/api/announce") {
+    // GET：公开读取
+    if (method === "GET") {
+      const raw = await env.AUTH_KV.get("announce:main");
+      if (!raw) return json({ text: "", updatedAt: null }, 200);
+      const data = JSON.parse(raw);
+      return json({ text: data.text || "", updatedAt: data.updatedAt || null }, 200);
+    }
+    // PUT：仅 AaronXie 可编辑
+    if (method === "PUT") {
+      const me = await getSessionUser(request, env);
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
+        return json({ ok: false, error: "只有管理员才能编辑公告" }, 403);
+      }
+      const body = await request.json().catch(() => ({}));
+      const text = typeof body.text === "string" ? body.text : "";
+      if ([...text].length > 2000) return json({ ok: false, error: "公告不能超过 2000 字" }, 400);
+
+      const data = { text, updatedAt: Date.now() };
+      await env.AUTH_KV.put("announce:main", JSON.stringify(data));
+      return json({ ok: true, ...data }, 200);
+    }
+  }
+
   if (pathname === "/api/login" && method === "POST") {
     const body = await request.json().catch(() => ({}));
     const username = (body.username || "").trim();

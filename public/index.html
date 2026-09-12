@@ -41,6 +41,38 @@
     <div class="hero-hint">向下滚动 ↓</div>
   </section>
 
+  <!-- 公告栏 -->
+  <section class="announce-section" id="announce">
+    <div class="section-inner">
+      <div class="announce-board">
+        <div class="announce-head">
+          <span class="announce-icon">📢</span>
+          <h2 class="announce-title">公告栏</h2>
+          <span class="announce-time" id="announceTime"></span>
+          <button class="btn btn-ghost btn-small announce-edit-btn" id="announceEditBtn" type="button" hidden>编辑公告</button>
+        </div>
+        <div class="announce-body" id="announceBody">
+          <p class="announce-loading">加载中…</p>
+        </div>
+        <!-- 编辑面板（仅管理员可见） -->
+        <div class="announce-editor" id="announceEditor" hidden>
+          <textarea
+            id="announceInput"
+            class="pf-textarea announce-textarea"
+            maxlength="2000"
+            rows="6"
+            placeholder="写点公告吧，比如服务器活动、更新通知、游戏玩法 tips……（最多 2000 字）"
+          ></textarea>
+          <div class="announce-editor-bar">
+            <span class="pf-counter"><b id="announceCount">0</b> / 2000</span>
+            <button class="btn btn-solid btn-small" id="announceSaveBtn" type="button">保存公告</button>
+            <button class="btn btn-ghost btn-small" id="announceCancelBtn" type="button">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- 关于 -->
   <section class="section" id="about">
     <div class="section-inner">
@@ -179,5 +211,6 @@
   <script src="js/auth.js"></script>
   <script src="js/main.js"></script>
   <script src="js/mcstatus.js"></script>
+  <script src="js/announce.js"></script>
 </body>
 </html>

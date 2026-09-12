@@ -25,10 +25,10 @@ if (nav) {
 }
 
 /* ---------- 导航右上角登录区 ---------- */
-async function renderNavAuth() {
+async function renderNavAuth(knownUser) {
   const box = document.getElementById("navAuth");
   if (!box) return;
-  const user = await Auth.currentUser();
+  const user = knownUser !== undefined ? knownUser : await Auth.currentUser();
   if (user) {
     box.innerHTML = `
       <a class="nav-profile-link" href="/profile/">个人主页</a>
@@ -38,7 +38,7 @@ async function renderNavAuth() {
     box.querySelector("strong").textContent = user; // 防 XSS
     box.querySelector("#logoutBtn").addEventListener("click", async () => {
       await Auth.logout();
-      renderNavAuth();
+      renderNavAuth(null);
       if (typeof loadProfile === "function") loadProfile();
       showToast("已退出登录");
     });
@@ -96,7 +96,7 @@ loginForm?.addEventListener("submit", async e => {
   const res = await Auth.login(data.get("username"), data.get("password"));
   if (res.ok) {
     closeAuthModal();
-    renderNavAuth();
+    renderNavAuth(res.username);
     if (typeof loadProfile === "function") loadProfile();
     showToast(`欢迎回来，${res.username}`);
   } else {
@@ -115,7 +115,7 @@ registerForm?.addEventListener("submit", async e => {
   const res = await Auth.register(data.get("username"), data.get("password"));
   if (res.ok) {
     closeAuthModal();
-    renderNavAuth();
+    renderNavAuth(res.username);
     if (typeof loadProfile === "function") loadProfile();
     showToast(`注册成功，欢迎 ${res.username}`);
   } else {

@@ -1,8 +1,7 @@
 /* =====================================================
- * XRST.Uk · 账号系统（Cloudflare Pages Functions 后端）
+ * XRST.Uk · 账号系统（Cloudflare Worker + KV 后端）
  * 数据存储在服务端 KV，登录状态由 HttpOnly Cookie 维持，
  * 换设备/浏览器登录同一账号即可。
- * 本地无后端运行时，接口不可用会提示网络错误。
  * ===================================================== */
 
 const Auth = (() => {
@@ -12,6 +11,8 @@ const Auth = (() => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        credentials: "same-origin",
+        cache: "no-store",
       });
       return await res.json().catch(() => ({ ok: false, error: "服务器响应异常" }));
     } catch {
@@ -28,12 +29,17 @@ const Auth = (() => {
   }
 
   async function logout() {
-    try { await fetch("/api/logout", { method: "POST" }); } catch {}
+    try {
+      await fetch("/api/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
+    } catch {}
   }
 
   async function currentUser() {
     try {
-      const res = await fetch("/api/me");
+      const res = await fetch("/api/me", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       if (!res.ok) return null;
       const data = await res.json();
       return data.username || null;

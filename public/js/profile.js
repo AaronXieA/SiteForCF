@@ -61,7 +61,7 @@ async function loadProfile() {
   }
 
   const url = target ? `/api/profile?u=${encodeURIComponent(target)}` : "/api/profile";
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
 
   if (res.status === 404) {
     show("404");
@@ -123,6 +123,8 @@ bioSaveBtn?.addEventListener("click", async () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
+      credentials: "same-origin",
+      cache: "no-store",
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {

@@ -30,7 +30,7 @@ function fmtTime(ts) {
 
 async function loadAnnounce() {
   try {
-    const res = await fetch("/api/announce");
+    const res = await fetch("/api/announce", { credentials: "same-origin", cache: "no-store" });
     const data = await res.json();
     renderAnnounce(data.text, data.updatedAt);
 
@@ -86,6 +86,8 @@ announceSaveBtn?.addEventListener("click", async () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
+      credentials: "same-origin",
+      cache: "no-store",
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {

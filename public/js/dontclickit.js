@@ -77,3 +77,34 @@ btn.addEventListener("click", () => {
   showToast(`你已经按下了 ${count} 次`);
   checkMilestones(count);
 });
+
+/* ---------------- 重置（带确认弹窗） ---------------- */
+const resetBtn = document.getElementById("resetBtn");
+const resetConfirm = document.getElementById("resetConfirm");
+const resetCancel = document.getElementById("resetCancel");
+const resetOk = document.getElementById("resetOk");
+
+function openResetConfirm() {
+  resetConfirm.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeResetConfirm() {
+  resetConfirm.hidden = true;
+  document.body.style.overflow = "";
+}
+
+resetBtn.addEventListener("click", openResetConfirm);
+resetCancel.addEventListener("click", closeResetConfirm);
+resetConfirm.addEventListener("click", e => { if (e.target === resetConfirm) closeResetConfirm(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !resetConfirm.hidden) closeResetConfirm();
+});
+
+resetOk.addEventListener("click", () => {
+  count = 0;
+  localStorage.removeItem(COUNT_KEY);
+  ["114", "514", "1000"].forEach(n => localStorage.removeItem(SEEN_PREFIX + n));
+  hint.textContent = "真的，手拿开。";
+  closeResetConfirm();
+  showToast("计数已重置");
+});

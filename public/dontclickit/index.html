@@ -26,8 +26,23 @@
     <h1 class="dc-title">我警告过你的</h1>
     <button class="dc-button" id="dontClickBtn">不要点击这个按钮</button>
     <p class="dc-hint" id="dcHint">真的，手拿开。</p>
-    <a class="dc-back" href="/">← 回到主页</a>
+    <div class="dc-foot">
+      <a class="dc-back" href="/">← 回到主页</a>
+      <button class="dc-reset" id="resetBtn" type="button">重置计数</button>
+    </div>
   </main>
+
+  <!-- 重置确认弹窗 -->
+  <div class="confirm-mask" id="resetConfirm" hidden>
+    <div class="confirm-modal" role="dialog" aria-modal="true">
+      <h2 class="confirm-title">确定要重置吗？</h2>
+      <p class="confirm-text">按下次数和所有彩蛋记录都会清零，无法恢复。</p>
+      <div class="confirm-btns">
+        <button class="cf-btn" id="resetCancel" type="button">取消</button>
+        <button class="cf-btn cf-btn-danger" id="resetOk" type="button">确定重置</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 114 次：红色质问弹窗（三个按钮都是“知道”，点哪个都能关） -->
   <div class="milestone-mask" id="milestone114" hidden>

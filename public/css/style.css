@@ -487,11 +487,80 @@ button { font: inherit; cursor: pointer; }
 .dc-button:active { transform: scale(.95); }
 .dc-hint { margin-top: 18px; color: var(--ink-3); font-size: 14px; }
 .dc-back {
-  margin-top: 48px;
   font-size: 13px;
   color: var(--ink-3);
 }
 .dc-back:hover { color: var(--ink); }
+.dc-foot {
+  margin-top: 48px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.dc-reset {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.dc-reset:hover { color: var(--danger); }
+
+/* ============ 重置确认弹窗 ============ */
+.confirm-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 16, 18, .45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.confirm-mask[hidden] { display: none; }
+.confirm-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 26px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .25);
+  animation: modalIn .22s ease;
+}
+.confirm-title { font-size: 18px; font-weight: 700; }
+.confirm-text {
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.confirm-btns {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+.cf-btn {
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  transition: background .2s, color .2s, border-color .2s;
+}
+.cf-btn:hover { border-color: var(--ink); }
+.cf-btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.cf-btn-danger:hover { background: var(--danger); color: #fff; }
 
 /* ============ 里程碑彩蛋弹窗 ============ */
 .milestone-mask {

@@ -1,0 +1,15 @@
+{
+  "name": "xrstuk",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-12",
+  "assets": {
+    "directory": "public",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "AUTH_KV",
+      "id": "115ddb34bc304a28bf2f7db2248ba3f0"
+    }
+  ]
+}

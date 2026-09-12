@@ -393,6 +393,7 @@ button { font: inherit; cursor: pointer; }
 .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
 
 .modal-form { display: flex; flex-direction: column; gap: 14px; }
+.modal-form[hidden] { display: none; }
 .modal-form label {
   font-size: 13px;
   color: var(--ink-2);

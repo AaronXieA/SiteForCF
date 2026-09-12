@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ABC Survival · 我的世界服务器 · XRST.Uk</title>
+  <meta name="description" content="ABC Survival 我的世界服务器：Java 版 1.21.6 - 26.2，Fabric 纯净生存公益服。查看服务器地址、QQ 群与实时在线人数。" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body data-mc-autoload>
+
+  <header class="nav" id="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about">关于</a>
+        <a href="/#works">作品</a>
+        <a href="/server/">服务器</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="srv-hero">
+    <div class="srv-hero-inner">
+      <p class="srv-eyebrow">Minecraft Java Server</p>
+      <h1 class="srv-title">ABC <span class="accent">Survival</span></h1>
+      <p class="srv-sub">纯净生存 · 死亡不掉落 · 公益服，欢迎大家来玩！</p>
+      <div class="srv-pills">
+        <span class="pill">支持 1.21.6 – 26.2</span>
+        <span class="pill">Fabric</span>
+        <span class="pill pill-live" id="srvLivePill"><i class="dot"></i>状态加载中</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 地址 + Q群 -->
+  <section class="section">
+    <div class="section-inner">
+      <h2 class="section-title">开始游玩</h2>
+      <div class="join-grid">
+
+        <div class="join-card">
+          <div class="join-label">服务器地址</div>
+          <div class="join-value" id="srvIp">mc.xrst.uk</div>
+          <p class="join-note">Java 版直接添加服务器，端口自动解析</p>
+          <button class="btn btn-solid join-copy" type="button" data-copy="mc.xrst.uk">
+            复制服务器地址
+          </button>
+        </div>
+
+        <div class="join-card">
+          <div class="join-label">官方 QQ 群</div>
+          <div class="join-value">545397370</div>
+          <p class="join-note">进群聊天、获取公告、一起联机</p>
+          <button class="btn btn-outline join-copy" type="button" data-copy="545397370">
+            复制 QQ 群号
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- 实时状态 -->
+  <section class="section section-alt">
+    <div class="section-inner srv-status-wrap">
+      <h2 class="section-title">实时状态</h2>
+
+      <div class="mc-status mc-status-lg" id="mcStatus">
+        <div class="mc-status-head">
+          <span class="pill" id="mcStatusPill">加载中…</span>
+          <span class="mc-version" id="mcStatusVersion"></span>
+        </div>
+        <div class="mc-status-players" id="mcStatusPlayers">— / —</div>
+        <div class="mc-status-motd" id="mcStatusMotd">正在连接服务器…</div>
+      </div>
+
+      <button class="btn btn-ghost srv-refresh" id="mcStatusBtn" type="button">
+        <span id="mcStatusBtnText">刷新状态</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 特性 -->
+  <section class="section">
+    <div class="section-inner">
+      <h2 class="section-title">这里有什么</h2>
+      <div class="feature-grid">
+        <div class="feature">
+          <div class="feature-icon">⛏</div>
+          <h3>纯净生存</h3>
+          <p>简单直接的原版生存玩法，不加花里胡哨的东西。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">❤</div>
+          <h3>死亡不掉落</h3>
+          <p>安心下矿放心探险，再也不怕装备一夜回到解放前。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">👥</div>
+          <h3>多人联机</h3>
+          <p>和好友一起建房、红石、整活，人多更热闹。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">💬</div>
+          <h3>活跃社区</h3>
+          <p>QQ 群里随时交流，公告与活动第一时间知道。</p>
+        </div>
+      </div>
+
+      <p class="srv-oldsite">
+        也可以访问旧版主站：
+        <a href="https://xrtech.dpdns.org" target="_blank" rel="noopener">xrtech.dpdns.org ↗</a>
+      </p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2026 XRST.Uk</span>
+      <span class="footer-links">
+        <a href="/">返回主页</a>
+      </span>
+    </div>
+  </footer>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login">登录</button>
+        <button class="tab" data-tab="register">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="你的用户名" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <label>确认密码
+          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
+        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/mcstatus.js"></script>
+  <script src="../js/server.js"></script>
+</body>
+</html>

@@ -31,8 +31,8 @@ async function renderNavAuth(knownUser) {
   const user = knownUser !== undefined ? knownUser : await Auth.currentUser();
   if (user) {
     box.innerHTML = `
-      <a class="nav-profile-link" href="/profile/">个人主页</a>
-      <span class="nav-user">你好，<strong></strong></span>
+      <a class="nav-search-link" href="/search/">搜索用户</a>
+      <a class="nav-user" href="/profile/" title="进入我的个人主页">你好，<strong></strong></a>
       <button class="btn btn-ghost btn-small" id="logoutBtn">退出</button>
     `;
     box.querySelector("strong").textContent = user; // 防 XSS
@@ -45,7 +45,10 @@ async function renderNavAuth(knownUser) {
     // 通知公告栏：管理员已登录
     window.dispatchEvent(new CustomEvent("auth-user", { detail: user }));
   } else {
-    box.innerHTML = `<button class="btn btn-solid btn-small" id="openAuthBtn">登录</button>`;
+    box.innerHTML = `
+      <a class="nav-search-link" href="/search/">搜索用户</a>
+      <button class="btn btn-solid btn-small" id="openAuthBtn">登录</button>
+    `;
     box.querySelector("#openAuthBtn").addEventListener("click", openAuthModal);
     window.dispatchEvent(new CustomEvent("auth-user", { detail: null }));
   }

@@ -1,6 +1,6 @@
 /* =====================================================
  * /profile/ 个人主页
- * - 登录后进入自己的主页：编辑/保存云端简介（≤1000 字）
+ * - 登录后进入自己的主页：头像 / XRSTUID / 简介 / 改名 / 改密码 / 允许被搜索
  * - /profile/?u=用户名 可查看任何人的公开主页
  * ===================================================== */
 
@@ -21,6 +21,21 @@ const bioSaveBtn = document.getElementById("bioSaveBtn");
 const shareLink = document.getElementById("shareLink");
 const otherBio = document.getElementById("otherBio");
 const otherEmpty = document.getElementById("otherEmpty");
+
+/* 设置区元素 */
+const ownAvatar = document.getElementById("ownAvatar");
+const avatarUploadBtn = document.getElementById("avatarUploadBtn");
+const avatarRemoveBtn = document.getElementById("avatarRemoveBtn");
+const avatarFile = document.getElementById("avatarFile");
+const pfUid = document.getElementById("pfUid");
+const copyUidBtn = document.getElementById("copyUidBtn");
+const searchableToggle = document.getElementById("searchableToggle");
+const renameInput = document.getElementById("renameInput");
+const renameBtn = document.getElementById("renameBtn");
+const oldPw = document.getElementById("oldPw");
+const newPw = document.getElementById("newPw");
+const newPw2 = document.getElementById("newPw2");
+const pwSaveBtn = document.getElementById("pwSaveBtn");
 
 const AVATAR_COLORS = ["#2f6bff", "#d64545", "#1a7f37", "#8a4fff", "#e07b00", "#00939c"];
 
@@ -49,6 +64,28 @@ function show(view) {
   profileView.hidden = view !== "profile";
 }
 
+/* 头像显示：优先云端图片，失败回退为彩色字母 */
+function applyAvatar(container, username) {
+  const img = document.createElement("img");
+  img.alt = "";
+  img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:inherit;";
+  img.onload = () => {
+    container.textContent = "";
+    container.appendChild(img);
+  };
+  img.onerror = () => {
+    container.textContent = [...username][0].toUpperCase();
+    container.style.background = avatarColor(username);
+  };
+  img.src = `/api/avatar?u=${encodeURIComponent(username)}&t=${Date.now()}`;
+}
+
+function updateShareLink(username) {
+  shareLink.textContent = `${location.origin}/profile/?u=${encodeURIComponent(username)}`;
+}
+
+let currentUsername = "";
+
 async function loadProfile() {
   const me = await Auth.currentUser();
   const params = new URLSearchParams(location.search);
@@ -63,10 +100,6 @@ async function loadProfile() {
   const url = target ? `/api/profile?u=${encodeURIComponent(target)}` : "/api/profile";
   const res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
 
-  if (res.status === 404) {
-    show("404");
-    return;
-  }
   if (!res.ok) {
     show("404");
     return;
@@ -76,20 +109,32 @@ async function loadProfile() {
   if (!data.username) { show("guest"); return; }
 
   const isOwn = !!me && me.toLowerCase() === data.username.toLowerCase();
+  currentUsername = data.username;
 
-  avatarEl.textContent = [...data.username][0].toUpperCase();
-  avatarEl.style.background = avatarColor(data.username);
+  applyAvatar(avatarEl, data.username);
   nameEl.textContent = data.username;
-  roleEl.textContent = isOwn ? "我的个人主页" : `${data.username} 的主页`;
+  roleEl.textContent = (isOwn ? "我的个人主页" : `${data.username} 的主页`) + (data.uid ? ` · XRSTUID：${data.uid}` : "");
   show("profile");
 
   if (isOwn) {
     ownPanel.hidden = false;
     otherPanel.hidden = true;
+
+    /* 头像设置区 */
+    applyAvatar(ownAvatar, data.username);
+    hasAvatar(data.username).then(yes => { avatarRemoveBtn.hidden = !yes; });
+
+    /* XRSTUID */
+    pfUid.textContent = data.uid || "生成中…";
+
+    /* 允许被搜索 */
+    searchableToggle.checked = data.searchable !== false;
+
+    /* 简介 */
     bioInput.value = data.text || "";
     bioCount.textContent = [...bioInput.value].length;
     bioSaved.textContent = data.updatedAt ? `上次保存于 ${fmtTime(data.updatedAt)}` : "还没有保存过";
-    shareLink.textContent = `${location.origin}/profile/?u=${encodeURIComponent(data.username)}`;
+    updateShareLink(data.username);
   } else {
     ownPanel.hidden = true;
     otherPanel.hidden = false;
@@ -104,7 +149,229 @@ async function loadProfile() {
   }
 }
 
-/* ---------------- 编辑 ---------------- */
+async function hasAvatar(username) {
+  try {
+    const res = await fetch(`/api/avatar?u=${encodeURIComponent(username)}&t=${Date.now()}`, { method: "HEAD" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/* ---------------- 头像上传 ---------------- */
+
+avatarUploadBtn?.addEventListener("click", () => avatarFile.click());
+
+avatarFile?.addEventListener("change", async () => {
+  const file = avatarFile.files && avatarFile.files[0];
+  avatarFile.value = "";
+  if (!file) return;
+  if (!/^image\/(png|jpe?g|webp|gif)$/.test(file.type)) {
+    showToast("只支持 jpg / png / webp / gif");
+    return;
+  }
+  try {
+    const dataUrl = await compressImage(file, 256);
+    if (dataUrl.length > 100_000) {
+      showToast("图片压缩后仍然太大，换一张试试");
+      return;
+    }
+    const res = await fetch("/api/avatar?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatar: dataUrl }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      applyAvatar(ownAvatar, currentUsername);
+      applyAvatar(avatarEl, currentUsername);
+      avatarRemoveBtn.hidden = false;
+      showToast("头像已更新");
+    } else {
+      showToast(data.error || "头像上传失败");
+    }
+  } catch {
+    showToast("图片处理失败");
+  }
+});
+
+avatarRemoveBtn?.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/avatar?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatar: null }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      applyAvatar(ownAvatar, currentUsername);
+      applyAvatar(avatarEl, currentUsername);
+      avatarRemoveBtn.hidden = true;
+      showToast("头像已移除");
+    } else {
+      showToast(data.error || "移除失败");
+    }
+  } catch {
+    showToast("网络异常");
+  }
+});
+
+/* 压缩图片到 size×size 的 JPEG dataURL */
+function compressImage(file, size) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read fail"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode fail"));
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        // 居中裁剪成方形
+        const side = Math.min(img.width, img.height);
+        ctx.drawImage(
+          img,
+          (img.width - side) / 2, (img.height - side) / 2, side, side,
+          0, 0, size, size
+        );
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------------- XRSTUID 复制 ---------------- */
+
+copyUidBtn?.addEventListener("click", async () => {
+  const uid = pfUid.textContent;
+  try {
+    await navigator.clipboard.writeText(uid);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = uid;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch {}
+    ta.remove();
+  }
+  showToast("XRSTUID 已复制");
+});
+
+/* ---------------- 允许被搜索开关 ---------------- */
+
+searchableToggle?.addEventListener("change", async () => {
+  const enabled = searchableToggle.checked;
+  try {
+    const res = await fetch("/api/searchable?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      showToast(enabled ? "已开启：别人可以搜到你了" : "已关闭：你不会再出现在搜索结果里");
+    } else {
+      searchableToggle.checked = !enabled;
+      showToast(data.error || "设置失败");
+    }
+  } catch {
+    searchableToggle.checked = !enabled;
+    showToast("网络异常，设置失败");
+  }
+});
+
+/* ---------------- 修改用户名 ---------------- */
+
+renameBtn?.addEventListener("click", async () => {
+  const newName = renameInput.value.trim();
+  if (!newName) {
+    showToast("先输入新用户名");
+    return;
+  }
+  if (newName === currentUsername) {
+    showToast("新用户名和当前一样");
+    return;
+  }
+  renameBtn.disabled = true;
+  renameBtn.textContent = "修改中…";
+  try {
+    const res = await fetch("/api/rename?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newUsername: newName }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      showToast(`用户名已改为「${data.username}」`);
+      renameInput.value = "";
+      currentUsername = data.username;
+      // 刷新导航与本页显示
+      if (typeof renderNavAuth === "function") renderNavAuth(data.username);
+      nameEl.textContent = data.username;
+      updateShareLink(data.username);
+      history.replaceState(null, "", `/profile/?u=${encodeURIComponent(data.username)}`);
+    } else {
+      showToast(data.error || "修改失败");
+    }
+  } catch {
+    showToast("网络异常，修改失败");
+  } finally {
+    renameBtn.disabled = false;
+    renameBtn.textContent = "修改用户名";
+  }
+});
+
+/* ---------------- 修改密码 ---------------- */
+
+pwSaveBtn?.addEventListener("click", async () => {
+  const oldP = oldPw.value;
+  const newP = newPw.value;
+  if (newP.length < 6) {
+    showToast("新密码至少 6 位");
+    return;
+  }
+  if (newP !== newPw2.value) {
+    showToast("两次输入的新密码不一致");
+    return;
+  }
+  pwSaveBtn.disabled = true;
+  pwSaveBtn.textContent = "提交中…";
+  try {
+    const res = await fetch("/api/password?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oldPassword: oldP, newPassword: newP }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      oldPw.value = newPw.value = newPw2.value = "";
+      showToast("密码已更新");
+    } else {
+      showToast(data.error || "修改失败");
+    }
+  } catch {
+    showToast("网络异常，修改失败");
+  } finally {
+    pwSaveBtn.disabled = false;
+    pwSaveBtn.textContent = "确认修改密码";
+  }
+});
+
+/* ---------------- 简介 ---------------- */
 bioInput?.addEventListener("input", () => {
   bioCount.textContent = [...bioInput.value].length;
   bioSaved.textContent = "";

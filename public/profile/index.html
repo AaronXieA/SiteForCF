@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>个人主页 · XRST.Uk</title>
   <meta name="description" content="XRST.Uk 用户个人主页与简介。" />
-  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/style.css?v=6" />
 </head>
 <body>
 
@@ -49,6 +49,51 @@
 
         <!-- 自己的主页：可编辑 -->
         <div id="ownPanel" hidden>
+          <!-- 头像设置 -->
+          <div class="pf-setting-row pf-avatar-row">
+            <span class="pf-avatar pf-avatar-big" id="ownAvatar">?</span>
+            <div class="pf-avatar-actions">
+              <div class="pf-inline-form">
+                <button class="btn btn-ghost btn-small" id="avatarUploadBtn" type="button">上传头像</button>
+                <button class="btn btn-ghost btn-small" id="avatarRemoveBtn" type="button" hidden>移除头像</button>
+              </div>
+              <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+              <p class="pf-hint">支持 jpg / png / webp / gif，会自动压缩到 256×256。</p>
+            </div>
+          </div>
+
+          <!-- XRSTUID -->
+          <div class="pf-setting-row">
+            <div class="pf-setting-info">
+              <span class="pf-setting-title">XRSTUID</span>
+              <span class="pf-setting-desc">你的专属 12 位数字 ID，注册时随机生成，不可修改。</span>
+            </div>
+            <code class="pf-uid" id="pfUid">—</code>
+            <button class="text-btn" id="copyUidBtn" type="button">复制</button>
+          </div>
+
+          <!-- 允许被搜索 -->
+          <div class="pf-setting-row">
+            <div class="pf-setting-info">
+              <span class="pf-setting-title">允许被搜索</span>
+              <span class="pf-setting-desc">关闭后，其他用户将无法在「搜索用户」中找到你。</span>
+            </div>
+            <label class="pf-switch">
+              <input type="checkbox" id="searchableToggle" />
+              <span class="pf-slider"></span>
+            </label>
+          </div>
+
+          <!-- 用户名 -->
+          <div class="pf-setting-col">
+            <span class="pf-setting-title">用户名</span>
+            <div class="pf-inline-form">
+              <input type="text" id="renameInput" class="pf-input" maxlength="20" placeholder="输入新用户名（2-20 位字母、数字、下划线或中文）" />
+              <button class="btn btn-ghost btn-small" id="renameBtn" type="button">修改用户名</button>
+            </div>
+            <p class="pf-hint">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</p>
+          </div>
+
           <label class="pf-label" for="bioInput">个人简介（云端保存，最多 1000 字）</label>
           <textarea
             id="bioInput"
@@ -63,6 +108,17 @@
             <button class="btn btn-solid" id="bioSaveBtn" type="button">保存简介</button>
           </div>
 
+          <!-- 修改密码 -->
+          <div class="pf-setting-col">
+            <span class="pf-setting-title">修改密码</span>
+            <input type="password" id="oldPw" class="pf-input" placeholder="当前密码" autocomplete="current-password" />
+            <input type="password" id="newPw" class="pf-input" placeholder="新密码（至少 6 位）" autocomplete="new-password" />
+            <input type="password" id="newPw2" class="pf-input" placeholder="再输一遍新密码" autocomplete="new-password" />
+            <div class="pf-inline-form">
+              <button class="btn btn-solid btn-small" id="pwSaveBtn" type="button">确认修改密码</button>
+            </div>
+          </div>
+
           <div class="pf-share">
             <span class="pf-share-label">你的公开主页链接：</span>
             <code class="pf-share-link" id="shareLink">—</code>
@@ -74,7 +130,7 @@
         <div id="otherPanel" hidden>
           <div class="pf-bio" id="otherBio"></div>
           <p class="pf-empty" id="otherEmpty" hidden>这个人还没有写简介。</p>
-          <a class="btn btn-ghost pf-back-btn" href="/profile/">← 回到我的主页</a>
+          <a class="btn btn-ghost pf-back-btn" href="/search/">← 去搜索其他用户</a>
         </div>
       </div>
     </section>
@@ -120,8 +176,8 @@
 
   <div class="toast-box" id="toastBox"></div>
 
-  <script src="../js/auth.js"></script>
-  <script src="../js/main.js"></script>
-  <script src="../js/profile.js"></script>
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/main.js?v=6"></script>
+  <script src="../js/profile.js?v=3"></script>
 </body>
 </html>

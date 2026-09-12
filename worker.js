@@ -58,7 +58,13 @@ async function handleApi(request, env, pathname) {
 
   if (pathname === "/api/me" && method === "GET") {
     const username = await getSessionUser(request, env);
-    return json({ username: username || null }, username ? 200 : 401);
+    if (!username) return json({ username: null }, 401);
+    const key = userKey(username);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ username: null }, 401);
+    // 懒补 uid / searchable（兼容老用户）
+    const user = await ensureUserFields(env, key, JSON.parse(raw));
+    return json({ username: user.name, uid: user.uid }, 200);
   }
 
   if (pathname === "/api/logout" && method === "POST") {
@@ -79,10 +85,12 @@ async function handleApi(request, env, pathname) {
 
     const salt = randomHex(16);
     const hash = await hashPassword(password, salt);
-    await env.AUTH_KV.put(key, JSON.stringify({ name: username, salt, hash, createdAt: Date.now() }));
+    const uid = await genUid(env);
+    await env.AUTH_KV.put(key, JSON.stringify({ name: username, salt, hash, createdAt: Date.now(), uid, searchable: true }));
+    await env.AUTH_KV.put(`uid:${uid}`, key); // UID → 用户 key 反查索引
 
     const cookie = await createSession(env, username);
-    return json({ ok: true, username }, 200, authHeaders(cookie));
+    return json({ ok: true, username, uid }, 200, authHeaders(cookie));
   }
 
   if (pathname === "/api/profile") {
@@ -107,19 +115,18 @@ async function handleApi(request, env, pathname) {
       if (!target) return json({ username: null, text: "", updatedAt: null }, 200);
       if (!isValidUsername(target)) return json({ ok: false, error: "用户名无效" }, 400);
 
+      // 用户基本信息（拿 UID）
+      const uRaw = await env.AUTH_KV.get(userKey(target));
+      if (!uRaw) return json({ ok: false, error: "用户不存在" }, 404);
+      const u = await ensureUserFields(env, userKey(target), JSON.parse(uRaw));
+
       const raw = await env.AUTH_KV.get(bioKey(target));
       if (!raw) {
-        // 本人访问：允许空白简介进入编辑；他人访问：404
-        if (me && me.toLowerCase() === target.toLowerCase()) {
-          return json({ username: me, text: "", updatedAt: null }, 200);
-        }
         // 用户存在但没写简介也返回空，方便分享主页链接
-        const exists = await env.AUTH_KV.get(userKey(target));
-        if (exists) return json({ username: target, text: "", updatedAt: null }, 200);
-        return json({ ok: false, error: "用户不存在" }, 404);
+        return json({ username: u.name, uid: u.uid, searchable: u.searchable, text: "", updatedAt: null }, 200);
       }
       const data = JSON.parse(raw);
-      return json({ username: target, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
+      return json({ username: u.name, uid: u.uid, searchable: u.searchable, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
     }
   }
 
@@ -170,6 +177,158 @@ async function handleApi(request, env, pathname) {
       await env.AUTH_KV.put("board:main", JSON.stringify(data));
       return json({ ok: true, ...data }, 200);
     }
+  }
+
+  if (pathname === "/api/search" && method === "GET") {
+    const q = (new URL(request.url).searchParams.get("q") || "").trim();
+    if (!q) return json({ results: [] }, 200);
+    const results = [];
+    const seen = new Set();
+    // UID 精确搜索（12 位数字）
+    const digits = q.replace(/\D/g, "");
+    if (digits.length === 12) {
+      const lower = await env.AUTH_KV.get(`uid:${digits}`);
+      if (lower) {
+        const uRaw = await env.AUTH_KV.get(lower);
+        if (uRaw) {
+          const u = JSON.parse(uRaw);
+          if (u.searchable) {
+            results.push({ username: u.name, uid: u.uid || digits });
+            seen.add(lower);
+          }
+        }
+      }
+    }
+    // 用户名模糊搜索
+    if (results.length < 50) {
+      const ql = q.toLowerCase();
+      const list = await env.AUTH_KV.list({ prefix: "user:", limit: 1000 });
+      for (const k of list.keys) {
+        if (results.length >= 50) break;
+        if (seen.has(k.name)) continue;
+        const uRaw = await env.AUTH_KV.get(k.name);
+        if (!uRaw) continue;
+        let u;
+        try { u = JSON.parse(uRaw); } catch { continue; }
+        if (!u.searchable) continue;
+        if ((u.name || "").toLowerCase().includes(ql)) {
+          results.push({ username: u.name, uid: u.uid || null });
+        }
+      }
+    }
+    return json({ results }, 200);
+  }
+
+  if (pathname === "/api/avatar") {
+    // GET/HEAD ?u=xxx：读取用户头像（无则 404，前端回退为字母头像）
+    if (method === "GET" || method === "HEAD") {
+      const target = (new URL(request.url).searchParams.get("u") || "").trim().toLowerCase();
+      if (!target) return json({ ok: false, error: "缺少用户" }, 400);
+      const raw = await env.AUTH_KV.get(`avatar:${target}`);
+      if (!raw) return json({ ok: false, error: "无头像" }, 404);
+      const m = raw.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+      if (!m) return json({ ok: false, error: "头像数据无效" }, 404);
+      const bin = atob(m[2]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Response(bytes, {
+        headers: { "Content-Type": m[1], "Cache-Control": "no-store" },
+      });
+    }
+    // POST：上传/移除自己的头像（dataURL，≤100KB）
+    if (method === "POST") {
+      const me = await getSessionUser(request, env);
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      const body = await request.json().catch(() => ({}));
+      const dataUrl = typeof body.avatar === "string" ? body.avatar.trim() : "";
+      const akey = `avatar:${me.toLowerCase()}`;
+      if (!dataUrl) {
+        await env.AUTH_KV.delete(akey);
+        return json({ ok: true, removed: true }, 200);
+      }
+      if (dataUrl.length > 100_000) return json({ ok: false, error: "头像图片太大，请换一张小图" }, 400);
+      if (!/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) {
+        return json({ ok: false, error: "图片格式不支持" }, 400);
+      }
+      await env.AUTH_KV.put(akey, dataUrl);
+      return json({ ok: true }, 200);
+    }
+  }
+
+  if (pathname === "/api/password" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const oldP = body.oldPassword || "";
+    const newP = body.newPassword || "";
+    if (newP.length < 6) return json({ ok: false, error: "新密码至少 6 位" }, 400);
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    const oldHash = await hashPassword(oldP, user.salt);
+    if (oldHash !== user.hash) return json({ ok: false, error: "旧密码不正确" }, 401);
+    const salt = randomHex(16);
+    user.salt = salt;
+    user.hash = await hashPassword(newP, salt);
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    return json({ ok: true }, 200);
+  }
+
+  if (pathname === "/api/searchable" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    user.searchable = !!body.enabled;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    return json({ ok: true, searchable: user.searchable }, 200);
+  }
+
+  if (pathname === "/api/rename" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const newName = (body.newUsername || "").trim();
+    if (!isValidUsername(newName)) {
+      return json({ ok: false, error: "用户名需为 2-20 位字母、数字、下划线或中文" }, 400);
+    }
+    const oldLower = me.toLowerCase();
+    const newLower = newName.toLowerCase();
+    if (newLower === oldLower) return json({ ok: false, error: "新用户名和当前一样" }, 400);
+    const oldKey = userKey(me);
+    const newKey = userKey(newName);
+    if (await env.AUTH_KV.get(newKey)) return json({ ok: false, error: "该用户名已被注册" }, 409);
+
+    const raw = await env.AUTH_KV.get(oldKey);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    user.name = newName;
+    await env.AUTH_KV.put(newKey, JSON.stringify(user));
+    await env.AUTH_KV.delete(oldKey);
+    if (user.uid) await env.AUTH_KV.put(`uid:${user.uid}`, newKey);
+
+    // 迁移简介 / 书签 / 头像
+    for (const [src, dst] of [
+      [`bio:${oldLower}`, `bio:${newLower}`],
+      [`bookmarks:${oldLower}`, `bookmarks:${newLower}`],
+      [`avatar:${oldLower}`, `avatar:${newLower}`],
+    ]) {
+      const v = await env.AUTH_KV.get(src);
+      if (v !== null) {
+        await env.AUTH_KV.put(dst, v);
+        await env.AUTH_KV.delete(src);
+      }
+    }
+
+    // 更新当前设备的会话（其他设备的旧会话会自然失效，需重新登录）
+    const token = readCookie(request, SESSION_COOKIE);
+    if (token) await env.AUTH_KV.put(`session:${token}`, newName, { expirationTtl: SESSION_TTL });
+
+    return json({ ok: true, username: newName }, 200);
   }
 
   if (pathname === "/api/bookmarks") {
@@ -288,6 +447,32 @@ function bioKey(username) {
 
 function bookmarksKey(username) {
   return `bookmarks:${username.toLowerCase()}`;
+}
+
+/* 生成 12 位纯随机数字 UID（查重直到不冲突） */
+async function genUid(env) {
+  for (let i = 0; i < 30; i++) {
+    let uid = "";
+    for (let j = 0; j < 12; j++) uid += Math.floor(Math.random() * 10);
+    if (!(await env.AUTH_KV.get(`uid:${uid}`))) return uid;
+  }
+  throw new Error("无法生成唯一 UID");
+}
+
+/* 老用户懒补 uid / searchable 字段 */
+async function ensureUserFields(env, key, user) {
+  let changed = false;
+  if (!user.uid) {
+    user.uid = await genUid(env);
+    await env.AUTH_KV.put(`uid:${user.uid}`, key);
+    changed = true;
+  }
+  if (typeof user.searchable !== "boolean") {
+    user.searchable = true;
+    changed = true;
+  }
+  if (changed) await env.AUTH_KV.put(key, JSON.stringify(user));
+  return user;
 }
 
 async function readBookmarks(env, key) {

@@ -5,7 +5,7 @@
  * /server/ 页：进入自动查询（body[data-mc-autoload]）
  * ===================================================== */
 
-const MC_SERVER_ADDR = "mc.xrst.uk"; // 服务器连接地址
+const MC_SERVER_ADDR = "mc.xrtech.dpdns.org"; // 服务器连接地址
 
 const statusBtn = document.getElementById("mcStatusBtn");
 const statusBtnText = document.getElementById("mcStatusBtnText");

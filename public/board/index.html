@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文字画板 · XRST.Uk</title>
+  <meta name="description" content="一块所有人共用的文字画板：注册后就能写下你的想法，上限 3500 字。" />
+  <link rel="stylesheet" href="../css/style.css?v=5" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about">关于</a>
+        <a href="/#works">作品</a>
+        <a href="/#contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="wb-main">
+    <p class="wb-eyebrow">我的作品 · 共享实验</p>
+    <h1 class="wb-title">文字画板</h1>
+    <p class="wb-sub">一块所有人共用的画布——注册后就能写下你的想法。</p>
+
+    <section class="announce-section" style="padding-top:0;">
+      <div class="announce-board">
+        <div class="announce-head">
+          <span class="announce-icon">🎨</span>
+          <h2 class="announce-title">画板内容</h2>
+          <span class="announce-time" id="boardTime"></span>
+          <button class="btn btn-ghost btn-small announce-edit-btn" id="boardEditBtn" type="button" hidden>编辑画板</button>
+        </div>
+        <div class="announce-body" id="boardBody">
+          <p class="announce-loading">加载中…</p>
+        </div>
+
+        <!-- 编辑面板（登录用户可见） -->
+        <div class="announce-editor" id="boardEditor" hidden>
+          <textarea
+            id="boardInput"
+            class="pf-textarea"
+            maxlength="3500"
+            rows="10"
+            placeholder="在这里写点什么吧——涂鸦、留言、接龙、标语……（所有人可见，最多 3500 字）"
+          ></textarea>
+          <div class="announce-editor-bar">
+            <span class="pf-counter"><b id="boardCount">0</b> / 3500</span>
+            <button class="btn btn-solid btn-small" id="boardSaveBtn" type="button">保存画板</button>
+            <button class="btn btn-ghost btn-small" id="boardCancelBtn" type="button">取消</button>
+          </div>
+        </div>
+      </div>
+      <p class="wb-note" style="margin-top:14px;">任何人编辑后都会覆盖整块画板 —— 请手下留情，别把别人的创作擦掉了 awa</p>
+    </section>
+
+    <div class="dc-foot wb-backfoot">
+      <a class="dc-back" href="/#works">← 回到我的作品</a>
+    </div>
+  </main>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login">登录</button>
+        <button class="tab" data-tab="register">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="你的用户名" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <label>确认密码
+          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
+        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/main.js?v=5"></script>
+  <script src="../js/board.js?v=1"></script>
+</body>
+</html>

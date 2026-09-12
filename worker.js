@@ -150,6 +150,28 @@ async function handleApi(request, env, pathname) {
     }
   }
 
+  if (pathname === "/api/board") {
+    // GET：公开读取文字画板
+    if (method === "GET") {
+      const raw = await env.AUTH_KV.get("board:main");
+      if (!raw) return json({ text: "", editor: null, updatedAt: null }, 200);
+      const data = JSON.parse(raw);
+      return json({ text: data.text || "", editor: data.editor || null, updatedAt: data.updatedAt || null }, 200);
+    }
+    // POST/PUT：任何登录用户都可编辑（≤3500 字，后写入者覆盖）
+    if (method === "POST" || method === "PUT") {
+      const me = await getSessionUser(request, env);
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      const body = await request.json().catch(() => ({}));
+      const text = typeof body.text === "string" ? body.text : "";
+      if ([...text].length > 3500) return json({ ok: false, error: "画板内容不能超过 3500 字" }, 400);
+
+      const data = { text, editor: me, updatedAt: Date.now() };
+      await env.AUTH_KV.put("board:main", JSON.stringify(data));
+      return json({ ok: true, ...data }, 200);
+    }
+  }
+
   if (pathname === "/api/bookmarks") {
     // 全部需要登录
     const me = await getSessionUser(request, env);

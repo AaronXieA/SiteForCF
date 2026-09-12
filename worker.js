@@ -19,7 +19,21 @@ export default {
       }
     }
     // 其余路径交给静态资源（/、/dontclickit/、css/js 等）
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    // 给 JS/CSS 加 no-cache 头，防止浏览器缓存旧版本
+    const url = new URL(request.url);
+    if (url.pathname.match(/\.(js|css)$/)) {
+      const newHeaders = new Headers(assetResponse.headers);
+      newHeaders.delete("Cache-Control");
+      newHeaders.set("Cache-Control", "no-store");
+      const body = await assetResponse.text();
+      return new Response(body, {
+        status: assetResponse.status,
+        statusText: assetResponse.statusText,
+        headers: newHeaders,
+      });
+    }
+    return assetResponse;
   },
 };
 
@@ -27,6 +41,20 @@ async function handleApi(request, env, pathname) {
   if (!env.AUTH_KV) return json({ ok: false, error: "后端未配置 KV 绑定（AUTH_KV）" }, 500);
 
   const method = request.method;
+
+  // 处理 CORS 预检请求
+  if (method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Cookie",
+        "Access-Control-Max-Age": "86400",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
 
   if (pathname === "/api/me" && method === "GET") {
     const username = await getSessionUser(request, env);
@@ -105,8 +133,8 @@ async function handleApi(request, env, pathname) {
       const data = JSON.parse(raw);
       return json({ text: data.text || "", updatedAt: data.updatedAt || null }, 200);
     }
-    // PUT：仅 AaronXie 可编辑
-    if (method === "PUT") {
+    // POST 或 PUT：仅 AaronXie 可编辑
+    if (method === "POST" || method === "PUT") {
       const me = await getSessionUser(request, env);
       if (!me) return json({ ok: false, error: "请先登录" }, 401);
       if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
@@ -119,6 +147,50 @@ async function handleApi(request, env, pathname) {
       const data = { text, updatedAt: Date.now() };
       await env.AUTH_KV.put("announce:main", JSON.stringify(data));
       return json({ ok: true, ...data }, 200);
+    }
+  }
+
+  if (pathname === "/api/bookmarks") {
+    // 全部需要登录
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const key = bookmarksKey(me);
+
+    // GET：列出我的书签
+    if (method === "GET") {
+      const list = await readBookmarks(env, key);
+      return json({ ok: true, bookmarks: list }, 200);
+    }
+
+    // POST：添加书签（每人最多 15 个，网址去重）
+    if (method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      let url = (body.url || "").trim();
+      let title = (body.title || "").trim().slice(0, 100);
+      if (!/^https?:\/\/.+/i.test(url) || url.length > 500) {
+        return json({ ok: false, error: "网址格式不正确" }, 400);
+      }
+      // 规范化网址（补全末尾斜杠等），避免同一页面因写法不同重复收藏
+      try { url = new URL(url).href; } catch { return json({ ok: false, error: "网址格式不正确" }, 400); }
+      if (!title) title = hostnameOf(url);
+
+      const list = await readBookmarks(env, key);
+      if (list.some(b => b.url === url)) return json({ ok: false, error: "这个网址已经收藏过了" }, 409);
+      if (list.length >= 15) return json({ ok: false, error: "书签最多 15 个，先删一个再收藏吧" }, 400);
+
+      list.unshift({ id: randomHex(6), title, url, ts: Date.now() });
+      await env.AUTH_KV.put(key, JSON.stringify(list));
+      return json({ ok: true, bookmarks: list }, 200);
+    }
+
+    // DELETE ?id=xxx：删除书签
+    if (method === "DELETE") {
+      const id = new URL(request.url).searchParams.get("id");
+      const list = await readBookmarks(env, key);
+      const next = list.filter(b => b.id !== id);
+      if (next.length === list.length) return json({ ok: false, error: "书签不存在" }, 404);
+      await env.AUTH_KV.put(key, JSON.stringify(next));
+      return json({ ok: true, bookmarks: next }, 200);
     }
   }
 
@@ -146,7 +218,11 @@ async function handleApi(request, env, pathname) {
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", ...extraHeaders },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      ...extraHeaders,
+    },
   });
 }
 
@@ -186,6 +262,25 @@ function userKey(username) {
 
 function bioKey(username) {
   return `bio:${username.toLowerCase()}`;
+}
+
+function bookmarksKey(username) {
+  return `bookmarks:${username.toLowerCase()}`;
+}
+
+async function readBookmarks(env, key) {
+  const raw = await env.AUTH_KV.get(key);
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function hostnameOf(url) {
+  try { return new URL(url).hostname; } catch { return url; }
 }
 
 function isValidUsername(username) {

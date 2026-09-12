@@ -42,9 +42,12 @@ async function renderNavAuth(knownUser) {
       if (typeof loadProfile === "function") loadProfile();
       showToast("已退出登录");
     });
+    // 通知公告栏：管理员已登录
+    window.dispatchEvent(new CustomEvent("auth-user", { detail: user }));
   } else {
     box.innerHTML = `<button class="btn btn-solid btn-small" id="openAuthBtn">登录</button>`;
     box.querySelector("#openAuthBtn").addEventListener("click", openAuthModal);
+    window.dispatchEvent(new CustomEvent("auth-user", { detail: null }));
   }
 }
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>浏览器里的浏览器……？ · XRST.Uk</title>
+  <meta name="description" content="在网页里直接浏览另一个网页：输入网址就地访问，不开新标签页，还能收藏云端书签。" />
+  <link rel="stylesheet" href="../css/style.css?v=5" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about">关于</a>
+        <a href="/#works">作品</a>
+        <a href="/#contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="wb-main">
+    <p class="wb-eyebrow">我的作品 · 网页实验</p>
+    <h1 class="wb-title">浏览器里的浏览器……？</h1>
+    <p class="wb-sub">输入网址，就在下面访问——不开新标签页，它就在那里。</p>
+
+    <!-- 地址栏 -->
+    <form class="wb-bar" id="wbForm">
+      <input id="wbUrl" type="text" placeholder="输入网址，如 example.com" autocomplete="off" spellcheck="false" />
+      <button class="btn btn-solid wb-go" type="submit">访问</button>
+      <button class="btn btn-ghost wb-star" id="wbStar" type="button" title="收藏当前网页">☆ 收藏</button>
+    </form>
+    <!-- 标签栏 -->
+    <div class="wb-tabbar">
+      <div class="wb-tabs" id="wbTabs"></div>
+      <button class="wb-newtab" id="wbNewTab" type="button" title="新建标签页">＋</button>
+    </div>
+
+    <p class="wb-toolbar" id="wbToolbar" hidden>
+      正在访问 <span id="wbNow" class="wb-now"></span>
+      <a id="wbOpenNew" href="#" target="_blank" rel="noopener">在新标签页打开 ↗</a>
+    </p>
+
+    <!-- 浏览区 -->
+    <div class="wb-stage">
+      <div class="wb-empty" id="wbEmpty">
+        <div class="wb-empty-icon">⌘</div>
+        <p>在上面输入网址，页面会在这里打开</p>
+      </div>
+      <div class="wb-blocked" id="wbBlocked" hidden>
+        <div class="wb-empty-icon">🛡️</div>
+        <p class="wb-blocked-title">这个网站拒绝被嵌入网页</p>
+        <p class="wb-blocked-sub">很多大站（Google、B 站等）出于安全考虑禁止 iframe 嵌入，这不是 bug。</p>
+        <a class="btn btn-ghost" id="wbBlockedNew" href="#" target="_blank" rel="noopener">在新标签页打开 ↗</a>
+      </div>
+    </div>
+
+    <!-- 云端书签 -->
+    <section class="wb-bm">
+      <div class="wb-bm-head">
+        <h2 class="wb-bm-title">云端书签<span class="wb-bm-count" id="bmCount"></span></h2>
+        <span class="wb-bm-hint" id="bmHint">登录后可收藏网页，每人最多 15 个。</span>
+      </div>
+      <ul class="bm-list" id="bmList"></ul>
+    </section>
+
+    <div class="dc-foot wb-backfoot">
+      <a class="dc-back" href="/#works">← 回到我的作品</a>
+    </div>
+  </main>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login">登录</button>
+        <button class="tab" data-tab="register">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="你的用户名" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <label>确认密码
+          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
+        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/main.js?v=5"></script>
+  <script src="../js/browser.js?v=5"></script>
+</body>
+</html>

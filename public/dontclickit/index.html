@@ -29,6 +29,7 @@
     <div class="dc-foot">
       <a class="dc-back" href="/">← 回到主页</a>
       <button class="dc-reset" id="resetBtn" type="button">重置计数</button>
+      <button class="pcl-btn" id="pclBtn" type="button">千万别点</button>
     </div>
   </main>
 
@@ -62,6 +63,24 @@
       <h2 class="milestone-title milestone-title-dark">……好吧，你赢了</h2>
       <p class="milestone-sub">一千次。是我输了。</p>
       <button class="ms-btn ms-btn-solid" type="button" data-close1000>承让承让</button>
+    </div>
+  </div>
+
+  <!-- PCL 风格：最后警告弹窗 -->
+  <div class="pcl-mask" id="pclWarn" hidden>
+    <div class="pcl-modal" role="dialog" aria-modal="true">
+      <div class="pcl-modal-body">
+        <h2 class="pcl-title">最后的警告</h2>
+        <p class="pcl-text">
+          本网站不会受理由于点击此按钮触发的任何 bug。<br />
+          这是最后的警告，确定继续？
+        </p>
+        <div class="pcl-btns">
+          <button class="pcl-btn pcl-confirm" type="button" data-pclgo>确定</button>
+          <button class="pcl-btn pcl-confirm" type="button" data-pclgo>确定</button>
+          <button class="pcl-btn pcl-confirm" type="button" data-pclgo>确定</button>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -30,19 +30,27 @@ function fmtTime(ts) {
 
 async function loadAnnounce() {
   try {
-    const res = await fetch("/api/announce", { credentials: "same-origin", cache: "no-store" });
+    const res = await fetch("/api/announce?t=" + Date.now(), {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
     const data = await res.json();
     renderAnnounce(data.text, data.updatedAt);
-
-    // 检查是否是管理员
-    const me = await Auth.currentUser();
-    if (me && me.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
-      announceEditBtn.hidden = false;
-    }
   } catch {
     renderAnnounce("", null);
   }
 }
+
+// 监听 main.js 的 auth-user 事件
+window.addEventListener("auth-user", (e) => {
+  const me = e.detail;
+  if (me && me.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+    announceEditBtn.hidden = false;
+  } else {
+    announceEditBtn.hidden = true;
+    announceEditor.hidden = true;
+  }
+});
 
 function renderAnnounce(text, updatedAt) {
   if (text && text.trim()) {
@@ -79,26 +87,44 @@ announceSaveBtn?.addEventListener("click", async () => {
     showToast("公告不能超过 2000 字");
     return;
   }
+
   announceSaveBtn.disabled = true;
   announceSaveBtn.textContent = "保存中…";
+
   try {
-    const res = await fetch("/api/announce", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+    // 先检查登录状态
+    const meRes = await fetch("/api/me?t=" + Date.now(), {
       credentials: "same-origin",
       cache: "no-store",
     });
+    const meData = await meRes.json();
+
+    if (!meData.username) {
+      showToast("登录已过期，请重新登录");
+      if (typeof openAuthModal === "function") openAuthModal();
+      return;
+    }
+
+    // 用 POST 代替 PUT，加时间戳防缓存
+    const res = await fetch("/api/announce?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, _method: "PUT" }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+
     const data = await res.json().catch(() => ({}));
+
     if (res.ok && data.ok) {
       renderAnnounce(data.text, data.updatedAt);
       announceEditor.hidden = true;
       announceEditBtn.hidden = false;
       showToast("公告已更新");
     } else {
-      showToast(data.error || "保存失败");
+      showToast(data.error || `保存失败 (${res.status})`);
     }
-  } catch {
+  } catch (e) {
     showToast("网络异常，保存失败");
   } finally {
     announceSaveBtn.disabled = false;

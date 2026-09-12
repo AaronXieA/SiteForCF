@@ -95,7 +95,7 @@ function closeResetConfirm() {
 
 resetBtn.addEventListener("click", openResetConfirm);
 resetCancel.addEventListener("click", closeResetConfirm);
-resetConfirm.addEventListener("click", e => { if (e.target === resetConfirm) closeResetConfirm(); });
+// PCL 规矩：点弹窗外部不关闭，必须点按钮
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !resetConfirm.hidden) closeResetConfirm();
 });
@@ -107,4 +107,39 @@ resetOk.addEventListener("click", () => {
   hint.textContent = "真的，手拿开。";
   closeResetConfirm();
   showToast("计数已重置");
+});
+
+/* ---------------- PCL 彩蛋：千万别点 ---------------- */
+const pclBtn = document.getElementById("pclBtn");
+const pclWarn = document.getElementById("pclWarn");
+
+pclBtn?.addEventListener("click", () => {
+  pclWarn.hidden = false;
+  document.body.style.overflow = "hidden";
+});
+
+function closePclWarn() {
+  pclWarn.hidden = true;
+  document.body.style.overflow = "";
+}
+
+// PCL 规矩：只有点“确定”才能关，点弹窗外无效
+const PCL_REPOS = [
+  "https://github.com/CylorineStudio/PCL.Mac.Refactor", // PCL.Mac.Refactor
+  "https://github.com/Hex-Dragon/PCL2",                 // PCL2
+  "https://github.com/PCL-Community/PCL-CE",            // PCL CE（社区版）
+  "https://github.com/PCL-Community"                    // PCL Community
+];
+
+pclWarn?.addEventListener("click", e => {
+  if (e.target.closest("[data-pclgo]")) {
+    closePclWarn();
+    showToast("警告已确认，正在传送至随机的 PCL 仓库…", 1800);
+    const target = PCL_REPOS[Math.floor(Math.random() * PCL_REPOS.length)];
+    setTimeout(() => { window.location.href = target; }, 1200);
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && pclWarn && !pclWarn.hidden) closePclWarn();
 });

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>不要点击这个按钮 · XRST.Uk</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="dc-body">
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about">关于</a>
+        <a href="/#works">作品</a>
+        <a href="/#contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="dc-main">
+    <p class="dc-eyebrow">警告 · 你不应该在这里</p>
+    <h1 class="dc-title">我警告过你的</h1>
+    <button class="dc-button" id="dontClickBtn">不要点击这个按钮</button>
+    <p class="dc-hint" id="dcHint">真的，手拿开。</p>
+    <a class="dc-back" href="/">← 回到主页</a>
+  </main>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login">登录</button>
+        <button class="tab" data-tab="register">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="你的用户名" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <label>确认密码
+          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
+        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/dontclickit.js"></script>
+</body>
+</html>

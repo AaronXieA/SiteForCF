@@ -762,6 +762,12 @@ button { font: inherit; cursor: pointer; }
   font-size: 14.5px;
   margin-bottom: 30px;
 }
+.wb-note {
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin: -22px 0 22px;
+}
 
 /* 地址栏 */
 .wb-bar {

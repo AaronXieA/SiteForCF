@@ -89,6 +89,10 @@ function createTab(url = "", title = "", id = null) {
   tab.frame.className = "wb-frame";
   tab.frame.hidden = true;
   tab.frame.title = tab.title;
+  // sandbox 不含 allow-popups：网站里 target="_blank" 的链接会被降级为
+  // 在 iframe 内导航（Chrome 98+ 遵循 WHATWG 规范），实现"跳转留在页内浏览器"；
+  // 同时不含 allow-top-navigation，防止网站跳出 iframe 顶掉整个页面。
+  tab.frame.setAttribute("sandbox", "allow-forms allow-scripts allow-same-origin allow-modals allow-downloads");
   tab.frame.addEventListener("load", () => {
     // 被 X-Frame-Options 拦下的 iframe 会停留在 about:blank（同源，可探测）
     try {

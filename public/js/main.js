@@ -124,3 +124,22 @@ registerForm?.addEventListener("submit", async e => {
 });
 
 renderNavAuth();
+
+/* ---------- 彩蛋：连续点击版权 10 次跳转 114514.xrst.uk ---------- */
+const footerCopy = document.getElementById("footerCopy");
+if (footerCopy) {
+  let copyClickCount = 0;
+  let copyClickTimer = null;
+  footerCopy.addEventListener("click", () => {
+    copyClickCount++;
+    clearTimeout(copyClickTimer);
+    copyClickTimer = setTimeout(() => copyClickCount = 0, 1500);
+    if (copyClickCount >= 10) {
+      copyClickCount = 0;
+      showToast("🥚 彩蛋解锁，正在传送…");
+      setTimeout(() => { window.location.href = "https://114514.xrst.uk"; }, 700);
+    } else if (copyClickCount >= 7) {
+      showToast(`再点 ${10 - copyClickCount} 次…`, 1000);
+    }
+  });
+}

@@ -493,6 +493,94 @@ button { font: inherit; cursor: pointer; }
 }
 .dc-back:hover { color: var(--ink); }
 
+/* ============ 里程碑彩蛋弹窗 ============ */
+.milestone-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(214, 69, 69, .18);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.milestone-mask[hidden] { display: none; }
+
+.milestone-modal {
+  background: #fff;
+  border-radius: 18px;
+  padding: 38px 32px 32px;
+  max-width: 430px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .28);
+  border: 2px solid var(--danger);
+  animation: modalIn .25s ease, shake .45s ease;
+}
+.milestone-red { background: #fff5f5; }
+.milestone-win {
+  border-color: var(--ink);
+  background: #fff;
+  animation: modalIn .25s ease;
+}
+
+.milestone-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--danger);
+  letter-spacing: .01em;
+}
+.milestone-title-dark { color: var(--ink); }
+.milestone-sub {
+  margin-top: 10px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.milestone-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+.ms-btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--danger);
+  color: var(--danger);
+  background: transparent;
+  transition: background .2s, color .2s, transform .1s;
+}
+.ms-btn:hover { background: var(--danger); color: #fff; }
+.ms-btn:active { transform: scale(.95); }
+.ms-btn-solid {
+  border-color: var(--ink);
+  color: var(--ink);
+  margin-top: 24px;
+}
+.ms-btn-solid:hover { background: var(--ink); color: #fff; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+
+/* 红色 Toast（514 次用） */
+.toast-danger {
+  background: var(--danger);
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 12px 32px rgba(214, 69, 69, .4);
+}
+
 /* ============ 响应式 ============ */
 @media (max-width: 720px) {
   .nav-links { display: none; }

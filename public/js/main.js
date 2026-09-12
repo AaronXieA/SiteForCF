@@ -3,11 +3,11 @@
  * ===================================================== */
 
 /* ---------- Toast ---------- */
-function showToast(message, duration = 2600) {
+function showToast(message, duration = 2600, type = "") {
   const box = document.getElementById("toastBox");
   if (!box) return;
   const toast = document.createElement("div");
-  toast.className = "toast";
+  toast.className = "toast" + (type ? " toast-" + type : "");
   toast.textContent = message;
   box.appendChild(toast);
   setTimeout(() => {

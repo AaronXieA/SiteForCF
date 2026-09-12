@@ -29,6 +29,27 @@
     <a class="dc-back" href="/">← 回到主页</a>
   </main>
 
+  <!-- 114 次：红色质问弹窗（三个按钮都是“知道”，点哪个都能关） -->
+  <div class="milestone-mask" id="milestone114" hidden>
+    <div class="milestone-modal milestone-red" role="dialog" aria-modal="true">
+      <h2 class="milestone-title">你知道你在做什么吗？？？</h2>
+      <div class="milestone-btns">
+        <button class="ms-btn" type="button" data-close114>知道</button>
+        <button class="ms-btn" type="button" data-close114>知道</button>
+        <button class="ms-btn" type="button" data-close114>知道</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1000 次：通关弹窗 -->
+  <div class="milestone-mask" id="milestone1000" hidden>
+    <div class="milestone-modal milestone-win" role="dialog" aria-modal="true">
+      <h2 class="milestone-title milestone-title-dark">……好吧，你赢了</h2>
+      <p class="milestone-sub">一千次。是我输了。</p>
+      <button class="ms-btn ms-btn-solid" type="button" data-close1000>承让承让</button>
+    </div>
+  </div>
+
   <!-- 登录 / 注册弹窗 -->
   <div class="modal-mask" id="authModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">

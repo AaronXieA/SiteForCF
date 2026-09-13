@@ -78,12 +78,13 @@ function renderMessages(messages, { forceScroll = false } = {}) {
 function messageHtml(m) {
   const self = m.username === me ? " chat-msg-self" : "";
   const bubbleSkin = /^b[1-5]$/.test(m.bubble || "") ? " cb-" + m.bubble : "";
+  const profileUrl = "/profile/?u=" + encodeURIComponent(m.username);
   return `
     <div class="chat-msg${self}" data-id="${escapeHtml(m.id)}">
-      <span class="chat-avatar-slot">${window.XRST_AVATARS.withFrame(m.avatar ?? 0, /^f[1-5]$/.test(m.frame || "") ? m.frame : null, "xrst-avatar-36")}</span>
+      <a class="chat-avatar-link" href="${profileUrl}" title="查看 ${escapeHtml(m.username)} 的主页">${window.XRST_AVATARS.withFrame(m.avatar ?? 0, /^f[1-5]$/.test(m.frame || "") ? m.frame : null, "xrst-avatar-36")}</a>
       <div class="chat-bubble${bubbleSkin}">
         <div class="chat-meta">
-          <span class="chat-name">${escapeHtml(m.username)}</span>
+          <a class="chat-name chat-name-link" href="${profileUrl}">${escapeHtml(m.username)}</a>
           <span class="chat-time">${fmtTime(m.ts)}</span>
         </div>
         <div class="chat-text">${escapeHtml(m.text).replace(/\n/g, "<br>")}</div>

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>共享画板 · XRST.Uk</title>
   <meta name="description" content="一块所有人共用的画板：文字画板写下想法，256×256 像素画板一起涂鸦，注册即可参与。" />
-  <link rel="stylesheet" href="../css/style.css?v=9" />
+  <link rel="stylesheet" href="../css/style.css?v=10" />
 </head>
 <body>
 
@@ -70,11 +70,24 @@
       <div class="pixel-board">
         <div class="pixel-toolbar">
           <div class="pixel-palette" id="pixelPalette"><!-- 20 色 + 橡皮由 JS 生成 --></div>
-          <span class="pixel-status" id="pixelStatus">加载中…</span>
+          <div class="pixel-tools-right">
+            <div class="pixel-zoom">
+              <button type="button" id="zoomOut" title="缩小">−</button>
+              <span id="zoomLabel">2×</span>
+              <button type="button" id="zoomIn" title="放大">＋</button>
+              <button type="button" id="zoomFit" title="适应屏幕">⛶</button>
+            </div>
+            <button type="button" class="pixel-mode-btn" id="panModeBtn" title="放大后拖动查看（快捷键：按住空格）">✏️ 画笔</button>
+            <span class="pixel-status" id="pixelStatus">加载中…</span>
+          </div>
         </div>
 
-        <div class="pixel-canvas-wrap">
-          <canvas id="pixelCanvas" width="256" height="256" aria-label="像素画板"></canvas>
+        <div class="pixel-viewport" id="pixelViewport">
+          <div class="pixel-scroll" id="pixelScroll">
+            <div class="pixel-inner" id="pixelInner">
+              <canvas id="pixelCanvas" width="256" height="256" aria-label="像素画板"></canvas>
+            </div>
+          </div>
           <div class="pixel-mask" id="pixelMask" hidden>
             <div class="pixel-mask-inner">
               <p>登录后就能一起画 🎨</p>
@@ -84,7 +97,7 @@
         </div>
 
         <p class="wb-note" style="margin-top:10px;">
-          256×256 的公共画布，选个颜色直接画（支持鼠标/触屏拖动），白色方块是橡皮擦。大家的画会实时叠在同一张画布上～
+          256×256 的公共画布，选个颜色直接画，白色方块是橡皮擦。鼠标滚轮（或工具栏）可以放大到 8× 精细作画，放大后切「✋拖动」或按住空格移动画布。大家的画会实时叠在同一张画布上～
         </p>
       </div>
     </section>
@@ -136,6 +149,6 @@
   <script src="../js/auth.js?v=5"></script>
   <script src="../js/main.js?v=8"></script>
   <script src="../js/board.js?v=2"></script>
-  <script src="../js/pixel.js?v=1"></script>
+  <script src="../js/pixel.js?v=2"></script>
 </body>
 </html>

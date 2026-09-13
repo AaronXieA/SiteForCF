@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>XRST.Uk · 个人主页</title>
   <meta name="description" content="XRST.Uk 的个人主页 —— 关于我、一些小东西与我的 Minecraft 服务器。" />
-  <link rel="stylesheet" href="css/style.css?v=8" />
+  <link rel="stylesheet" href="css/style.css?v=9" />
 </head>
 <body>
 
@@ -222,39 +222,42 @@
   <section class="section" id="rewards">
     <div class="section-inner">
       <h2 class="section-title">每日签到</h2>
-      <div class="rewards-grid">
+      <div class="rewards-grid rewards-single">
 
-        <!-- 每日签到 -->
-        <div class="reward-card" id="checkinCard">
-          <div class="reward-head">
-            <span class="reward-icon">🗓️</span>
-            <div>
-              <h3 class="reward-title">签到领金币</h3>
-              <p class="reward-sub" id="checkinSub">登录后签到领金币</p>
+        <div class="reward-card reward-combined">
+          <!-- 签到区 -->
+          <div class="reward-main" id="checkinCard">
+            <div class="reward-head">
+              <span class="reward-icon">🗓️</span>
+              <div>
+                <h3 class="reward-title">签到领金币</h3>
+                <p class="reward-sub" id="checkinSub">登录后签到领金币</p>
+              </div>
             </div>
-          </div>
-          <div class="reward-body">
-            <div class="coin-line">
-              <span class="coin-big">🪙 <b id="checkinCoins">0</b></span>
-              <span class="streak-line" id="checkinStreak">连续签到 0 天</span>
+            <div class="reward-body">
+              <div class="coin-line">
+                <span class="coin-big">🪙 <b id="checkinCoins">0</b></span>
+                <span class="streak-line" id="checkinStreak">连续签到 0 天</span>
+              </div>
+              <button class="btn btn-solid btn-small" id="checkinBtn" type="button">登录后签到</button>
             </div>
-            <button class="btn btn-solid btn-small" id="checkinBtn" type="button">登录后签到</button>
+            <p class="reward-tip" id="checkinTip">每日 10 金币，连签每天 +5，第 7 天起 40 金币封顶</p>
+            <button class="shop-entry" id="openShopBtn" type="button">🛍️ 兑换商店：头像框 · 聊天气泡 →</button>
           </div>
-          <p class="reward-tip" id="checkinTip">每日 10 金币，连签每天 +5，第 7 天起 40 金币封顶</p>
-          <button class="shop-entry" id="openShopBtn" type="button">🛍️ 兑换商店：头像框 · 聊天气泡 →</button>
-        </div>
 
-        <!-- 谁在看我的网站 -->
-        <div class="reward-card" id="onlineCard">
-          <div class="reward-head">
-            <span class="reward-icon">👀</span>
-            <div>
-              <h3 class="reward-title">谁在看我的网站？</h3>
-              <p class="reward-sub">最近 2 分钟内的访客</p>
+          <!-- 谁在看（同一张卡片内）-->
+          <div class="reward-divider"></div>
+          <div class="reward-main" id="onlineCard">
+            <div class="reward-head">
+              <span class="reward-icon">👀</span>
+              <div>
+                <h3 class="reward-title">谁在看我的网站？</h3>
+                <p class="reward-sub">最近 2 分钟内的访客</p>
+              </div>
             </div>
-          </div>
-          <div class="online-body" id="onlineBody">
-            <p class="online-loading">统计中…</p>
+            <div class="online-body" id="onlineBody">
+              <p class="online-loading">统计中…</p>
+            </div>
           </div>
         </div>
 

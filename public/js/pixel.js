@@ -10,6 +10,7 @@
   const POLL_MS = 5000;
   const FLUSH_MS = 500;
   const BATCH = 2500; // 服务端单次上限 3000，留余量
+  const ZOOM_LEVELS = [1, 2, 3, 4, 6, 8];
 
   // 20 色调色板（索引 1-20）
   const COLORS = [
@@ -34,6 +35,13 @@
   const statusEl = document.getElementById("pixelStatus");
   const canvas = document.getElementById("pixelCanvas");
   const ctx = canvas.getContext("2d", { alpha: false });
+  const scrollBox = document.getElementById("pixelScroll");
+  const innerBox = document.getElementById("pixelInner");
+  const zoomInBtn = document.getElementById("zoomIn");
+  const zoomOutBtn = document.getElementById("zoomOut");
+  const zoomFitBtn = document.getElementById("zoomFit");
+  const zoomLabel = document.getElementById("zoomLabel");
+  const panModeBtn = document.getElementById("panModeBtn");
   const mask = document.getElementById("pixelMask");
   const loginBtn = document.getElementById("pixelLoginBtn");
 
@@ -49,6 +57,10 @@
   let flushTimer = null;
   let inited = false;
   let pollTimer = null;
+  let zoomIdx = 1; // ZOOM_LEVELS[1] = 2×
+  let panMode = false;   // 工具栏切换的抓手模式
+  let spacePan = false;  // 按住空格临时抓手
+  const panning = () => panMode || spacePan;
 
   /* ---------- RLE(varint) + base64（与 worker.js 同构）---------- */
   function b64ToBytes(b64) {
@@ -159,15 +171,28 @@
     }
   }
 
+  let panState = null; // 抓手拖动中：{x,y,sl,st}
+
   function onDown(e) {
     if (!me) return;
     e.preventDefault();
     canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    if (panning()) {
+      panState = { x: e.clientX, y: e.clientY, sl: scrollBox.scrollLeft, st: scrollBox.scrollTop };
+      scrollBox.classList.add("pan-active");
+      return;
+    }
     drawing = true;
     lastCell = cellFromEvent(e);
     if (lastCell) { setLocal(lastCell.x, lastCell.y, currentColor); flushRender(); scheduleFlush(); }
   }
   function onMove(e) {
+    if (panState) {
+      e.preventDefault();
+      scrollBox.scrollLeft = panState.sl - (e.clientX - panState.x);
+      scrollBox.scrollTop = panState.st - (e.clientY - panState.y);
+      return;
+    }
     if (!drawing || !me) return;
     e.preventDefault();
     const cell = cellFromEvent(e);
@@ -180,6 +205,11 @@
     else scheduleFlush();
   }
   function onUp() {
+    if (panState) {
+      panState = null;
+      scrollBox.classList.remove("pan-active");
+      return;
+    }
     if (!drawing) return;
     drawing = false;
     lastCell = null;
@@ -190,6 +220,118 @@
   canvas.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
   canvas.addEventListener("pointercancel", onUp);
+
+  /* ---------- 缩放 / 平移 ---------- */
+  // inner 在 scrollBox 中靠 margin:auto 居中；内容超出时偏移为 0
+  function innerOffset(contentSize, viewSize) {
+    const free = viewSize - contentSize;
+    return free > 0 ? free / 2 : 0;
+  }
+
+  // 初始化时按当前 zoomIdx 应用尺寸并居中
+  function applyZoom() {
+    const scale = ZOOM_LEVELS[zoomIdx];
+    const size = N * scale;
+    innerBox.style.width = size + "px";
+    innerBox.style.height = size + "px";
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    zoomLabel.textContent = scale + "×";
+    zoomOutBtn.disabled = zoomIdx === 0;
+    zoomInBtn.disabled = zoomIdx === ZOOM_LEVELS.length - 1;
+    const maxX = Math.max(0, size - scrollBox.clientWidth);
+    const maxY = Math.max(0, size - scrollBox.clientHeight);
+    scrollBox.scrollLeft = maxX / 2;
+    scrollBox.scrollTop = maxY / 2;
+  }
+
+  // 以指定屏幕坐标为锚点切换缩放，保持该点下的画布像素不动
+  function zoomAt(newIdx, clientX, clientY) {
+    newIdx = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, newIdx));
+    if (newIdx === zoomIdx) return;
+    const before = ZOOM_LEVELS[zoomIdx];
+    const after = ZOOM_LEVELS[newIdx];
+    const vr = scrollBox.getBoundingClientRect();
+    const px = clientX - vr.left;
+    const py = clientY - vr.top;
+    const ir = innerBox.getBoundingClientRect();
+    // 锚点对应的画布像素坐标
+    const cx = (clientX - ir.left) / before;
+    const cy = (clientY - ir.top) / before;
+
+    zoomIdx = newIdx;
+    const size = N * after;
+    innerBox.style.width = size + "px";
+    innerBox.style.height = size + "px";
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    zoomLabel.textContent = after + "×";
+    zoomOutBtn.disabled = zoomIdx === 0;
+    zoomInBtn.disabled = zoomIdx === ZOOM_LEVELS.length - 1;
+
+    const maxX = Math.max(0, size - scrollBox.clientWidth);
+    const maxY = Math.max(0, size - scrollBox.clientHeight);
+    const offX = innerOffset(size, scrollBox.clientWidth);
+    const offY = innerOffset(size, scrollBox.clientHeight);
+    scrollBox.scrollLeft = Math.max(0, Math.min(maxX, cx * after + offX - px));
+    scrollBox.scrollTop = Math.max(0, Math.min(maxY, cy * after + offY - py));
+  }
+
+  zoomInBtn.addEventListener("click", () => {
+    const r = scrollBox.getBoundingClientRect();
+    zoomAt(zoomIdx + 1, r.left + r.width / 2, r.top + r.height / 2);
+  });
+  zoomOutBtn.addEventListener("click", () => {
+    const r = scrollBox.getBoundingClientRect();
+    zoomAt(zoomIdx - 1, r.left + r.width / 2, r.top + r.height / 2);
+  });
+  zoomFitBtn.addEventListener("click", () => {
+    // 选不超过可视区的最大倍率
+    const fit = Math.floor(Math.min(scrollBox.clientWidth, scrollBox.clientHeight) / N);
+    let idx = 0;
+    for (let i = 0; i < ZOOM_LEVELS.length; i++) {
+      if (ZOOM_LEVELS[i] <= fit) idx = i;
+    }
+    const r = scrollBox.getBoundingClientRect();
+    zoomAt(idx, r.left + r.width / 2, r.top + r.height / 2);
+  });
+
+  // 滚轮缩放（必须 passive:false 才能阻止页面滚动）
+  scrollBox.addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomAt(zoomIdx + (e.deltaY < 0 ? 1 : -1), e.clientX, e.clientY);
+  }, { passive: false });
+
+  // 工具栏抓手模式切换
+  function syncPanUI() {
+    scrollBox.classList.toggle("pan", panning());
+    panModeBtn.classList.toggle("active", panning());
+    panModeBtn.textContent = panning() ? "✋ 拖动" : "✏️ 画笔";
+  }
+  panModeBtn.addEventListener("click", () => {
+    panMode = !panMode;
+    syncPanUI();
+  });
+
+  // 按住空格临时抓手（输入框 / 按钮上不触发，避免误触）
+  function editableTarget(t) {
+    return t && (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(t.tagName) || t.isContentEditable);
+  }
+  document.addEventListener("keydown", e => {
+    if (e.code !== "Space" || spacePan || panelPixel.hidden) return;
+    if (editableTarget(e.target)) return;
+    spacePan = true;
+    syncPanUI();
+    e.preventDefault();
+  });
+  document.addEventListener("keyup", e => {
+    if (e.code !== "Space" || !spacePan) return;
+    spacePan = false;
+    syncPanUI();
+  });
+  window.addEventListener("blur", () => {
+    if (spacePan) { spacePan = false; syncPanUI(); }
+  });
 
   /* ---------- 提交 ---------- */
   function scheduleFlush() {
@@ -281,6 +423,8 @@
     // 初始白底
     for (let i = 0; i < TOTAL; i++) paintIndex(i, 0);
     renderAll();
+    applyZoom();
+    syncPanUI();
     me = await Auth.currentUser();
     showLoginMask();
     await pullRemote();

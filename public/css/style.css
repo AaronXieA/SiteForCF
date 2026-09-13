@@ -1799,7 +1799,6 @@ a.nav-user:hover strong { color: var(--accent); }
 }
 
 /* ============ 签到 / 在线 / 商店 ============ */
-.rewards-section { padding: 36px 0 8px; }
 .rewards-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

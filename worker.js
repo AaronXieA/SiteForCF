@@ -8,6 +8,10 @@ const SESSION_COOKIE = "xrst_session";
 const SESSION_TTL = 60 * 60 * 24 * 30; // 30 天（秒）
 const PBKDF2_ITERATIONS = 20_000;
 
+/* 商店目录（服务端权威定价）：头像框 / 聊天气泡 */
+const FRAME_SHOP = { f1: 30, f2: 20, f3: 60, f4: 100, f5: 150 };
+const BUBBLE_SHOP = { b1: 30, b2: 30, b3: 50, b4: 80, b5: 150 };
+
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
@@ -65,9 +69,124 @@ async function handleApi(request, env, pathname) {
     const key = userKey(username);
     const raw = await env.AUTH_KV.get(key);
     if (!raw) return json({ username: null }, 401);
-    // 懒补 uid / searchable（兼容老用户）；avatar 缺失按 0 处理，不写回
+    // 懒补 uid / searchable（兼容老用户）；其余新字段缺失按默认值返回，不写回
     const user = await ensureUserFields(env, key, JSON.parse(raw));
-    return json({ username: user.name, uid: user.uid, avatar: user.avatar ?? 0 }, 200);
+    return json(meView(user), 200);
+  }
+
+  /* ---------- 每日签到 ---------- */
+  if (pathname === "/api/checkin" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    const today = beijingDate();
+    if (user.lastCheckin === today) {
+      return json({ ok: false, error: "今天已经签到过啦，明天再来～", coins: user.coins || 0, streak: user.streak || 0, checked: true }, 200);
+    }
+    const yesterday = beijingDate(-1);
+    const streak = user.lastCheckin === yesterday ? (user.streak || 0) + 1 : 1;
+    // 第 1 天 10 金币，连续每天 +5，第 7 天起封顶 40
+    const reward = 10 + Math.min(streak - 1, 6) * 5;
+    user.coins = (user.coins || 0) + reward;
+    user.streak = streak;
+    user.lastCheckin = today;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    return json({ ok: true, reward, coins: user.coins, streak, checked: true }, 200);
+  }
+
+  /* ---------- 兑换商店：购买 / 装备 / 卸下 ---------- */
+  if (pathname === "/api/shop" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const { action, type, id } = body;
+    if (!["frame", "bubble"].includes(type)) return json({ ok: false, error: "商品类型错误" }, 400);
+    const catalog = type === "frame" ? FRAME_SHOP : BUBBLE_SHOP;
+    if (!["buy", "equip", "unequip"].includes(action)) return json({ ok: false, error: "操作错误" }, 400);
+
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    const ownedKey = type === "frame" ? "frames" : "bubbles";
+    const equipKey = type;
+    user[ownedKey] = Array.isArray(user[ownedKey]) ? user[ownedKey] : [];
+
+    if (action === "unequip") {
+      user[equipKey] = null;
+      await env.AUTH_KV.put(key, JSON.stringify(user));
+      return json({ ok: true, ...meView(user) }, 200);
+    }
+
+    const price = catalog[id];
+    if (price === undefined) return json({ ok: false, error: "商品不存在" }, 400);
+
+    if (action === "buy") {
+      if (user[ownedKey].includes(id)) return json({ ok: false, error: "已经拥有了" }, 400);
+      if ((user.coins || 0) < price) return json({ ok: false, error: "金币不够，明天记得签到～" }, 400);
+      user.coins -= price;
+      user[ownedKey].push(id);
+      user[equipKey] = id; // 买完自动装备
+      await env.AUTH_KV.put(key, JSON.stringify(user));
+      return json({ ok: true, ...meView(user) }, 200);
+    }
+
+    // equip
+    if (!user[ownedKey].includes(id)) return json({ ok: false, error: "还没拥有这件商品" }, 400);
+    user[equipKey] = id;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    return json({ ok: true, ...meView(user) }, 200);
+  }
+
+  /* ---------- 在线访客：心跳（单键聚合，省 KV 写入）---------- */
+  if (pathname === "/api/presence") {
+    const PRES_KEY = "online:agg";
+    const PRES_TTL = 160;       // KV 键过期秒数
+    const FRESH_MS = 130_000;   // 130 秒内有心跳算在线
+
+    if (method === "GET") {
+      const agg = await readPresence(env, PRES_KEY);
+      const now = Date.now();
+      const usersMap = new Map();
+      let guests = 0;
+      for (const [sid, p] of Object.entries(agg)) {
+        if (!p.ts || now - p.ts > FRESH_MS) continue;
+        if (p.u) {
+          const lower = p.u.toLowerCase();
+          const old = usersMap.get(lower);
+          if (!old || p.ts > old.ts) usersMap.set(lower, { u: p.u, a: p.a ?? 0, f: p.f || null, ts: p.ts });
+        } else {
+          guests++;
+        }
+      }
+      const users = [...usersMap.values()].map(x => ({ username: x.u, avatar: x.a, frame: x.f }));
+      return json({ users, guests, total: users.length + guests }, 200);
+    }
+
+    if (method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const sid = String(body.sid || "").slice(0, 64);
+      if (!sid) return json({ ok: false }, 400);
+      const now = Date.now();
+      const agg = await readPresence(env, PRES_KEY);
+      // 顺手清理过期会话
+      for (const k of Object.keys(agg)) {
+        if (!agg[k].ts || now - agg[k].ts > FRESH_MS) delete agg[k];
+      }
+      const me = await getSessionUser(request, env);
+      if (me) {
+        const uRaw = await env.AUTH_KV.get(userKey(me));
+        const u = uRaw ? JSON.parse(uRaw) : {};
+        agg[sid] = { ts: now, u: me, a: u.avatar ?? 0, f: u.frame || null };
+      } else {
+        agg[sid] = { ts: now };
+      }
+      await env.AUTH_KV.put(PRES_KEY, JSON.stringify(agg), { expirationTtl: PRES_TTL });
+      return json({ ok: true }, 200);
+    }
   }
 
   if (pathname === "/api/logout" && method === "POST") {
@@ -89,7 +208,10 @@ async function handleApi(request, env, pathname) {
     const salt = randomHex(16);
     const hash = await hashPassword(password, salt);
     const uid = await genUid(env);
-    await env.AUTH_KV.put(key, JSON.stringify({ name: username, salt, hash, createdAt: Date.now(), uid, searchable: true, avatar: 0 }));
+    await env.AUTH_KV.put(key, JSON.stringify({
+      name: username, salt, hash, createdAt: Date.now(), uid, searchable: true, avatar: 0,
+      coins: 0, streak: 0, lastCheckin: null, frames: [], bubbles: [], frame: null, bubble: null,
+    }));
     await env.AUTH_KV.put(`uid:${uid}`, key); // UID → 用户 key 反查索引
 
     const cookie = await createSession(env, username);
@@ -126,10 +248,10 @@ async function handleApi(request, env, pathname) {
       const raw = await env.AUTH_KV.get(bioKey(target));
       if (!raw) {
         // 用户存在但没写简介也返回空，方便分享主页链接
-        return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, searchable: u.searchable, text: "", updatedAt: null }, 200);
+        return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, frame: u.frame || null, searchable: u.searchable, text: "", updatedAt: null }, 200);
       }
       const data = JSON.parse(raw);
-      return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, searchable: u.searchable, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
+      return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, frame: u.frame || null, searchable: u.searchable, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
     }
   }
 
@@ -252,7 +374,7 @@ async function handleApi(request, env, pathname) {
         if (uRaw) {
           const u = JSON.parse(uRaw);
           if (u.searchable) {
-            results.push({ username: u.name, uid: u.uid || digits, avatar: u.avatar ?? 0 });
+            results.push({ username: u.name, uid: u.uid || digits, avatar: u.avatar ?? 0, frame: u.frame || null });
             seen.add(lower);
           }
         }
@@ -271,7 +393,7 @@ async function handleApi(request, env, pathname) {
         try { u = JSON.parse(uRaw); } catch { continue; }
         if (!u.searchable) continue;
         if ((u.name || "").toLowerCase().includes(ql)) {
-          results.push({ username: u.name, uid: u.uid || null, avatar: u.avatar ?? 0 });
+          results.push({ username: u.name, uid: u.uid || null, avatar: u.avatar ?? 0, frame: u.frame || null });
         }
       }
     }
@@ -398,6 +520,8 @@ async function handleApi(request, env, pathname) {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
         username: me,
         avatar: u.avatar ?? 0,
+        frame: u.frame || null,
+        bubble: (u.bubbles || []).includes(u.bubble) ? u.bubble : null,
         text,
         ts: Date.now(),
       };
@@ -578,6 +702,34 @@ function bioKey(username) {
 
 function bookmarksKey(username) {
   return `bookmarks:${username.toLowerCase()}`;
+}
+
+/* /api/me 与商店操作返回的用户视图（缺失字段按默认值，不写盘） */
+function meView(u) {
+  return {
+    username: u.name,
+    uid: u.uid,
+    avatar: u.avatar ?? 0,
+    coins: u.coins || 0,
+    streak: u.streak || 0,
+    lastCheckin: u.lastCheckin || null,
+    frames: Array.isArray(u.frames) ? u.frames : [],
+    bubbles: Array.isArray(u.bubbles) ? u.bubbles : [],
+    frame: u.frame || null,
+    bubble: u.bubble || null,
+  };
+}
+
+/* 北京时间日期串（UTC+8），offset 天可为 -1 */
+function beijingDate(offset = 0) {
+  const d = new Date(Date.now() + (8 * 3600 + offset * 86400) * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+async function readPresence(env, key) {
+  const raw = await env.AUTH_KV.get(key);
+  if (!raw) return {};
+  try { return JSON.parse(raw) || {}; } catch { return {}; }
 }
 
 /* 生成 12 位纯随机数字 UID（查重直到不冲突） */

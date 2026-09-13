@@ -22,7 +22,7 @@ function renderResults(results) {
   usList.innerHTML = results.map(r => `
     <li class="us-item">
       <a class="us-link" href="/profile/?u=${encodeURIComponent(r.username)}">
-        <span class="us-avatar-slot">${window.XRST_AVATARS.html(r.avatar ?? 0, "xrst-avatar-44")}</span>
+        <span class="us-avatar-slot">${window.XRST_AVATARS.withFrame(r.avatar ?? 0, /^f[1-5]$/.test(r.frame || "") ? r.frame : null, "xrst-avatar-44")}</span>
         <span class="us-info">
           <span class="us-name">${escapeHtml(r.username)}</span>
           <span class="us-uid">XRSTUID：${r.uid ? escapeHtml(r.uid) : "—"}</span>

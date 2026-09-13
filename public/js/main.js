@@ -31,6 +31,7 @@ async function renderNavAuth(knownUser) {
   const user = knownUser !== undefined ? knownUser : await Auth.currentUser();
   if (user) {
     box.innerHTML = `
+      <a class="nav-shop-link" href="/#rewards" title="每日签到 · 兑换商店">🪙<b id="navCoins">–</b></a>
       <a class="nav-search-link" href="/search/">搜索用户</a>
       <a class="nav-user" href="/profile/" title="进入我的个人主页">你好，<strong></strong></a>
       <button class="btn btn-ghost btn-small" id="logoutBtn">退出</button>
@@ -42,6 +43,7 @@ async function renderNavAuth(knownUser) {
       if (typeof loadProfile === "function") loadProfile();
       showToast("已退出登录");
     });
+    refreshNavCoins();
     // 通知公告栏：管理员已登录
     window.dispatchEvent(new CustomEvent("auth-user", { detail: user }));
   } else {
@@ -53,6 +55,46 @@ async function renderNavAuth(knownUser) {
     window.dispatchEvent(new CustomEvent("auth-user", { detail: null }));
   }
 }
+
+/* 导航栏金币数（静默失败，不影响其他功能）*/
+async function refreshNavCoins() {
+  try {
+    const res = await fetch("/api/me?t=" + Date.now(), { credentials: "same-origin", cache: "no-store" });
+    if (!res.ok) return;
+    const d = await res.json();
+    const el = document.getElementById("navCoins");
+    if (el) el.textContent = d.coins ?? 0;
+  } catch { /* 忽略 */ }
+}
+window.addEventListener("coins-changed", () => refreshNavCoins());
+
+/* ---------- 在线心跳（所有页面共用，游客也会计数）---------- */
+(function presenceHeartbeat() {
+  let sid = localStorage.getItem("xrst_sid");
+  if (!sid) {
+    sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    localStorage.setItem("xrst_sid", sid);
+  }
+  let beating = false;
+  function beat() {
+    if (beating || document.hidden) return;
+    beating = true;
+    fetch("/api/presence?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      cache: "no-store",
+      body: JSON.stringify({ sid }),
+      keepalive: true,
+    }).catch(() => {}).finally(() => { beating = false; });
+  }
+  setTimeout(beat, 800);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
+  window.addEventListener("focus", beat);
+  window.addEventListener("pageshow", beat);
+  window.addEventListener("auth-user", beat);
+  setInterval(beat, 100_000); // 100 秒一次，服务端 130 秒过期窗口
+})();
 
 /* ---------- 登录 / 注册弹窗 ---------- */
 const authModal = document.getElementById("authModal");

@@ -24,7 +24,7 @@
     { emoji: "🦋", from: "#7dd3fc", to: "#a855f7" },
     { emoji: "🌟", from: "#fbbf5b", to: "#d946ef" },
     { emoji: "🍀", from: "#34d399", to: "#4ade80" },
-    { emoji: "🎮", from: "#ef4444", to: "#e653f" },
+    { emoji: "🎮", from: "#ef4444", to: "#e6539f" },
   ];
 
   function normalize(id) {
@@ -40,10 +40,18 @@
     return `<span class="${cls}" data-avatar="${normalize(id)}" style="${style}">${a.emoji}</span>`;
   }
 
+  /* 带头像框的头像 HTML（frameId 为空则同普通头像）*/
+  function withFrame(id, frameId, extraClass = "") {
+    const inner = html(id, extraClass);
+    if (!frameId) return inner;
+    return `<span class="af af-${frameId}">${inner}</span>`;
+  }
+
   window.XRST_AVATARS = {
     LIST,
     COUNT: LIST.length,
     html,
+    withFrame,
     normalize,
   };
 })();

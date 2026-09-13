@@ -77,10 +77,11 @@ function renderMessages(messages, { forceScroll = false } = {}) {
 
 function messageHtml(m) {
   const self = m.username === me ? " chat-msg-self" : "";
+  const bubbleSkin = /^b[1-5]$/.test(m.bubble || "") ? " cb-" + m.bubble : "";
   return `
     <div class="chat-msg${self}" data-id="${escapeHtml(m.id)}">
-      <span class="chat-avatar-slot">${window.XRST_AVATARS.html(m.avatar ?? 0, "xrst-avatar-36")}</span>
-      <div class="chat-bubble">
+      <span class="chat-avatar-slot">${window.XRST_AVATARS.withFrame(m.avatar ?? 0, /^f[1-5]$/.test(m.frame || "") ? m.frame : null, "xrst-avatar-36")}</span>
+      <div class="chat-bubble${bubbleSkin}">
         <div class="chat-meta">
           <span class="chat-name">${escapeHtml(m.username)}</span>
           <span class="chat-time">${fmtTime(m.ts)}</span>

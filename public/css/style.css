@@ -71,6 +71,21 @@ button { font: inherit; cursor: pointer; }
 .nav-links a:hover { color: var(--ink); }
 
 .nav-auth { display: flex; align-items: center; gap: 12px; }
+.nav-shop-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13.5px;
+  text-decoration: none;
+  background: #fff7e0;
+  border: 1px solid #f0d98c;
+  color: #8a6d1c;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: background .15s;
+}
+.nav-shop-link:hover { background: #ffefbf; }
 .nav-user {
   font-size: 14px;
   color: var(--ink-2);
@@ -1781,4 +1796,162 @@ a.nav-user:hover strong { color: var(--accent); }
   .cards { grid-template-columns: 1fr; }
   .section { padding: 80px 20px; }
   .nav-inner { gap: 16px; }
+}
+
+/* ============ 签到 / 在线 / 商店 ============ */
+.rewards-section { padding: 36px 0 8px; }
+.rewards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.reward-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reward-head { display: flex; align-items: center; gap: 12px; }
+.reward-icon {
+  width: 42px; height: 42px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  background: var(--bg-alt);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.reward-title { font-size: 16.5px; margin: 0; }
+.reward-sub { font-size: 12.5px; color: var(--ink-3); margin: 2px 0 0; }
+.reward-body {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.coin-big { font-size: 20px; font-weight: 700; color: #8a6d1c; }
+.streak-line { font-size: 12.5px; color: var(--ink-3); margin-left: 6px; }
+.reward-tip { font-size: 12px; color: var(--ink-3); margin: 0; }
+.shop-entry {
+  border: none; background: none; padding: 0;
+  text-align: left; cursor: pointer;
+  font-size: 13.5px; color: var(--accent);
+  font-weight: 600;
+}
+.shop-entry:hover { text-decoration: underline; }
+.btn-disabled { opacity: .5; cursor: not-allowed; }
+
+/* 在线访客 */
+.online-body { min-height: 60px; }
+.online-total { font-size: 14px; color: var(--ink-2); margin-bottom: 10px; }
+.online-total b { color: var(--accent); font-size: 16px; }
+.online-users { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 8px; }
+.online-user {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13.5px; color: var(--ink);
+  text-decoration: none; position: relative;
+}
+.online-user:hover { color: var(--accent); }
+.online-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 0 2px #fff;
+  margin-left: -2px;
+}
+.online-guests { font-size: 13px; color: var(--ink-3); }
+.online-guests b { color: #7a5cc9; }
+.online-loading { color: var(--ink-3); font-size: 13.5px; }
+
+/* 商店弹窗 */
+.shop-modal { max-width: 620px; width: calc(100% - 32px); max-height: 84vh; overflow-y: auto; }
+.shop-modal-title { font-size: 19px; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; }
+.shop-coins { font-size: 14px; color: #8a6d1c; background: #fff7e0; border: 1px solid #f0d98c; padding: 3px 12px; border-radius: 999px; }
+.shop-tabs { margin: 0 0 16px; }
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.shop-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 10px 12px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: #fff;
+}
+.shop-item.equipped { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.shop-preview { height: 60px; display: flex; align-items: center; justify-content: center; }
+.shop-preview-av { font-size: 30px; }
+.shop-preview-bubble {
+  border-radius: 14px;
+  padding: 8px 14px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.shop-item-name { font-size: 14px; font-weight: 600; }
+.shop-item-desc { font-size: 12px; color: var(--ink-3); flex: 1; }
+.shop-note { font-size: 12px; color: var(--ink-3); margin: 14px 0 0; text-align: center; }
+
+/* ============ 头像框（af = avatar frame）============ */
+.af {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 3px;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.af > .xrst-avatar { border-radius: 50%; }
+.af-f1 { background: linear-gradient(135deg, #ffe9a0, #d4a017 60%, #a9790c); }
+.af-f2 { background: linear-gradient(135deg, #ffffff, #b9c0c7 55%, #eef0f2); box-shadow: inset 0 0 0 1px #c9cdd2; }
+.af-f3 {
+  background: transparent;
+  padding: 2px;
+  border: 2px solid #38e1ff;
+  box-shadow: 0 0 6px rgba(56, 225, 255, .8), 0 0 14px rgba(56, 225, 255, .45);
+}
+.af-f4 {
+  padding: 4px;
+  background: conic-gradient(#ff5f5f, #ffd93b, #54e06b, #4fc3ff, #9b6bff, #ff5f5f);
+  animation: af-spin 4s linear infinite;
+}
+@keyframes af-spin { to { transform: rotate(360deg); } }
+.af-f4 > .xrst-avatar { animation: af-spin-rev 4s linear infinite; }
+@keyframes af-spin-rev { to { transform: rotate(-360deg); } }
+.af-f5 {
+  position: relative;
+  background: linear-gradient(135deg, #ffe27a 0%, #f0b720 55%, #b8800f 100%);
+  padding: 3px;
+  box-shadow: 0 0 0 1px #c8891a, 0 2px 8px rgba(212, 160, 23, .45);
+}
+.af-f5::after {
+  content: "👑";
+  position: absolute;
+  top: -10px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.25));
+}
+
+/* ============ 聊天气泡（cb = chat bubble 皮肤）============ */
+.cb-b1 { background: #e3f2ff !important; border-color: #9cc8f7 !important; color: #0b3d91 !important; }
+.cb-b2 { background: #e3faf0 !important; border-color: #8fdcc0 !important; color: #0f5132 !important; }
+.cb-b3 { background: #ffeef5 !important; border-color: #f7b6d2 !important; color: #9b2c5e !important; }
+.cb-b4 {
+  background: linear-gradient(135deg, #4a3586, #6c4ab6) !important;
+  border-color: #3b2a6b !important;
+  color: #f3efff !important;
+}
+.cb-b5 {
+  background: linear-gradient(135deg, #fff3c4, #f5c542) !important;
+  border-color: #d9a514 !important;
+  color: #6b4e00 !important;
+}
+
+@media (max-width: 720px) {
+  .rewards-grid { grid-template-columns: 1fr; }
 }

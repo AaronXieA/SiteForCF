@@ -66,9 +66,10 @@ function show(view) {
 
 /* 内置头像渲染 */
 let currentAvatar = 0;
+let currentFrame = null;
 
-function setAvatar(container, id, sizeClass) {
-  container.innerHTML = window.XRST_AVATARS.html(id, sizeClass || "");
+function setAvatar(container, id, sizeClass, frameId) {
+  container.innerHTML = window.XRST_AVATARS.withFrame(id, frameId || null, sizeClass || "");
 }
 
 function renderAvatarGrid(selected) {
@@ -95,8 +96,8 @@ avatarGrid?.addEventListener("click", async e => {
     if (res.ok && data.ok) {
       currentAvatar = id;
       renderAvatarGrid(id);
-      setAvatar(ownAvatar, id, "xrst-avatar-84");
-      setAvatar(avatarEl, id, "xrst-avatar-44");
+      setAvatar(ownAvatar, id, "xrst-avatar-84", currentFrame);
+      setAvatar(avatarEl, id, "xrst-avatar-44", currentFrame);
       showToast("头像已更新");
     } else if (res.status === 401) {
       showToast("请先登录");
@@ -140,7 +141,8 @@ async function loadProfile() {
   const isOwn = !!me && me.toLowerCase() === data.username.toLowerCase();
   currentUsername = data.username;
 
-  setAvatar(avatarEl, data.avatar ?? 0, "xrst-avatar-44");
+  currentFrame = /^f[1-5]$/.test(data.frame || "") ? data.frame : null;
+  setAvatar(avatarEl, data.avatar ?? 0, "xrst-avatar-44", currentFrame);
   nameEl.textContent = data.username;
   roleEl.textContent = (isOwn ? "我的个人主页" : `${data.username} 的主页`) + (data.uid ? ` · XRSTUID：${data.uid}` : "");
   show("profile");
@@ -150,7 +152,7 @@ async function loadProfile() {
     otherPanel.hidden = true;
 
     /* 头像设置区 */
-    setAvatar(ownAvatar, data.avatar ?? 0, "xrst-avatar-84");
+    setAvatar(ownAvatar, data.avatar ?? 0, "xrst-avatar-84", currentFrame);
     renderAvatarGrid(data.avatar ?? 0);
 
     /* XRSTUID */

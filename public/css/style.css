@@ -1465,8 +1465,8 @@ a.nav-user:hover strong { color: var(--accent); }
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 62vh;
-  min-height: 420px;
+  height: calc(100vh - 230px);
+  min-height: 540px;
 }
 .chat-head {
   display: flex;
@@ -1556,6 +1556,8 @@ a.nav-user:hover strong { color: var(--accent); }
   color: var(--ink-2);
   background: #fff;
 }
+/* .chat-guest 用了 display:flex，会覆盖 hidden 属性的默认隐藏，需显式收口 */
+.chat-guest[hidden] { display: none; }
 
 /* 导航里的“个人主页”入口：点击「你好，用户名」进入 */
 

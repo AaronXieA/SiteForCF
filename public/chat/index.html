@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>在线聊天室 · XRST.Uk</title>
+  <meta name="description" content="XRST.Uk 公共聊天室——注册后即可发言，保留最近 150 条消息。" />
+  <link rel="stylesheet" href="../css/style.css?v=7" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about">关于</a>
+        <a href="/#works">作品</a>
+        <a href="/#contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="chat-main">
+    <p class="wb-eyebrow">我的作品 · 公共聊天室</p>
+    <h1 class="wb-title">在线聊天室</h1>
+    <p class="wb-sub">大家都在这里闲聊——注册后即可发言，只保留最近 150 条消息。</p>
+
+    <section class="chat-box">
+      <div class="chat-head">
+        <span class="chat-online">💬 公共频道</span>
+        <span class="chat-count" id="chatCount">0 条消息</span>
+      </div>
+
+      <div class="chat-list" id="chatList">
+        <p class="chat-tip">正在加载消息…</p>
+      </div>
+
+      <!-- 登录后可见 -->
+      <div class="chat-composer" id="chatComposer" hidden>
+        <textarea
+          id="chatInput"
+          class="pf-textarea chat-input"
+          maxlength="500"
+          rows="3"
+          placeholder="说点什么吧……（Enter 发送，Shift + Enter 换行，最多 500 字）"
+        ></textarea>
+        <div class="chat-composer-bar">
+          <span class="pf-counter"><b id="chatCharCount">0</b> / 500</span>
+          <button class="btn btn-solid btn-small" id="chatSendBtn" type="button">发送</button>
+        </div>
+      </div>
+
+      <!-- 未登录提示 -->
+      <div class="chat-guest" id="chatGuest">
+        <span>登录后即可加入聊天</span>
+        <button class="btn btn-solid btn-small" id="chatLoginBtn" type="button">去登录</button>
+      </div>
+    </section>
+
+    <div class="dc-foot wb-backfoot">
+      <a class="dc-back" href="/#works">← 回到我的作品</a>
+    </div>
+  </main>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login">登录</button>
+        <button class="tab" data-tab="register">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label>用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="用户名或 XRSTUID" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label>用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        </label>
+        <label>密码
+          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <label>确认密码
+          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
+        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/main.js?v=7"></script>
+  <script src="../js/chat.js?v=1"></script>
+</body>
+</html>

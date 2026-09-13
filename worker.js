@@ -334,6 +334,41 @@ async function handleApi(request, env, pathname) {
     return json({ ok: true, username: newName }, 200);
   }
 
+  if (pathname === "/api/chat") {
+    const CHAT_KEY = "chat:messages";
+    const CHAT_MAX = 150;
+    const MSG_MAX = 500;
+
+    if (method === "GET") {
+      const raw = await env.AUTH_KV.get(CHAT_KEY);
+      const messages = raw ? JSON.parse(raw) : [];
+      return json({ messages }, 200);
+    }
+
+    if (method === "POST") {
+      const me = await getSessionUser(request, env);
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      const body = await request.json().catch(() => ({}));
+      const text = typeof body.text === "string" ? body.text.trim() : "";
+      if (!text) return json({ ok: false, error: "消息不能为空" }, 400);
+      if ([...text].length > MSG_MAX) return json({ ok: false, error: `每条消息最多 ${MSG_MAX} 字` }, 400);
+
+      const raw = await env.AUTH_KV.get(CHAT_KEY);
+      const messages = raw ? JSON.parse(raw) : [];
+      const msg = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        username: me,
+        text,
+        ts: Date.now(),
+      };
+      messages.push(msg);
+      // 只保留最近 CHAT_MAX 条
+      const trimmed = messages.slice(-CHAT_MAX);
+      await env.AUTH_KV.put(CHAT_KEY, JSON.stringify(trimmed));
+      return json({ ok: true, message: msg }, 200);
+    }
+  }
+
   if (pathname === "/api/bookmarks") {
     // 全部需要登录
     const me = await getSessionUser(request, env);

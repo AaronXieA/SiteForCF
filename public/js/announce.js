@@ -15,6 +15,8 @@ const announceCount = document.getElementById("announceCount");
 const announceSaveBtn = document.getElementById("announceSaveBtn");
 const announceCancelBtn = document.getElementById("announceCancelBtn");
 
+let currentAnnounceText = "";
+
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -53,8 +55,9 @@ window.addEventListener("auth-user", (e) => {
 });
 
 function renderAnnounce(text, updatedAt) {
-  if (text && text.trim()) {
-    announceBody.innerHTML = `<div class="announce-text">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
+  currentAnnounceText = text || "";
+  if (currentAnnounceText.trim()) {
+    announceBody.innerHTML = `<div class="announce-text">${escapeHtml(currentAnnounceText).replace(/\n/g, "<br>")}</div>`;
     announceTime.textContent = updatedAt ? `更新于 ${fmtTime(updatedAt)}` : "";
   } else {
     announceBody.innerHTML = '<p class="announce-empty">暂无公告。</p>';
@@ -64,8 +67,7 @@ function renderAnnounce(text, updatedAt) {
 
 /* ---------- 编辑模式 ---------- */
 announceEditBtn?.addEventListener("click", () => {
-  const currentText = announceBody.querySelector(".announce-text");
-  announceInput.value = currentText ? currentText.textContent.replace(/<br>/g, "\n") : "";
+  announceInput.value = currentAnnounceText;
   announceCount.textContent = [...announceInput.value].length;
   announceEditor.hidden = false;
   announceEditBtn.hidden = true;

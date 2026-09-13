@@ -4,7 +4,11 @@
   "compatibility_date": "2026-09-12",
   "assets": {
     "directory": "public",
-    "run_worker_first": ["/api/*"]
+    // 显式声明 ASSETS binding，worker 内才能调用 env.ASSETS.fetch
+    "binding": "ASSETS",
+    // 所有请求先经过 worker：/api/* 由 worker 处理，
+    // 静态资源由 worker 调 ASSETS.fetch 返回并统一附加 no-store，避免 HTML/JS/CSS 缓存旧版本
+    "run_worker_first": true
   },
   "kv_namespaces": [
     {

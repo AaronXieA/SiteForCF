@@ -20,11 +20,14 @@ export default {
     }
     // 其余路径交给静态资源（/、/dontclickit/、css/js 等）
     const assetResponse = await env.ASSETS.fetch(request);
-    // 给 JS/CSS 加 no-cache 头，防止浏览器缓存旧版本
+    // 给 HTML / JS / CSS 加 no-store 头，防止浏览器或 CDN 缓存旧版本
     const url = new URL(request.url);
-    if (url.pathname.match(/\.(js|css)$/)) {
+    if (url.pathname.match(/\.(js|css)$/) || url.pathname === "/" || url.pathname.endsWith("/")) {
       const newHeaders = new Headers(assetResponse.headers);
       newHeaders.delete("Cache-Control");
+      // text() 已自动解压，移除压缩相关头避免浏览器二次解压
+      newHeaders.delete("Content-Encoding");
+      newHeaders.delete("Content-Length");
       newHeaders.set("Cache-Control", "no-store");
       const body = await assetResponse.text();
       return new Response(body, {
@@ -377,10 +380,17 @@ async function handleApi(request, env, pathname) {
 
   if (pathname === "/api/login" && method === "POST") {
     const body = await request.json().catch(() => ({}));
-    const username = (body.username || "").trim();
+    const loginId = (body.username || "").trim();
     const password = body.password || "";
 
-    const raw = await env.AUTH_KV.get(userKey(username));
+    // 支持 XRSTUID 登录：输入为 12 位纯数字时，先查 UID 反查索引
+    let key = userKey(loginId);
+    if (/^\d{12}$/.test(loginId)) {
+      const mapped = await env.AUTH_KV.get(`uid:${loginId}`);
+      if (mapped) key = mapped;
+    }
+
+    const raw = await env.AUTH_KV.get(key);
     if (!raw) return json({ ok: false, error: "用户不存在，请先注册" }, 401);
 
     const user = JSON.parse(raw);

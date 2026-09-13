@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>文字画板 · XRST.Uk</title>
-  <meta name="description" content="一块所有人共用的文字画板：注册后就能写下你的想法，上限 3500 字。" />
-  <link rel="stylesheet" href="../css/style.css?v=5" />
+  <title>共享画板 · XRST.Uk</title>
+  <meta name="description" content="一块所有人共用的画板：文字画板写下想法，256×256 像素画板一起涂鸦，注册即可参与。" />
+  <link rel="stylesheet" href="../css/style.css?v=9" />
 </head>
 <body>
 
@@ -23,13 +23,20 @@
 
   <main class="wb-main">
     <p class="wb-eyebrow">一些小东西 · 共享实验</p>
-    <h1 class="wb-title">文字画板</h1>
-    <p class="wb-sub">一块所有人共用的画布——注册后就能写下你的想法。</p>
+    <h1 class="wb-title">共享画板</h1>
+    <p class="wb-sub">两块所有人共用的画布——文字留言，或者在像素画布上一起涂鸦。</p>
 
-    <section class="announce-section" style="padding-top:0;">
+    <!-- 模式切换 -->
+    <div class="board-tabs" role="tablist">
+      <button class="board-tab active" id="tabBtnText" type="button" role="tab">📝 文字画板</button>
+      <button class="board-tab" id="tabBtnPixel" type="button" role="tab">🎨 像素画板</button>
+    </div>
+
+    <!-- ============ 文字画板 ============ -->
+    <section id="panelText">
       <div class="announce-board">
         <div class="announce-head">
-          <span class="announce-icon">🎨</span>
+          <span class="announce-icon">📝</span>
           <h2 class="announce-title">画板内容</h2>
           <span class="announce-time" id="boardTime"></span>
           <button class="btn btn-ghost btn-small announce-edit-btn" id="boardEditBtn" type="button" hidden>编辑画板</button>
@@ -55,6 +62,30 @@
         </div>
       </div>
       <p class="wb-note" style="margin-top:14px;">任何人编辑后都会覆盖整块画板 —— 请手下留情，别把别人的创作擦掉了 awa</p>
+    </section>
+
+    <!-- ============ 像素画板 ============ -->
+    <section id="panelPixel" hidden>
+      <div class="pixel-board">
+        <div class="pixel-toolbar">
+          <div class="pixel-palette" id="pixelPalette"><!-- 20 色 + 橡皮由 JS 生成 --></div>
+          <span class="pixel-status" id="pixelStatus">加载中…</span>
+        </div>
+
+        <div class="pixel-canvas-wrap">
+          <canvas id="pixelCanvas" width="256" height="256" aria-label="像素画板"></canvas>
+          <div class="pixel-mask" id="pixelMask" hidden>
+            <div class="pixel-mask-inner">
+              <p>登录后就能一起画 🎨</p>
+              <button class="btn btn-solid btn-small" id="pixelLoginBtn" type="button">去登录</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="wb-note" style="margin-top:10px;">
+          256×256 的公共画布，选个颜色直接画（支持鼠标/触屏拖动），白色方块是橡皮擦。大家的画会实时叠在同一张画布上～
+        </p>
+      </div>
     </section>
 
     <div class="dc-foot wb-backfoot">
@@ -102,7 +133,8 @@
   <div class="toast-box" id="toastBox"></div>
 
   <script src="../js/auth.js?v=5"></script>
-  <script src="../js/main.js?v=5"></script>
-  <script src="../js/board.js?v=1"></script>
+  <script src="../js/main.js?v=7"></script>
+  <script src="../js/board.js?v=2"></script>
+  <script src="../js/pixel.js?v=1"></script>
 </body>
 </html>

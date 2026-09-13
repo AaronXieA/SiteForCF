@@ -160,6 +160,62 @@ async function handleApi(request, env, pathname) {
     }
   }
 
+  /* ---------- 像素画板（256×256，20 色，RLE+base64 压缩存 KV）---------- */
+  if (pathname === "/api/pixel") {
+    const PX_KEY = "pixel:main";
+    const PX_SIZE = 256 * 256;
+    const MAX_PIXELS_PER_REQ = 3000;
+
+    if (method === "GET") {
+      const raw = await env.AUTH_KV.get(PX_KEY);
+      if (!raw) return json({ data: "", v: 0 }, 200);
+      try {
+        const obj = JSON.parse(raw);
+        return json({ data: obj.data || "", v: obj.v || 0 }, 200);
+      } catch {
+        return json({ data: "", v: 0 }, 200);
+      }
+    }
+
+    if (method === "POST") {
+      const me = await getSessionUser(request, env);
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      const body = await request.json().catch(() => ({}));
+      const pixels = Array.isArray(body.pixels) ? body.pixels : null;
+      if (!pixels || !pixels.length) return json({ ok: false, error: "没有要画的像素" }, 400);
+      if (pixels.length > MAX_PIXELS_PER_REQ) return json({ ok: false, error: "一次画得太多了，慢一点～" }, 400);
+
+      // 读当前网格
+      const raw = await env.AUTH_KV.get(PX_KEY);
+      let grid = new Uint8Array(PX_SIZE);
+      let v = 0;
+      if (raw) {
+        try {
+          const obj = JSON.parse(raw);
+          if (obj.data) grid = rleDecode(obj.data, PX_SIZE);
+          v = obj.v || 0;
+        } catch { /* 数据损坏则从空白开始 */ }
+      }
+
+      // 合并本批像素（c: 0=橡皮/空白，1-20=调色板颜色）
+      let changed = 0;
+      for (const p of pixels) {
+        const x = Number(p && p.x), y = Number(p && p.y), c = Number(p && p.c);
+        if (!Number.isInteger(x) || x < 0 || x > 255) continue;
+        if (!Number.isInteger(y) || y < 0 || y > 255) continue;
+        if (!Number.isInteger(c) || c < 0 || c > 20) continue;
+        const idx = y * 256 + x;
+        if (grid[idx] !== c) { grid[idx] = c; changed++; }
+      }
+      if (!changed) return json({ ok: true, v }, 200);
+
+      v++;
+      const data = rleEncode(grid);
+      await env.AUTH_KV.put(PX_KEY, JSON.stringify({ v, data }));
+      return json({ ok: true, v }, 200);
+    }
+  }
+
   if (pathname === "/api/board") {
     // GET：公开读取文字画板
     if (method === "GET") {
@@ -434,6 +490,52 @@ function json(data, status = 200, extraHeaders = {}) {
       ...extraHeaders,
     },
   });
+}
+
+/* ============ 像素画板：RLE(varint) + base64 ============ */
+function writeVarint(arr, n) {
+  while (n >= 0x80) { arr.push((n & 0x7f) | 0x80); n >>>= 7; }
+  arr.push(n);
+}
+function rleEncode(grid) {
+  const out = [];
+  let run = 1;
+  for (let i = 1; i <= grid.length; i++) {
+    if (i < grid.length && grid[i] === grid[i - 1]) { run++; continue; }
+    writeVarint(out, run);
+    out.push(grid[i - 1]);
+    run = 1;
+  }
+  return bytesToB64(new Uint8Array(out));
+}
+function rleDecode(b64, size) {
+  const bytes = b64ToBytes(b64);
+  const grid = new Uint8Array(size);
+  let p = 0, idx = 0;
+  while (p < bytes.length && idx < size) {
+    // varint
+    let len = 0, shift = 0, b;
+    do { b = bytes[p++]; len |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80);
+    const c = bytes[p++];
+    const end = Math.min(idx + (len >>> 0), size);
+    grid.fill(c, idx, end);
+    idx = end;
+  }
+  return grid;
+}
+function bytesToB64(bytes) {
+  let bin = "";
+  const CH = 0x8000; // 分块避免 apply 参数过多
+  for (let i = 0; i < bytes.length; i += CH) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return btoa(bin);
+}
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 function toHex(buf) {

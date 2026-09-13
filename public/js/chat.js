@@ -20,14 +20,6 @@ let me = null;
 let knownIds = new Set();   // 已渲染消息 id
 let sending = false;
 
-const AVATAR_COLORS = ["#2f6bff", "#d64545", "#1a7f37", "#8a4fff", "#e07b00", "#00939c"];
-
-function avatarColor(name) {
-  let h = 0;
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -84,13 +76,10 @@ function renderMessages(messages, { forceScroll = false } = {}) {
 }
 
 function messageHtml(m) {
-  const initial = escapeHtml([...m.username][0].toUpperCase());
   const self = m.username === me ? " chat-msg-self" : "";
   return `
     <div class="chat-msg${self}" data-id="${escapeHtml(m.id)}">
-      <img class="chat-avatar-img" src="/api/avatar?u=${encodeURIComponent(m.username)}"
-           alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-      <span class="chat-avatar-fallback" style="display:none;background:${avatarColor(m.username)}">${initial}</span>
+      <span class="chat-avatar-slot">${window.XRST_AVATARS.html(m.avatar ?? 0, "xrst-avatar-36")}</span>
       <div class="chat-bubble">
         <div class="chat-meta">
           <span class="chat-name">${escapeHtml(m.username)}</span>

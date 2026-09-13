@@ -24,9 +24,7 @@ const otherEmpty = document.getElementById("otherEmpty");
 
 /* 设置区元素 */
 const ownAvatar = document.getElementById("ownAvatar");
-const avatarUploadBtn = document.getElementById("avatarUploadBtn");
-const avatarRemoveBtn = document.getElementById("avatarRemoveBtn");
-const avatarFile = document.getElementById("avatarFile");
+const avatarGrid = document.getElementById("avatarGrid");
 const pfUid = document.getElementById("pfUid");
 const copyUidBtn = document.getElementById("copyUidBtn");
 const searchableToggle = document.getElementById("searchableToggle");
@@ -47,14 +45,6 @@ const newPw2 = document.getElementById("newPw2");
 const pwMsg = document.getElementById("pwMsg");
 const pwSaveBtn = document.getElementById("pwSaveBtn");
 
-const AVATAR_COLORS = ["#2f6bff", "#d64545", "#1a7f37", "#8a4fff", "#e07b00", "#00939c"];
-
-function avatarColor(name) {
-  let h = 0;
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -74,21 +64,50 @@ function show(view) {
   profileView.hidden = view !== "profile";
 }
 
-/* 头像显示：优先云端图片，失败回退为彩色字母 */
-function applyAvatar(container, username) {
-  const img = document.createElement("img");
-  img.alt = "";
-  img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:inherit;";
-  img.onload = () => {
-    container.textContent = "";
-    container.appendChild(img);
-  };
-  img.onerror = () => {
-    container.textContent = [...username][0].toUpperCase();
-    container.style.background = avatarColor(username);
-  };
-  img.src = `/api/avatar?u=${encodeURIComponent(username)}&t=${Date.now()}`;
+/* 内置头像渲染 */
+let currentAvatar = 0;
+
+function setAvatar(container, id, sizeClass) {
+  container.innerHTML = window.XRST_AVATARS.html(id, sizeClass || "");
 }
+
+function renderAvatarGrid(selected) {
+  currentAvatar = window.XRST_AVATARS.normalize(selected);
+  avatarGrid.innerHTML = window.XRST_AVATARS.LIST.map((a, i) =>
+    `<button type="button" class="pf-avatar-option${i === currentAvatar ? " selected" : ""}" data-avatar="${i}"
+             aria-label="头像 ${i + 1}">${window.XRST_AVATARS.html(i)}</button>`
+  ).join("");
+}
+
+avatarGrid?.addEventListener("click", async e => {
+  const btn = e.target.closest("[data-avatar]");
+  if (!btn) return;
+  const id = Number(btn.dataset.avatar);
+  try {
+    const res = await fetch("/api/avatar?t=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatar: id }),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      currentAvatar = id;
+      renderAvatarGrid(id);
+      setAvatar(ownAvatar, id, "xrst-avatar-84");
+      setAvatar(avatarEl, id, "xrst-avatar-44");
+      showToast("头像已更新");
+    } else if (res.status === 401) {
+      showToast("请先登录");
+      if (typeof openAuthModal === "function") openAuthModal();
+    } else {
+      showToast(data.error || "头像设置失败");
+    }
+  } catch {
+    showToast("网络异常，头像设置失败");
+  }
+});
 
 function updateShareLink(username) {
   shareLink.textContent = `${location.origin}/profile/?u=${encodeURIComponent(username)}`;
@@ -121,7 +140,7 @@ async function loadProfile() {
   const isOwn = !!me && me.toLowerCase() === data.username.toLowerCase();
   currentUsername = data.username;
 
-  applyAvatar(avatarEl, data.username);
+  setAvatar(avatarEl, data.avatar ?? 0, "xrst-avatar-44");
   nameEl.textContent = data.username;
   roleEl.textContent = (isOwn ? "我的个人主页" : `${data.username} 的主页`) + (data.uid ? ` · XRSTUID：${data.uid}` : "");
   show("profile");
@@ -131,8 +150,8 @@ async function loadProfile() {
     otherPanel.hidden = true;
 
     /* 头像设置区 */
-    applyAvatar(ownAvatar, data.username);
-    hasAvatar(data.username).then(yes => { avatarRemoveBtn.hidden = !yes; });
+    setAvatar(ownAvatar, data.avatar ?? 0, "xrst-avatar-84");
+    renderAvatarGrid(data.avatar ?? 0);
 
     /* XRSTUID */
     pfUid.textContent = data.uid || "生成中…";
@@ -157,105 +176,6 @@ async function loadProfile() {
       otherEmpty.hidden = false;
     }
   }
-}
-
-async function hasAvatar(username) {
-  try {
-    const res = await fetch(`/api/avatar?u=${encodeURIComponent(username)}&t=${Date.now()}`, { method: "HEAD" });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-/* ---------------- 头像上传 ---------------- */
-
-avatarUploadBtn?.addEventListener("click", () => avatarFile.click());
-
-avatarFile?.addEventListener("change", async () => {
-  const file = avatarFile.files && avatarFile.files[0];
-  avatarFile.value = "";
-  if (!file) return;
-  if (!/^image\/(png|jpe?g|webp|gif)$/.test(file.type)) {
-    showToast("只支持 jpg / png / webp / gif");
-    return;
-  }
-  try {
-    const dataUrl = await compressImage(file, 256);
-    if (dataUrl.length > 100_000) {
-      showToast("图片压缩后仍然太大，换一张试试");
-      return;
-    }
-    const res = await fetch("/api/avatar?t=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ avatar: dataUrl }),
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) {
-      applyAvatar(ownAvatar, currentUsername);
-      applyAvatar(avatarEl, currentUsername);
-      avatarRemoveBtn.hidden = false;
-      showToast("头像已更新");
-    } else {
-      showToast(data.error || "头像上传失败");
-    }
-  } catch {
-    showToast("图片处理失败");
-  }
-});
-
-avatarRemoveBtn?.addEventListener("click", async () => {
-  try {
-    const res = await fetch("/api/avatar?t=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ avatar: null }),
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) {
-      applyAvatar(ownAvatar, currentUsername);
-      applyAvatar(avatarEl, currentUsername);
-      avatarRemoveBtn.hidden = true;
-      showToast("头像已移除");
-    } else {
-      showToast(data.error || "移除失败");
-    }
-  } catch {
-    showToast("网络异常");
-  }
-});
-
-/* 压缩图片到 size×size 的 JPEG dataURL */
-function compressImage(file, size) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read fail"));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("decode fail"));
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        // 居中裁剪成方形
-        const side = Math.min(img.width, img.height);
-        ctx.drawImage(
-          img,
-          (img.width - side) / 2, (img.height - side) / 2, side, side,
-          0, 0, size, size
-        );
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
 /* ---------------- XRSTUID 复制 ---------------- */

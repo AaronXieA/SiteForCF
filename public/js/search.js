@@ -8,14 +8,6 @@ const usForm = document.getElementById("usForm");
 const usInput = document.getElementById("usInput");
 const usList = document.getElementById("usList");
 
-const AVATAR_COLORS = ["#2f6bff", "#d64545", "#1a7f37", "#8a4fff", "#e07b00", "#00939c"];
-
-function avatarColor(name) {
-  let h = 0;
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -30,9 +22,7 @@ function renderResults(results) {
   usList.innerHTML = results.map(r => `
     <li class="us-item">
       <a class="us-link" href="/profile/?u=${encodeURIComponent(r.username)}">
-        <img class="us-avatar" src="/api/avatar?u=${encodeURIComponent(r.username)}"
-             alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-        <span class="us-avatar us-avatar-fallback" style="display:none;background:${avatarColor(r.username)}">${escapeHtml([...r.username][0].toUpperCase())}</span>
+        <span class="us-avatar-slot">${window.XRST_AVATARS.html(r.avatar ?? 0, "xrst-avatar-44")}</span>
         <span class="us-info">
           <span class="us-name">${escapeHtml(r.username)}</span>
           <span class="us-uid">XRSTUID：${r.uid ? escapeHtml(r.uid) : "—"}</span>

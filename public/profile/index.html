@@ -40,7 +40,7 @@
     <section id="profileView" hidden>
       <div class="pf-card">
         <div class="pf-head">
-          <div class="pf-avatar" id="pfAvatar">?</div>
+          <span id="pfAvatar"></span>
           <div class="pf-head-info">
             <h1 class="pf-name" id="pfName">—</h1>
             <p class="pf-role" id="pfRole">个人主页</p>
@@ -50,16 +50,13 @@
         <!-- 自己的主页：可编辑 -->
         <div id="ownPanel" hidden>
           <!-- 头像设置 -->
-          <div class="pf-setting-row pf-avatar-row">
-            <span class="pf-avatar pf-avatar-big" id="ownAvatar">?</span>
-            <div class="pf-avatar-actions">
-              <div class="pf-inline-form">
-                <button class="btn btn-ghost btn-small" id="avatarUploadBtn" type="button">上传头像</button>
-                <button class="btn btn-ghost btn-small" id="avatarRemoveBtn" type="button" hidden>移除头像</button>
-              </div>
-              <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
-              <p class="pf-hint">支持 jpg / png / webp / gif，会自动压缩到 256×256。</p>
+          <div class="pf-setting-col">
+            <div class="pf-inline-form" style="align-items:center;">
+              <span id="ownAvatar"></span>
+              <span class="pf-setting-title">头像</span>
+              <span class="pf-setting-desc" style="margin:0;">从下面 20 个内置头像里选一个</span>
             </div>
+            <div id="avatarGrid" class="pf-avatar-grid"></div>
           </div>
 
           <!-- XRSTUID -->
@@ -211,7 +208,8 @@
   <div class="toast-box" id="toastBox"></div>
 
   <script src="../js/auth.js?v=5"></script>
-  <script src="../js/main.js?v=6"></script>
-  <script src="../js/profile.js?v=4"></script>
+  <script src="../js/avatars.js?v=1"></script>
+  <script src="../js/main.js?v=7"></script>
+  <script src="../js/profile.js?v=5"></script>
 </body>
 </html>

@@ -331,15 +331,64 @@ a.nav-user:hover strong { color: var(--accent); }
 /* 联系 */
 .contact-inner { text-align: center; }
 .contact-inner .section-title::after { margin-left: auto; margin-right: auto; }
-.contact-text { color: var(--ink-2); margin-bottom: 28px; }
-.contact-email {
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  word-break: break-all;
+.contact-text { color: var(--ink-2); margin-bottom: 32px; }
+
+/* 联系方式卡片 */
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  max-width: 760px;
+  margin: 0 auto 28px;
+  text-align: left;
 }
-.contact-email:hover { opacity: .8; }
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.contact-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 10px 26px rgba(20, 30, 50, .08);
+}
+.contact-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #eef3fb;
+  color: var(--accent);
+}
+.contact-icon svg { width: 22px; height: 22px; }
+.contact-icon-bili { background: #fde8ef; color: #fb7299; }
+.contact-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.contact-label { font-size: 12px; color: var(--ink-3); }
+.contact-handle {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contact-go { color: var(--ink-3); font-size: 15px; flex-shrink: 0; }
+.contact-card:hover .contact-go { color: var(--accent); }
+.contact-server-btn { min-width: 220px; }
+
+@media (max-width: 720px) {
+  .contact-grid { grid-template-columns: 1fr; max-width: 420px; }
+}
 
 /* 页脚 */
 .footer { border-top: 1px solid var(--line); padding: 28px 24px; }

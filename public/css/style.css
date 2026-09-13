@@ -378,6 +378,12 @@ a.nav-user:hover strong { color: var(--accent); }
   box-shadow: 0 24px 64px rgba(0, 0, 0, .25);
   animation: modalIn .22s ease;
 }
+.modal-title {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0 0 18px;
+  text-align: center;
+}
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(12px) scale(.98); }
   to { opacity: 1; transform: none; }

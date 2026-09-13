@@ -85,13 +85,12 @@
           </div>
 
           <!-- 用户名 -->
-          <div class="pf-setting-col">
-            <span class="pf-setting-title">用户名</span>
-            <div class="pf-inline-form">
-              <input type="text" id="renameInput" class="pf-input" maxlength="20" placeholder="输入新用户名（2-20 位字母、数字、下划线或中文）" />
-              <button class="btn btn-ghost btn-small" id="renameBtn" type="button">修改用户名</button>
+          <div class="pf-setting-row">
+            <div class="pf-setting-info">
+              <span class="pf-setting-title">用户名</span>
+              <span class="pf-setting-desc">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</span>
             </div>
-            <p class="pf-hint">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</p>
+            <button class="btn btn-ghost btn-small" id="renameOpenBtn" type="button">修改用户名</button>
           </div>
 
           <label class="pf-label" for="bioInput">个人简介（云端保存，最多 1000 字）</label>
@@ -108,15 +107,13 @@
             <button class="btn btn-solid" id="bioSaveBtn" type="button">保存简介</button>
           </div>
 
-          <!-- 修改密码 -->
-          <div class="pf-setting-col">
-            <span class="pf-setting-title">修改密码</span>
-            <input type="password" id="oldPw" class="pf-input" placeholder="当前密码" autocomplete="current-password" />
-            <input type="password" id="newPw" class="pf-input" placeholder="新密码（至少 6 位）" autocomplete="new-password" />
-            <input type="password" id="newPw2" class="pf-input" placeholder="再输一遍新密码" autocomplete="new-password" />
-            <div class="pf-inline-form">
-              <button class="btn btn-solid btn-small" id="pwSaveBtn" type="button">确认修改密码</button>
+          <!-- 修改密码入口 -->
+          <div class="pf-setting-row">
+            <div class="pf-setting-info">
+              <span class="pf-setting-title">登录密码</span>
+              <span class="pf-setting-desc">定期更换密码可以让账号更安全。</span>
             </div>
+            <button class="btn btn-ghost btn-small" id="pwOpenBtn" type="button">修改密码</button>
           </div>
 
           <div class="pf-share">
@@ -174,10 +171,47 @@
     </div>
   </div>
 
+  <!-- 修改用户名弹窗 -->
+  <div class="modal-mask" id="renameModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="renameClose" aria-label="关闭">×</button>
+      <h3 class="modal-title">修改用户名</h3>
+      <form id="renameForm" class="modal-form" autocomplete="off">
+        <label>新用户名
+          <input type="text" id="renameInput" required minlength="2" maxlength="20" placeholder="2-20 位字母、数字、下划线或中文" />
+        </label>
+        <p class="form-note">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</p>
+        <p class="form-msg err" id="renameMsg"></p>
+        <button type="submit" class="btn btn-solid btn-block" id="renameBtn">确认修改</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 修改密码弹窗 -->
+  <div class="modal-mask" id="pwModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="pwClose" aria-label="关闭">×</button>
+      <h3 class="modal-title">修改密码</h3>
+      <form id="pwForm" class="modal-form" autocomplete="off">
+        <label>当前密码
+          <input type="password" id="oldPw" required minlength="6" placeholder="输入当前密码" autocomplete="current-password" />
+        </label>
+        <label>新密码
+          <input type="password" id="newPw" required minlength="6" placeholder="至少 6 位" autocomplete="new-password" />
+        </label>
+        <label>确认新密码
+          <input type="password" id="newPw2" required minlength="6" placeholder="再输一遍新密码" autocomplete="new-password" />
+        </label>
+        <p class="form-msg err" id="pwMsg"></p>
+        <button type="submit" class="btn btn-solid btn-block" id="pwSaveBtn">确认修改密码</button>
+      </form>
+    </div>
+  </div>
+
   <div class="toast-box" id="toastBox"></div>
 
   <script src="../js/auth.js?v=5"></script>
   <script src="../js/main.js?v=6"></script>
-  <script src="../js/profile.js?v=3"></script>
+  <script src="../js/profile.js?v=4"></script>
 </body>
 </html>

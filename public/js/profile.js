@@ -30,11 +30,21 @@ const avatarFile = document.getElementById("avatarFile");
 const pfUid = document.getElementById("pfUid");
 const copyUidBtn = document.getElementById("copyUidBtn");
 const searchableToggle = document.getElementById("searchableToggle");
+const renameOpenBtn = document.getElementById("renameOpenBtn");
+const renameModal = document.getElementById("renameModal");
+const renameClose = document.getElementById("renameClose");
+const renameForm = document.getElementById("renameForm");
 const renameInput = document.getElementById("renameInput");
+const renameMsg = document.getElementById("renameMsg");
 const renameBtn = document.getElementById("renameBtn");
+const pwOpenBtn = document.getElementById("pwOpenBtn");
+const pwModal = document.getElementById("pwModal");
+const pwClose = document.getElementById("pwClose");
+const pwForm = document.getElementById("pwForm");
 const oldPw = document.getElementById("oldPw");
 const newPw = document.getElementById("newPw");
 const newPw2 = document.getElementById("newPw2");
+const pwMsg = document.getElementById("pwMsg");
 const pwSaveBtn = document.getElementById("pwSaveBtn");
 
 const AVATAR_COLORS = ["#2f6bff", "#d64545", "#1a7f37", "#8a4fff", "#e07b00", "#00939c"];
@@ -290,18 +300,50 @@ searchableToggle?.addEventListener("change", async () => {
   }
 });
 
+/* ---------------- 通用弹窗开关 ---------------- */
+
+function openModal(modal) {
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeModal(modal) {
+  modal.hidden = true;
+  document.body.style.overflow = "";
+}
+function bindModal(modal, closeBtn) {
+  closeBtn?.addEventListener("click", () => closeModal(modal));
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(modal); });
+}
+bindModal(renameModal, renameClose);
+bindModal(pwModal, pwClose);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (renameModal && !renameModal.hidden) closeModal(renameModal);
+    if (pwModal && !pwModal.hidden) closeModal(pwModal);
+  }
+});
+
 /* ---------------- 修改用户名 ---------------- */
 
-renameBtn?.addEventListener("click", async () => {
+renameOpenBtn?.addEventListener("click", () => {
+  renameInput.value = "";
+  renameMsg.textContent = "";
+  openModal(renameModal);
+  renameInput.focus();
+});
+
+renameForm?.addEventListener("submit", async e => {
+  e.preventDefault();
   const newName = renameInput.value.trim();
   if (!newName) {
-    showToast("先输入新用户名");
+    renameMsg.textContent = "先输入新用户名";
     return;
   }
   if (newName === currentUsername) {
-    showToast("新用户名和当前一样");
+    renameMsg.textContent = "新用户名和当前一样";
     return;
   }
+  renameMsg.textContent = "";
   renameBtn.disabled = true;
   renameBtn.textContent = "修改中…";
   try {
@@ -315,7 +357,7 @@ renameBtn?.addEventListener("click", async () => {
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
       showToast(`用户名已改为「${data.username}」`);
-      renameInput.value = "";
+      closeModal(renameModal);
       currentUsername = data.username;
       // 刷新导航与本页显示
       if (typeof renderNavAuth === "function") renderNavAuth(data.username);
@@ -323,29 +365,38 @@ renameBtn?.addEventListener("click", async () => {
       updateShareLink(data.username);
       history.replaceState(null, "", `/profile/?u=${encodeURIComponent(data.username)}`);
     } else {
-      showToast(data.error || "修改失败");
+      renameMsg.textContent = data.error || "修改失败";
     }
   } catch {
-    showToast("网络异常，修改失败");
+    renameMsg.textContent = "网络异常，修改失败";
   } finally {
     renameBtn.disabled = false;
-    renameBtn.textContent = "修改用户名";
+    renameBtn.textContent = "确认修改";
   }
 });
 
 /* ---------------- 修改密码 ---------------- */
 
-pwSaveBtn?.addEventListener("click", async () => {
+pwOpenBtn?.addEventListener("click", () => {
+  pwForm.reset();
+  pwMsg.textContent = "";
+  openModal(pwModal);
+  oldPw.focus();
+});
+
+pwForm?.addEventListener("submit", async e => {
+  e.preventDefault();
   const oldP = oldPw.value;
   const newP = newPw.value;
   if (newP.length < 6) {
-    showToast("新密码至少 6 位");
+    pwMsg.textContent = "新密码至少 6 位";
     return;
   }
   if (newP !== newPw2.value) {
-    showToast("两次输入的新密码不一致");
+    pwMsg.textContent = "两次输入的新密码不一致";
     return;
   }
+  pwMsg.textContent = "";
   pwSaveBtn.disabled = true;
   pwSaveBtn.textContent = "提交中…";
   try {
@@ -358,13 +409,14 @@ pwSaveBtn?.addEventListener("click", async () => {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
-      oldPw.value = newPw.value = newPw2.value = "";
       showToast("密码已更新");
+      closeModal(pwModal);
+      pwForm.reset();
     } else {
-      showToast(data.error || "修改失败");
+      pwMsg.textContent = data.error || "修改失败";
     }
   } catch {
-    showToast("网络异常，修改失败");
+    pwMsg.textContent = "网络异常，修改失败";
   } finally {
     pwSaveBtn.disabled = false;
     pwSaveBtn.textContent = "确认修改密码";

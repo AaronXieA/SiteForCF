@@ -26,8 +26,6 @@
   const postType = document.getElementById("postType");
   const itemWrap = document.getElementById("itemWrap");
   const itemInput = document.getElementById("itemInput");
-  const wantWrap = document.getElementById("wantWrap");
-  const wantInput = document.getElementById("wantInput");
   const priceWrap = document.getElementById("priceWrap");
   const priceHint = document.getElementById("priceHint");
 
@@ -98,7 +96,7 @@
 
   function priceHtml(l) {
     if (l.type === "barter") {
-      return `<span class="mk-price mk-price-barter">🔄 想用 ${esc(l.want)} 换</span>`;
+      return `<span class="mk-price mk-price-barter">🔄 以物易物</span>`;
     }
     if (l.price === 0) return '<span class="mk-price mk-price-zero">🪙 0 · 免费</span>';
     return `<span class="mk-price">🪙 ${l.price.toLocaleString("zh-CN")}</span>`;
@@ -122,7 +120,7 @@
 
   function cardTitle(l) {
     if (l.type === "buy") return `收 ${l.item}`;
-    if (l.type === "barter") return `${l.item} ⇄ ${l.want}`;
+    if (l.type === "barter") return l.item;
     return `出 ${l.item}`;
   }
 
@@ -220,7 +218,7 @@
       if (!window.confirm("确定下架这帖吗？下架后不可恢复。")) return;
     } else if (act === "take") {
       const tip = l.type === "barter"
-        ? `确定与 @${esc(l.owner)} 交换吗？你的「${esc(l.want)}」换 TA 的「${esc(l.item)}」。拍下后开启临时聊天。`
+        ? `确定与 @${esc(l.owner)} 交换吗？你的物品换 TA 的「${esc(l.item)}」，具体聊天里谈。`
         : l.type === "buy"
           ? (l.price === 0
               ? `确定把「${esc(l.item)}」送给 @${esc(l.owner)} 吗？对方点「完成交易」后金币到账。`
@@ -267,18 +265,14 @@
     const t = postTypeVal;
     if (t === "sell") {
       itemWrap.firstChild.textContent = "物品";
-      wantWrap.hidden = true;
       priceWrap.hidden = false;
       priceHint.textContent = "0 = 免费送";
     } else if (t === "buy") {
       itemWrap.firstChild.textContent = "物品";
-      wantWrap.hidden = true;
       priceWrap.hidden = false;
       priceHint.textContent = "你愿意出多少金币收购";
     } else {
-      itemWrap.firstChild.textContent = "我出的物品";
-      wantWrap.firstChild.textContent = "想换的物品";
-      wantWrap.hidden = false;
+      itemWrap.firstChild.textContent = "物品";
       priceWrap.hidden = true;
     }
   }
@@ -331,14 +325,11 @@
     if (!me) { XRST.closeMask(postModal); openAuthModal(); return; }
     const fd = new FormData(postForm);
     const item = String(fd.get("item") || "").trim();
-    const want = postTypeVal === "barter" ? String(fd.get("want") || "").trim() : undefined;
     if (!item) { showToast("请填写物品名称"); return; }
-    if (postTypeVal === "barter" && !want) { showToast("请填写想换的物品"); return; }
     const payload = {
       action: "post",
       type: postTypeVal,
       item,
-      want,
       desc: String(fd.get("desc") || "").trim(),
       price: postTypeVal === "barter" ? 0 : Number(fd.get("price")),
     };
@@ -379,7 +370,7 @@
     chatTitleEl.textContent = `${meta.tag} · ${cardTitle(l)}`;
     const other = me === l.owner ? l.taker : l.owner;
     const priceTxt = l.type === "barter"
-      ? `${l.item} ⇄ ${l.want}`
+      ? `以物易物`
       : `担保 ${l.price.toLocaleString("zh-CN")} 🪙`;
     chatMetaEl.textContent = `对方 @${other} · ${priceTxt} · ${remainText(l.expireAt)}`;
   }

@@ -184,11 +184,10 @@ public class XrstMarketMod implements DedicatedServerModInitializer {
                 int price = l.has("price") ? l.get("price").getAsInt() : 0;
                 String owner = l.get("owner").getAsString();
                 String desc = l.has("desc") ? l.get("desc").getAsString() : "";
-                String want = l.has("want") && !l.get("want").isJsonNull() ? l.get("want").getAsString() : "";
 
                 int color = type.equals("sell") ? COLOR_SELL : (type.equals("buy") ? COLOR_BUY : COLOR_BARTER);
                 String tag = type.equals("sell") ? "出售" : (type.equals("buy") ? "收购" : "交换");
-                String priceStr = type.equals("barter") ? (" ⇄ " + want) : (" · " + price + "🪙");
+                String priceStr = type.equals("barter") ? "" : (" · " + price + "🪙");
                 String line = "[" + (i + 1) + "] " + tag + " · " + item + priceStr + " · @" + owner;
 
                 Style st = Style.EMPTY.withColor(color)
@@ -218,7 +217,6 @@ public class XrstMarketMod implements DedicatedServerModInitializer {
             int price = l.has("price") ? l.get("price").getAsInt() : 0;
             String owner = l.get("owner").getAsString();
             String desc = l.has("desc") ? l.get("desc").getAsString() : "";
-            String want = l.has("want") && !l.get("want").isJsonNull() ? l.get("want").getAsString() : "";
 
             // 帖子物品名是自由文本，映射不到真实物品，用固定图标区分类型
             ItemStack stack = new ItemStack(switch (type) {
@@ -227,7 +225,7 @@ public class XrstMarketMod implements DedicatedServerModInitializer {
                 default -> Items.EMERALD;
             });
             String tag = type.equals("sell") ? "§a出售" : (type.equals("buy") ? "§6收购" : "§d交换");
-            String priceStr = type.equals("barter") ? (" §7⇄ §f" + want) : (" §e" + price + "🪙");
+            String priceStr = type.equals("barter") ? "" : (" §e" + price + "🪙");
             stack.set(DataComponents.CUSTOM_NAME, Component.literal(tag + " §f" + item + priceStr));
 
             List<Component> lore = new ArrayList<>();

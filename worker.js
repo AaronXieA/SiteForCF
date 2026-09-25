@@ -663,12 +663,8 @@ async function handleApi(request, env, pathname) {
         const item = String(body.item || "").trim();
         if (!item) return json({ ok: false, error: "请填写物品名称" }, 400);
         if (item.length > MARKET_ITEM_MAX) return json({ ok: false, error: `物品名不能超过 ${MARKET_ITEM_MAX} 个字` }, 400);
-        const want = type === "barter" ? String(body.want || "").trim() : null;
-        if (type === "barter") {
-          if (!want) return json({ ok: false, error: "请填写想换的物品" }, 400);
-          if (want.length > MARKET_ITEM_MAX) return json({ ok: false, error: `想换的物品名不能超过 ${MARKET_ITEM_MAX} 个字` }, 400);
-          if (want === item) return json({ ok: false, error: "不能拿它换它自己" }, 400);
-        }
+        // barter 不再要求填"想换的物品"，双方聊天里自由谈
+        const want = null;
         const desc = String(body.desc || "").trim().slice(0, MARKET_DESC_MAX);
 
         let price = 0;

@@ -1,3 +1,10 @@
 .wrangler/
 node_modules/
 .DS_Store
+.dev.vars
+.env
+
+# MC mod 构建产物
+mc-market-mod/.gradle/
+mc-market-mod/build/
+mc-market-mod/run/

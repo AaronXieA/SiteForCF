@@ -1,38 +1,334 @@
 // =====================================================
 // XRST.Uk · Cloudflare Worker
 // 静态资源（public/）由 Assets 运行时直接响应；
-// /api/* 由本脚本处理（注册/登录/会话/退出），数据存 KV。
+// /api/* 由本脚本处理。账号/资料等低频数据存 KV；
+// 在线心跳用 KV 单键+节流（不进 DO）；聊天、像素/文字画板走 Durable Objects。
 // =====================================================
+
+import {
+  CollabDO as CollabDOBase,
+  GameLobbyDO as GameLobbyDOBase,
+  GameMatchDO as GameMatchDOBase,
+} from "./do.js";
+
+// 在入口模块内重新声明子类：让运行时在主模块类上直接识别 hibernation 事件处理器
+// （跨模块 re-export 时 webSocketMessage 等处理器可能不被注册）
+export class CollabDO extends CollabDOBase {}
+export class GameLobbyDO extends GameLobbyDOBase {}
+export class GameMatchDO extends GameMatchDOBase {}
 
 const SESSION_COOKIE = "xrst_session";
 const SESSION_TTL = 60 * 60 * 24 * 30; // 30 天（秒）
 const PBKDF2_ITERATIONS = 20_000;
 
-/* 商店目录（服务端权威定价）：头像框 / 聊天气泡 */
-const FRAME_SHOP = { f1: 30, f2: 20, f3: 60, f4: 100, f5: 150 };
-const BUBBLE_SHOP = { b1: 30, b2: 30, b3: 50, b4: 80, b5: 150 };
+/* 商店目录（服务端权威定价）：头像框 / 聊天气泡
+   f1-f8 / b1-b8 为金币直购；fv1 / bv1 为 VIP 专属（不在价格表里，不能用金币买）*/
+const FRAME_SHOP = { f1: 30, f2: 20, f3: 60, f4: 100, f5: 150, f6: 80, f7: 120, f8: 200 };
+const BUBBLE_SHOP = { b1: 30, b2: 30, b3: 50, b4: 80, b5: 150, b6: 60, b7: 120, b8: 200 };
+const VIP_FRAME = "fv1";
+const VIP_BUBBLE = "bv1";
+const VIP_PRICE = 250;   // 250 金币
+const VIP_DAYS = 30;     // 30 天
+const VIP_MS = VIP_DAYS * 24 * 3600 * 1000;
+
+/* ============ 金币抽奖：100 金币/次 ============
+   权重总和 2000：普通奖占 99.5%，两个隐藏大奖各 0.25%（合计 0.5%）。
+   type：coins=网站金币自动到账；vip=VIP 自动叠加天数并换上专属套装；
+   item=游戏内物品，记入 user.lotteryPrizes，玩家凭兑换码到 QQ 群找腐竹领取。
+   开奖在服务端用 crypto 安全随机数完成，前端只负责展示。*/
+const LOTTERY_COST = 100;
+const LOTTERY_WEIGHT_TOTAL = 2000;
+const LOTTERY_PRIZES = [
+  { id: "apple1",   type: "item",  icon: "🍎", label: "附魔金苹果 ×1",       w: 250 },
+  { id: "apple3",   type: "item",  icon: "🍎", label: "附魔金苹果 ×3",       w: 130 },
+  { id: "diasuit",  type: "item",  icon: "🛡️", label: "钻石套 ×1（无附魔）", w: 90 },
+  { id: "carrot5",  type: "item",  icon: "🥕", label: "金胡萝卜 ×5",         w: 280 },
+  { id: "dblock1",  type: "item",  icon: "💠", label: "钻石块 ×1",           w: 220 },
+  { id: "coins150", type: "coins", icon: "🪙", label: "网站金币 ×150", amount: 150, w: 150 },
+  { id: "coins80",  type: "coins", icon: "🪙", label: "网站金币 ×80",  amount: 80,  w: 320 },
+  { id: "eblock3",  type: "item",  icon: "🟩", label: "绿宝石块 ×3",         w: 180 },
+  { id: "vip30",    type: "vip",   icon: "👑", label: "1 个月网站 VIP", days: 30,  w: 70 },
+  { id: "iron10",   type: "item",  icon: "🧱", label: "铁块 ×10",            w: 300 },
+  // —— 以下为隐藏大奖，合计 0.5% ——
+  { id: "vip365",   type: "vip",   icon: "👑", label: "12 个月网站 VIP！！", days: 365, w: 5, hidden: true },
+  { id: "dblock25", type: "item",  icon: "💠", label: "钻石块 ×25！！！",    w: 5, hidden: true },
+];
+
+/* ============ 站队投票 ============
+   题目 id 一经发布不可改动（KV 键 vote:<id> 依赖它）；文案在前后端各自镜像。
+   去重身份：登录账号 u:<name> 与客户端 IP i:<ip>，任一命中都算"已投"。
+   KV 结构：{ a: 人数, b: 人数, v: { "u:name": "a", "i:1.2.3.4": "b" } }
+   单次读-改-写，与商店同一套并发取舍（本站流量小，覆盖冲突可接受）。*/
+const VOTE_QUESTIONS = [
+  { id: "q1", q: "爱玩？", a: "点击按钮", b: "偷还是分？" },
+  { id: "q2", q: "粽子蘸什么？", a: "甜党（白糖蜜枣）", b: "咸党（鲜肉蛋黄）" },
+  { id: "q3", q: "豆腐脑吃甜的还是咸的？", a: "甜的，糖水派", b: "咸的，卤汁派" },
+  { id: "q4", q: "菠萝能不能上披萨？", a: "天作之合，真香", b: "异端，拖出去" },
+  { id: "q5", q: "你的作息是？", a: "夜猫子，凌晨再战", b: "早起鸟，晨光真好" },
+  { id: "q6", q: "奶茶里加不加小料？", a: "加满小料，半杯都是料", b: "纯奶茶，小料是邪道" },
+  { id: "q7", q: "代码的左大括号换不换行？", a: "不换行，K&R 正统", b: "必须换行，Allman" },
+  { id: "q8", q: "夏天空调开几度？", a: "26℃，环保省电", b: "20℃，裹棉被睡" },
+];
+const VOTE_IDS = new Set(VOTE_QUESTIONS.map(q => q.id));
+
+function voteKey(id) { return `vote:${id}`; }
+function clientIp(request) {
+  return request.headers.get("CF-Connecting-IP")
+    || (request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+    || "0.0.0.0"; // 本地调试无 IP 头时所有游客共享一个身份
+}
+function emptyVote() { return { a: 0, b: 0, v: {} }; }
+function parseVote(raw) {
+  if (!raw) return emptyVote();
+  try {
+    const r = JSON.parse(raw);
+    return {
+      a: Number.isFinite(r.a) ? Math.max(0, r.a | 0) : 0,
+      b: Number.isFinite(r.b) ? Math.max(0, r.b | 0) : 0,
+      v: (r.v && typeof r.v === "object") ? r.v : {},
+    };
+  } catch { return emptyVote(); }
+}
+/* 当前请求的身份在这题投了哪边（账号优先于 IP）*/
+function voteMine(rec, uKey, iKey) {
+  if (uKey && rec.v[uKey]) return rec.v[uKey];
+  if (rec.v[iKey]) return rec.v[iKey];
+  return null;
+}
+
+/* ============ 二手交易（站内道具集市）============
+   交易标的 = 站内装扮：头像框 f1-f8 / 聊天气泡 b1-b8（VIP 专属 fv1/bv1 不可交易）。
+   三种帖：sell 卖道具换金币 / buy 出金币收道具 / barter 以物易物（item 换 want）。
+   所有帖子存单键索引 mkt:index（数组，读-改-写，与商店同一取舍）：
+   { id, type, owner(小写), item, want|null, price, desc,
+     status:"open"|"taken", taker(小写)|null,
+     buyer/seller(小写, 金币流向; barter 为 null), held(担保金币),
+     createdAt, takenAt, expireAt(拍下+7天) }
+   物品规则：发帖/供货时校验拥有权与"同一物品同时只进一个活跃帖"；
+   完成时才真正转移物品（卸下装备、换 owner），下架/过期不动物品。
+   担保：拍下即把买家金币扣进帖子 held（卖家拿不到）；
+   完成 → held 打给卖家 + 物品交割、帖子与聊天永久删除；
+   7 天未完成 → 懒结算退款给买家、帖子重新上架、聊天删除（KV 自带绝对过期兜底）。
+   聊天键 mkt:chat:<id> = { msgs:[{f,t,x}] }，只留最近 200 条。*/
+const MARKET_KEY = "mkt:index";
+const MARKET_SLOTS_FREE = 8;     // 非 VIP 同时在架栏位
+const MARKET_SLOTS_VIP = 20;     // VIP 栏位
+const MARKET_MAX_PRICE = 999999;
+const MARKET_ITEM_MAX = 40;      // 物品名最长字符数（MC 物品名，玩家自填）
+const MARKET_DESC_MAX = 300;
+const MARKET_MSG_MAX = 500;
+const MARKET_CHAT_MS = 7 * 24 * 3600 * 1000;
+const MARKET_MSG_CAP = 200;
+const MARKET_TYPES = new Set(["sell", "buy", "barter"]);
+// 交易标的是 MC 服务器内物品，玩家自填物品名，网站不校验物品所有权
+
+function marketChatKey(id) { return `mkt:chat:${id}`; }
+
+async function loadMarket(env) {
+  const raw = await env.AUTH_KV.get(MARKET_KEY);
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(x => x && MARKET_TYPES.has(x.type)) : [];
+  } catch { return []; }
+}
+
+function marketView(l) {
+  return {
+    id: l.id, type: l.type, owner: l.owner, item: l.item, want: l.want || null,
+    desc: l.desc || "",
+    price: l.price | 0, status: l.status, taker: l.taker || null,
+    buyer: l.buyer || null, seller: l.seller || null, held: l.held | 0,
+    createdAt: l.createdAt, takenAt: l.takenAt || null, expireAt: l.expireAt || null,
+  };
+}
+
+/* 懒结算过期交易：退款给买家、帖子重新开放、删聊天。返回是否改过索引（写盘失败静默跳过）*/
+async function settleExpiredMarket(env, list, now = Date.now()) {
+  let changed = false;
+  for (const l of list) {
+    if (l.status !== "taken" || !l.expireAt || l.expireAt > now) continue;
+    try {
+      if (l.held > 0 && l.buyer) await adjustUserCoins(env, l.buyer, l.held);
+      try { await env.AUTH_KV.delete(marketChatKey(l.id)); } catch { /* 聊天键可能已被 KV 过期清掉 */ }
+      l.status = "open"; l.taker = null; l.buyer = null; l.seller = null;
+      l.held = 0; l.takenAt = null; l.expireAt = null;
+      changed = true;
+    } catch { /* 写失败：本次仍按旧状态展示，下次请求再试 */ }
+  }
+  return changed;
+}
+
+/* 拍下共用逻辑（网页 /api/market 与 MC /api/mc/market/take 一致）：
+   买家金币进担保、帖子转 taken、建 7 天绝对过期的临时聊天。
+   成功返回 { ok:true, listing:视图 }；失败返回 { ok:false, error, status }。*/
+async function marketTake(env, list, listing, meLower) {
+  if (listing.status !== "open") return { ok: false, error: "已经被拍下了", status: 400 };
+  if (listing.owner === meLower) return { ok: false, error: "不能拍自己的帖子", status: 400 };
+
+  // sell：我是买家，楼主是卖家；buy（收购）：楼主是买家，我是卖家；barter：无金币
+  const buyer = listing.type === "buy" ? listing.owner : (listing.type === "sell" ? meLower : null);
+  const seller = listing.type === "buy" ? meLower : (listing.type === "sell" ? listing.owner : null);
+
+  // MC 物品在游戏内交割，网站只做金币担保（barter 无金币）
+  if (buyer) {
+    const buyerRaw = await env.AUTH_KV.get(userKey(buyer));
+    if (!buyerRaw) return { ok: false, error: "买家账号异常", status: 400 };
+    const buyerUser = JSON.parse(buyerRaw);
+    if ((buyerUser.coins || 0) < listing.price) {
+      return {
+        ok: false, status: 400,
+        error: buyer === meLower
+          ? `金币不够，需要 ${listing.price} 个（当前 ${buyerUser.coins || 0}）`
+          : "对方金币不足，这笔收购暂时无法成交",
+      };
+    }
+    buyerUser.coins = (buyerUser.coins || 0) - listing.price;
+    await env.AUTH_KV.put(userKey(buyer), JSON.stringify(buyerUser));
+  }
+
+  const now = Date.now();
+  listing.status = "taken";
+  listing.taker = meLower;
+  listing.buyer = buyer;
+  listing.seller = seller;
+  listing.held = listing.price;
+  listing.takenAt = now;
+  listing.expireAt = now + MARKET_CHAT_MS;
+  await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
+  // 建空聊天键并挂上 7 天绝对过期（之后每次发言都沿用同一 deadline，不续命）
+  await env.AUTH_KV.put(
+    marketChatKey(listing.id),
+    JSON.stringify({ msgs: [] }),
+    { expiration: Math.ceil(listing.expireAt / 1000) }
+  );
+  return { ok: true, listing: marketView(listing) };
+}
+
+/* 临时聊天访问校验（网页与 MC 共用）：懒结算 + 找帖子 + 必须是交易双方。
+   通过返回 { listing }；不通过返回 { err: Response }。*/
+async function marketChatAccess(env, lid, meLower) {
+  const list = await loadMarket(env);
+  if (await settleExpiredMarket(env, list)) {
+    try { await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list)); } catch { /* 写失败照旧展示 */ }
+  }
+  const listing = list.find(l => l.id === lid);
+  if (!listing || listing.status !== "taken") {
+    return { err: json({ ok: false, error: "交易不存在或已结束" }, 404) };
+  }
+  if (meLower !== listing.owner && meLower !== listing.taker) {
+    return { err: json({ ok: false, error: "只有交易双方能查看" }, 403) };
+  }
+  return { listing };
+}
+
+/* MC 服务端 mod 身份校验：X-MC-Secret 证明是服务器 + mcname 经绑定映射到网站账号。
+   绑定关系存 KV：mc:bind:<mcname小写> = 网站用户名（小写）。*/
+async function mcBoundUser(env, request, mcname) {
+  const secret = request.headers.get("X-MC-Secret") || "";
+  if (!env.MC_INGEST_SECRET || secret !== env.MC_INGEST_SECRET) {
+    return { err: json({ ok: false, error: "密钥无效" }, 401) };
+  }
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(mcname || "")) {
+    return { err: json({ ok: false, error: "MC 用户名不合法" }, 400) };
+  }
+  const bound = await env.AUTH_KV.get(`mc:bind:${mcname.toLowerCase()}`);
+  if (!bound) {
+    return { err: json({ ok: false, error: "未绑定网站账号，请先在游戏内输入 /buybind <绑定码>" }, 403) };
+  }
+  return { user: bound };
+}
+
+/* VIP 是否在有效期内 */
+function isVipActive(u, now = Date.now()) {
+  return typeof u?.vipUntil === "number" && u.vipUntil > now;
+}
+
+/* 装扮可用性：普通款看拥有列表，VIP 款看会员是否有效 */
+function canUseFrame(u, id) {
+  if (id === VIP_FRAME) return isVipActive(u);
+  return Array.isArray(u.frames) && u.frames.includes(id);
+}
+function canUseBubble(u, id) {
+  if (id === VIP_BUBBLE) return isVipActive(u);
+  return Array.isArray(u.bubbles) && u.bubbles.includes(id);
+}
+
+/* VIP 过期回收：过期后自动卸下 VIP 专属装扮。返回是否有改动（调用方决定是否写盘）*/
+function normalizeVip(u, now = Date.now()) {
+  if (typeof u.vipUntil === "number" && u.vipUntil <= now) {
+    let changed = false;
+    if (u.frame === VIP_FRAME) { u.frame = null; changed = true; }
+    if (u.bubble === VIP_BUBBLE) { u.bubble = null; changed = true; }
+    return changed;
+  }
+  return false;
+}
 
 export default {
   async fetch(request, env) {
-    const { pathname } = new URL(request.url);
+    // KV 容错：读/列举失败（含每日额度耗尽、KV 短时故障）一律降级为"无数据"，
+    // 绝不让 KV 异常冒泡成 500；写失败仍由各业务路径自行决定提示方式。
+    env.AUTH_KV = faultTolerantKV(env.AUTH_KV);
+    const url = new URL(request.url);
+
+    // 强制 HTTPS：会话 Cookie 带 Secure，走 http 时会被浏览器丢弃，
+    // 导致手机端（微信内浏览器 / 手打域名 / 扫码常走 http）登录即失效。
+    // Cloudflare 会把客户端原始协议放在 x-forwarded-proto。
+    if (request.headers.get("x-forwarded-proto") === "http") {
+      return Response.redirect(
+        `https://${url.host}${url.pathname}${url.search}`,
+        308 // 永久跳转，且保留 POST 方法与请求体
+      );
+    }
+
+    const { pathname } = url;
+
+    // 聊天室 WebSocket：必须原样透传升级请求，且不能走下面的 Response 重建（会破坏 101）
+    if (pathname === "/api/chat/ws") {
+      const stub = env.COLLAB_DO.get(env.COLLAB_DO.idFromName("chat"));
+      return stub.fetch(request);
+    }
+
     if (pathname.startsWith("/api/")) {
       try {
-        return await handleApi(request, env, pathname);
+        const resp = await handleApi(request, env, pathname);
+        // DO 透传回来的 Response headers 只读，需重建后再加 HSTS
+        const headers = new Headers(resp.headers);
+        headers.set("Strict-Transport-Security", HSTS_VALUE);
+        return new Response(resp.body, {
+          status: resp.status,
+          statusText: resp.statusText,
+          headers,
+        });
       } catch (err) {
+        const msg = String((err && err.message) || err);
+        // KV 每日写额度耗尽（错误码 10048）/限流：降级提示，不再报"内部错误"
+        if (/10048|quota|rate ?limit|too many requests|daily limit/i.test(msg)) {
+          return json({
+            ok: false,
+            error: "今日数据存储额度已用尽，北京时间早 8 点重置；聊天室、像素画板等功能不受影响。",
+          }, 503);
+        }
         return json({ ok: false, error: "服务器内部错误" }, 500);
       }
     }
+    // 垃圾文件下载：Worker 流式生成 100MB 零字节（不占仓库/存储，内存只复用一块 64KB）
+    if (pathname === "/Trash.zip") {
+      return handleTrashDownload(request);
+    }
+
     // 其余路径交给静态资源（/、/dontclickit/、css/js 等）
     const assetResponse = await env.ASSETS.fetch(request);
     // 给 HTML / JS / CSS 加 no-store 头，防止浏览器或 CDN 缓存旧版本
-    const url = new URL(request.url);
-    if (url.pathname.match(/\.(js|css)$/) || url.pathname === "/" || url.pathname.endsWith("/")) {
+    if (url.pathname.match(/\.(js|css|html)$/) || url.pathname === "/" || url.pathname.endsWith("/")) {
       const newHeaders = new Headers(assetResponse.headers);
       newHeaders.delete("Cache-Control");
       // text() 已自动解压，移除压缩相关头避免浏览器二次解压
       newHeaders.delete("Content-Encoding");
       newHeaders.delete("Content-Length");
       newHeaders.set("Cache-Control", "no-store");
+      newHeaders.set("Strict-Transport-Security", HSTS_VALUE);
       const body = await assetResponse.text();
       return new Response(body, {
         status: assetResponse.status,
@@ -40,9 +336,100 @@ export default {
         headers: newHeaders,
       });
     }
-    return assetResponse;
+    // 其余资源（图片等二进制）：Assets 响应头不可变，需重建后才能加 HSTS
+    const otherHeaders = new Headers(assetResponse.headers);
+    otherHeaders.set("Strict-Transport-Security", HSTS_VALUE);
+    return new Response(assetResponse.body, {
+      status: assetResponse.status,
+      statusText: assetResponse.statusText,
+      headers: otherHeaders,
+    });
   },
 };
+
+const HSTS_VALUE = "max-age=31536000; includeSubDomains";
+
+// ============ 垃圾文件下载（Trash.zip，100MB 纯零字节） ============
+const TRASH_SIZE = 100 * 1024 * 1024; // 100 MiB
+const TRASH_CHUNK = 64 * 1024;        // 每次拉取 64KB，全程复用同一块零 buffer
+
+function trashHeaders(extra = {}) {
+  return new Headers({
+    "Content-Type": "application/zip",
+    "Content-Disposition": 'attachment; filename="Trash.zip"',
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "no-store",
+    "Strict-Transport-Security": HSTS_VALUE,
+    ...extra,
+  });
+}
+
+// 把从 start 开始的零字节流以 64KB 分块吐出，CPU 开销可忽略（下载耗时不计 CPU）
+function zeroStream(start, end) {
+  let pos = start;
+  const zero = new Uint8Array(TRASH_CHUNK);
+  return new ReadableStream({
+    pull(controller) {
+      const remaining = end - pos + 1;
+      if (remaining <= 0) { controller.close(); return; }
+      const n = Math.min(TRASH_CHUNK, remaining);
+      controller.enqueue(zero.subarray(0, n));
+      pos += n;
+    },
+  });
+}
+
+function handleTrashDownload(request) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response("Method Not Allowed", {
+      status: 405,
+      headers: trashHeaders({ Allow: "GET, HEAD" }),
+    });
+  }
+
+  // 解析 Range（下载工具/浏览器断点续传）：bytes=start-end | bytes=start- | bytes=-suffix
+  const range = request.headers.get("range");
+  if (range) {
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    if (m) {
+      let start, end;
+      if (m[1] === "") {
+        // 后缀形式：最后 N 字节
+        const suffix = Math.min(parseInt(m[2] || "0", 10), TRASH_SIZE);
+        start = TRASH_SIZE - suffix;
+        end = TRASH_SIZE - 1;
+      } else {
+        start = parseInt(m[1], 10);
+        end = m[2] === "" ? TRASH_SIZE - 1 : Math.min(parseInt(m[2], 10), TRASH_SIZE - 1);
+      }
+      if (Number.isNaN(start) || start > end || start >= TRASH_SIZE) {
+        return new Response("Range Not Satisfiable", {
+          status: 416,
+          headers: trashHeaders({ "Content-Range": `bytes */${TRASH_SIZE}` }),
+        });
+      }
+      return new Response(
+        request.method === "HEAD" ? null : zeroStream(start, end),
+        {
+          status: 206,
+          headers: trashHeaders({
+            "Content-Length": String(end - start + 1),
+            "Content-Range": `bytes ${start}-${end}/${TRASH_SIZE}`,
+          }),
+        }
+      );
+    }
+    // 无法识别的 Range 头：直接按完整文件处理
+  }
+
+  return new Response(
+    request.method === "HEAD" ? null : zeroStream(0, TRASH_SIZE - 1),
+    {
+      status: 200,
+      headers: trashHeaders({ "Content-Length": String(TRASH_SIZE) }),
+    }
+  );
+}
 
 async function handleApi(request, env, pathname) {
   if (!env.AUTH_KV) return json({ ok: false, error: "后端未配置 KV 绑定（AUTH_KV）" }, 500);
@@ -71,6 +458,8 @@ async function handleApi(request, env, pathname) {
     if (!raw) return json({ username: null }, 401);
     // 懒补 uid / searchable（兼容老用户）；其余新字段缺失按默认值返回，不写回
     const user = await ensureUserFields(env, key, JSON.parse(raw));
+    // VIP 刚过期：本次读取时把专属装扮卸下并落盘（"过期后换回"）
+    if (normalizeVip(user)) await env.AUTH_KV.put(key, JSON.stringify(user));
     return json(meView(user), 200);
   }
 
@@ -97,6 +486,32 @@ async function handleApi(request, env, pathname) {
     return json({ ok: true, reward, coins: user.coins, streak, checked: true }, 200);
   }
 
+  /* ---------- VIP 会员：250 金币 / 30 天，可叠加续费 ---------- */
+  if (pathname === "/api/vip" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    if (body.action !== "buy") return json({ ok: false, error: "操作错误" }, 400);
+
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    normalizeVip(user); // 若上次已过期先回收
+    if ((user.coins || 0) < VIP_PRICE) {
+      return json({ ok: false, error: `金币不够，VIP 需要 ${VIP_PRICE} 金币（每天签到最多能领 40）`, coins: user.coins || 0 }, 400);
+    }
+    user.coins -= VIP_PRICE;
+    // 已在有效期内续费则往后叠加，否则从现在起算
+    const base = isVipActive(user) ? user.vipUntil : Date.now();
+    user.vipUntil = base + VIP_MS;
+    // 开通后自动换上 VIP 专属套装，用户随时可以再换回别的
+    user.frame = VIP_FRAME;
+    user.bubble = VIP_BUBBLE;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    return json({ ok: true, ...meView(user) }, 200);
+  }
+
   /* ---------- 兑换商店：购买 / 装备 / 卸下 ---------- */
   if (pathname === "/api/shop" && method === "POST") {
     const me = await getSessionUser(request, env);
@@ -105,18 +520,30 @@ async function handleApi(request, env, pathname) {
     const { action, type, id } = body;
     if (!["frame", "bubble"].includes(type)) return json({ ok: false, error: "商品类型错误" }, 400);
     const catalog = type === "frame" ? FRAME_SHOP : BUBBLE_SHOP;
+    const vipId = type === "frame" ? VIP_FRAME : VIP_BUBBLE;
+    const canUse = type === "frame" ? canUseFrame : canUseBubble;
     if (!["buy", "equip", "unequip"].includes(action)) return json({ ok: false, error: "操作错误" }, 400);
 
     const key = userKey(me);
     const raw = await env.AUTH_KV.get(key);
     if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
     const user = JSON.parse(raw);
+    const vipChanged = normalizeVip(user);
     const ownedKey = type === "frame" ? "frames" : "bubbles";
     const equipKey = type;
     user[ownedKey] = Array.isArray(user[ownedKey]) ? user[ownedKey] : [];
 
     if (action === "unequip") {
       user[equipKey] = null;
+      await env.AUTH_KV.put(key, JSON.stringify(user));
+      return json({ ok: true, ...meView(user) }, 200);
+    }
+
+    // VIP 专属款只认会员，不参与金币购买
+    if (id === vipId) {
+      if (action === "buy") return json({ ok: false, error: "这是 VIP 专属装扮，开通会员即可使用" }, 400);
+      if (!isVipActive(user)) return json({ ok: false, error: "VIP 已过期，续费后才能装备" }, 403);
+      user[equipKey] = id;
       await env.AUTH_KV.put(key, JSON.stringify(user));
       return json({ ok: true, ...meView(user) }, 200);
     }
@@ -135,57 +562,249 @@ async function handleApi(request, env, pathname) {
     }
 
     // equip
-    if (!user[ownedKey].includes(id)) return json({ ok: false, error: "还没拥有这件商品" }, 400);
+    if (!canUse(user, id)) return json({ ok: false, error: "还没拥有这件商品" }, 400);
     user[equipKey] = id;
     await env.AUTH_KV.put(key, JSON.stringify(user));
     return json({ ok: true, ...meView(user) }, 200);
   }
 
-  /* ---------- 在线访客：心跳（单键聚合，省 KV 写入）---------- */
-  if (pathname === "/api/presence") {
-    const PRES_KEY = "online:agg";
-    const PRES_TTL = 160;       // KV 键过期秒数
-    const FRESH_MS = 130_000;   // 130 秒内有心跳算在线
+  /* ---------- 站队投票：游客按 IP、登录按账号+IP ---------- */
+  if (pathname === "/api/vote") {
+    if (method === "GET") {
+      const me = await getSessionUser(request, env);
+      const uKey = me ? `u:${me.toLowerCase()}` : null;
+      const iKey = `i:${clientIp(request)}`;
+      const raws = await Promise.all(VOTE_QUESTIONS.map(q => env.AUTH_KV.get(voteKey(q.id))));
+      const results = VOTE_QUESTIONS.map((q, i) => {
+        const rec = parseVote(raws[i]);
+        return { id: q.id, a: rec.a, b: rec.b, mine: voteMine(rec, uKey, iKey) };
+      });
+      return json({ ok: true, results }, 200);
+    }
+
+    if (method === "POST") {
+      const me = await getSessionUser(request, env);
+      const body = await request.json().catch(() => ({}));
+      const { id, action, side } = body;
+      if (!VOTE_IDS.has(id)) return json({ ok: false, error: "投票不存在" }, 400);
+      if (!["vote", "cancel"].includes(action)) return json({ ok: false, error: "操作错误" }, 400);
+      if (action === "vote" && !["a", "b"].includes(side)) {
+        return json({ ok: false, error: "请选择一边" }, 400);
+      }
+
+      const uKey = me ? `u:${me.toLowerCase()}` : null;
+      const iKey = `i:${clientIp(request)}`;
+      const key = voteKey(id);
+      const rec = parseVote(await env.AUTH_KV.get(key));
+      const mine = voteMine(rec, uKey, iKey);
+
+      if (action === "vote") {
+        // 换边必须先取消；同一账号/IP 只有一次有效票
+        if (mine === side) return json({ ok: false, error: "你已经站这边了，想改主意请先取消" }, 400);
+        if (mine) return json({ ok: false, error: "换边要先取消当前投票，再选另一边" }, 400);
+        rec[side] += 1;
+        rec.v[iKey] = side;
+        if (uKey) rec.v[uKey] = side; // 账号票独立记录，换 IP 也不能再投
+      } else {
+        if (!mine) return json({ ok: false, error: "你还没有投票" }, 400);
+        rec[mine] = Math.max(0, rec[mine] - 1);
+        // 只清与当前票同向的身份键，避免误删同 IP 其他人的记录
+        if (rec.v[iKey] === mine) delete rec.v[iKey];
+        if (uKey && rec.v[uKey] === mine) delete rec.v[uKey];
+      }
+
+      await env.AUTH_KV.put(key, JSON.stringify({ a: rec.a, b: rec.b, v: rec.v }));
+      return json({ ok: true, id, a: rec.a, b: rec.b, mine: action === "vote" ? side : null }, 200);
+    }
+  }
+
+  /* ---------- 二手交易：发布 / 拍下（担保）/ 完成 / 下架 ---------- */
+  if (pathname === "/api/market") {
+    const me = await getSessionUser(request, env);
 
     if (method === "GET") {
-      const agg = await readPresence(env, PRES_KEY);
-      const now = Date.now();
-      const usersMap = new Map();
-      let guests = 0;
-      for (const [sid, p] of Object.entries(agg)) {
-        if (!p.ts || now - p.ts > FRESH_MS) continue;
-        if (p.u) {
-          const lower = p.u.toLowerCase();
-          const old = usersMap.get(lower);
-          if (!old || p.ts > old.ts) usersMap.set(lower, { u: p.u, a: p.a ?? 0, f: p.f || null, ts: p.ts });
-        } else {
-          guests++;
+      const list = await loadMarket(env);
+      if (await settleExpiredMarket(env, list)) {
+        try { await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list)); } catch { /* 写失败本次照旧数据展示 */ }
+      }
+      const meLower = me ? me.toLowerCase() : null;
+      const open = list.filter(l => l.status === "open")
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(marketView);
+      const mine = meLower
+        ? list.filter(l => l.owner === meLower || l.taker === meLower).map(marketView)
+        : [];
+      let vip = false;
+      if (meLower) {
+        const raw = await env.AUTH_KV.get(userKey(meLower));
+        if (raw) {
+          try { vip = isVipActive(JSON.parse(raw)); } catch { /* 损坏按非会员 */ }
         }
       }
-      const users = [...usersMap.values()].map(x => ({ username: x.u, avatar: x.a, frame: x.f }));
-      return json({ users, guests, total: users.length + guests }, 200);
+      const used = meLower ? list.filter(l => l.owner === meLower).length : 0;
+      return json({
+        ok: true, open, mine, me: meLower,
+        slots: { used, max: vip ? MARKET_SLOTS_VIP : MARKET_SLOTS_FREE, vip },
+      }, 200);
+    }
+
+    if (method === "POST") {
+      if (!me) return json({ ok: false, error: "请先登录" }, 401);
+      const meLower = me.toLowerCase();
+      const body = await request.json().catch(() => ({}));
+      const action = body.action;
+      const list = await loadMarket(env);
+      await settleExpiredMarket(env, list);
+
+      /* 发布帖子 */
+      if (action === "post") {
+        const type = body.type;
+        if (!MARKET_TYPES.has(type)) return json({ ok: false, error: "交易类型错误" }, 400);
+        const item = String(body.item || "").trim();
+        if (!item) return json({ ok: false, error: "请填写物品名称" }, 400);
+        if (item.length > MARKET_ITEM_MAX) return json({ ok: false, error: `物品名不能超过 ${MARKET_ITEM_MAX} 个字` }, 400);
+        const want = type === "barter" ? String(body.want || "").trim() : null;
+        if (type === "barter") {
+          if (!want) return json({ ok: false, error: "请填写想换的物品" }, 400);
+          if (want.length > MARKET_ITEM_MAX) return json({ ok: false, error: `想换的物品名不能超过 ${MARKET_ITEM_MAX} 个字` }, 400);
+          if (want === item) return json({ ok: false, error: "不能拿它换它自己" }, 400);
+        }
+        const desc = String(body.desc || "").trim().slice(0, MARKET_DESC_MAX);
+
+        let price = 0;
+        if (type !== "barter") {
+          price = Number(body.price);
+          if (!Number.isInteger(price) || price < 0 || price > MARKET_MAX_PRICE) {
+            return json({ ok: false, error: `定价只能是 0～${MARKET_MAX_PRICE} 的整数金币` }, 400);
+          }
+        }
+
+        // 栏位：统计本人所有在架帖子（进行中的也算，完成/下架即移除）
+        const used = list.filter(l => l.owner === meLower).length;
+        const userRaw = await env.AUTH_KV.get(userKey(meLower));
+        let user = null;
+        if (userRaw) { try { user = JSON.parse(userRaw); } catch { /* 损坏 */ } }
+        if (!user) return json({ ok: false, error: "账号异常" }, 400);
+        const vip = isVipActive(user);
+        const maxSlots = vip ? MARKET_SLOTS_VIP : MARKET_SLOTS_FREE;
+        if (used >= maxSlots) {
+          return json({ ok: false, error: `栏位已满（${maxSlots} 个），等交易完成或下架旧帖后再发` }, 400);
+        }
+        // MC 物品由玩家自填，网站不校验拥有权/占用（游戏内物品转移靠双方在服务器内完成）
+
+        let id;
+        do { id = randomHex(6); } while (list.some(l => l.id === id));
+        const listing = {
+          id, type, owner: meLower, item, want, desc, price,
+          status: "open", taker: null, buyer: null, seller: null, held: 0,
+          createdAt: Date.now(), takenAt: null, expireAt: null,
+        };
+        list.push(listing);
+        await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
+        return json({ ok: true, listing: marketView(listing) }, 200);
+      }
+
+      const id = String(body.id || "");
+      const listing = list.find(l => l.id === id);
+      if (!listing) return json({ ok: false, error: "帖子不存在" }, 400);
+
+      /* 下架：仅楼主、仅未拍下 */
+      if (action === "cancel") {
+        if (listing.owner !== meLower) return json({ ok: false, error: "只能下架自己的帖子" }, 403);
+        if (listing.status !== "open") return json({ ok: false, error: "交易进行中，不能下架" }, 400);
+        const idx = list.indexOf(listing);
+        list.splice(idx, 1);
+        await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
+        return json({ ok: true, id }, 200);
+      }
+
+      /* 拍下：买家金币进担保，开 7 天临时聊天 */
+      if (action === "take") {
+        const r = await marketTake(env, list, listing, meLower);
+        if (!r.ok) return json({ ok: false, error: r.error }, r.status);
+        return json({ ok: true, listing: r.listing }, 200);
+      }
+
+      /* 完成：金币结算给卖家，帖子与聊天永久删除（MC 物品在游戏内交割，网站不管）*/
+      if (action === "complete") {
+        if (listing.status !== "taken") return json({ ok: false, error: "交易不在进行中" }, 400);
+        if (meLower !== listing.owner && meLower !== listing.taker) {
+          return json({ ok: false, error: "只有交易双方能操作" }, 403);
+        }
+        if (listing.held > 0 && listing.seller) await adjustUserCoins(env, listing.seller, listing.held);
+        list.splice(list.indexOf(listing), 1);
+        await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
+        try { await env.AUTH_KV.delete(marketChatKey(id)); } catch { /* 已被 KV 清掉也无妨 */ }
+        return json({ ok: true, id }, 200);
+      }
+
+      return json({ ok: false, error: "操作错误" }, 400);
+    }
+  }
+
+  /* ---------- 二手交易临时聊天：仅交易双方，200 条上限，随交易完成/7 天过期删除 ---------- */
+  if (pathname === "/api/market/chat") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const meLower = me.toLowerCase();
+    const lid = String(new URL(request.url).searchParams.get("lid") || "");
+    const access = await marketChatAccess(env, lid, meLower);
+    if (access.err) return access.err;
+    const listing = access.listing;
+    const cKey = marketChatKey(lid);
+
+    if (method === "GET") {
+      let chat = { msgs: [] };
+      const raw = await env.AUTH_KV.get(cKey);
+      if (raw) { try { const c = JSON.parse(raw); if (Array.isArray(c.msgs)) chat = c; } catch { /* 损坏按空 */ } }
+      const counterparty = meLower === listing.owner ? listing.taker : listing.owner;
+      return json({
+        ok: true,
+        msgs: chat.msgs.slice(-MARKET_MSG_CAP),
+        listing: marketView(listing),
+        me: meLower, counterparty,
+      }, 200);
+    }
+
+    if (method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const text = String(body.text || "").trim().slice(0, MARKET_MSG_MAX);
+      if (!text) return json({ ok: false, error: "消息不能为空" }, 400);
+
+      let chat = { msgs: [] };
+      const raw = await env.AUTH_KV.get(cKey);
+      if (raw) { try { const c = JSON.parse(raw); if (Array.isArray(c.msgs)) chat = c; } catch { /* 覆盖损坏记录 */ } }
+      chat.msgs.push({ f: meLower, t: Date.now(), x: text });
+      if (chat.msgs.length > MARKET_MSG_CAP) chat.msgs = chat.msgs.slice(-MARKET_MSG_CAP);
+      // 绝对过期时间钉死在拍下时刻 +7 天，聊天再活跃也不续命
+      await env.AUTH_KV.put(cKey, JSON.stringify(chat), {
+        expiration: Math.ceil(listing.expireAt / 1000),
+      });
+      return json({ ok: true, msgs: chat.msgs }, 200);
+    }
+  }
+
+  /* ---------- 在线心跳：DO 内存态，零 KV 读写 ---------- */
+  if (pathname === "/api/presence") {
+    const presence = collabStub(env, "presence");
+
+    if (method === "GET") {
+      return presence.fetch("https://do/presence/list");
     }
 
     if (method === "POST") {
       const body = await request.json().catch(() => ({}));
       const sid = String(body.sid || "").slice(0, 64);
       if (!sid) return json({ ok: false }, 400);
-      const now = Date.now();
-      const agg = await readPresence(env, PRES_KEY);
-      // 顺手清理过期会话
-      for (const k of Object.keys(agg)) {
-        if (!agg[k].ts || now - agg[k].ts > FRESH_MS) delete agg[k];
-      }
       const me = await getSessionUser(request, env);
+      let entry = { u: null, a: 0, f: null };
       if (me) {
+        let u = {};
         const uRaw = await env.AUTH_KV.get(userKey(me));
-        const u = uRaw ? JSON.parse(uRaw) : {};
-        agg[sid] = { ts: now, u: me, a: u.avatar ?? 0, f: u.frame || null };
-      } else {
-        agg[sid] = { ts: now };
+        if (uRaw) { try { u = JSON.parse(uRaw); } catch { /* 损坏用默认头像 */ } }
+        entry = { u: me, a: u.avatar ?? 0, f: canUseFrame(u, u.frame) ? u.frame : null };
       }
-      await env.AUTH_KV.put(PRES_KEY, JSON.stringify(agg), { expirationTtl: PRES_TTL });
-      return json({ ok: true }, 200);
+      return doPost(presence, "/presence/beat", { sid, ...entry });
     }
   }
 
@@ -211,6 +830,7 @@ async function handleApi(request, env, pathname) {
     await env.AUTH_KV.put(key, JSON.stringify({
       name: username, salt, hash, createdAt: Date.now(), uid, searchable: true, avatar: 0,
       coins: 0, streak: 0, lastCheckin: null, frames: [], bubbles: [], frame: null, bubble: null,
+      vipUntil: null,
     }));
     await env.AUTH_KV.put(`uid:${uid}`, key); // UID → 用户 key 反查索引
 
@@ -246,12 +866,14 @@ async function handleApi(request, env, pathname) {
       const u = await ensureUserFields(env, userKey(target), JSON.parse(uRaw));
 
       const raw = await env.AUTH_KV.get(bioKey(target));
+      const vip = isVipActive(u);
+      const frame = canUseFrame(u, u.frame) ? u.frame : null;
       if (!raw) {
         // 用户存在但没写简介也返回空，方便分享主页链接
-        return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, frame: u.frame || null, searchable: u.searchable, text: "", updatedAt: null }, 200);
+        return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, frame, vip, searchable: u.searchable, text: "", updatedAt: null }, 200);
       }
       const data = JSON.parse(raw);
-      return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, frame: u.frame || null, searchable: u.searchable, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
+      return json({ username: u.name, uid: u.uid, avatar: u.avatar ?? 0, frame, vip, searchable: u.searchable, text: data.text || "", updatedAt: data.updatedAt || null }, 200);
     }
   }
 
@@ -282,21 +904,81 @@ async function handleApi(request, env, pathname) {
     }
   }
 
-  /* ---------- 像素画板（256×256，20 色，RLE+base64 压缩存 KV）---------- */
+  /* ---------- 金币抽奖：100 金币一次，服务端开奖防伪造 ---------- */
+  if (pathname === "/api/lottery/draw" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    normalizeVip(user);
+    if ((user.coins || 0) < LOTTERY_COST) {
+      return json({
+        ok: false,
+        error: `金币不够，抽一次需要 ${LOTTERY_COST} 金币，去签到或玩小游戏赚一点吧～`,
+        coins: user.coins || 0,
+      }, 400);
+    }
+    user.coins = (user.coins || 0) - LOTTERY_COST;
+
+    // 拒绝采样消除取模偏差，roll ∈ [0, 2000)
+    const buf = new Uint32Array(1);
+    const cap = 0x100000000 - (0x100000000 % LOTTERY_WEIGHT_TOTAL);
+    do { crypto.getRandomValues(buf); } while (buf[0] >= cap);
+    const roll = buf[0] % LOTTERY_WEIGHT_TOTAL;
+    let acc = 0;
+    let prize = LOTTERY_PRIZES[LOTTERY_PRIZES.length - 1];
+    for (const p of LOTTERY_PRIZES) {
+      acc += p.w;
+      if (roll < acc) { prize = p; break; }
+    }
+
+    if (prize.type === "coins") {
+      user.coins += prize.amount;
+    } else if (prize.type === "vip") {
+      // 与商店开通一致：有效期叠加并自动换上 VIP 专属套装
+      const base = isVipActive(user) ? user.vipUntil : Date.now();
+      user.vipUntil = base + prize.days * 24 * 3600 * 1000;
+      user.frame = VIP_FRAME;
+      user.bubble = VIP_BUBBLE;
+    } else {
+      // 游戏内物品：记待兑换列表（最新在前，最多保留 100 条），凭兑换码找腐竹领取
+      const list = Array.isArray(user.lotteryPrizes) ? user.lotteryPrizes : [];
+      list.unshift({ code: randomHex(3), label: prize.label, ts: Date.now() });
+      user.lotteryPrizes = list.slice(0, 100);
+    }
+
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    return json({ ok: true, cost: LOTTERY_COST, prize: prizeView(prize), ...meView(user) }, 200);
+  }
+
+  /* 我的待兑换游戏物品；腐竹（AaronXie）可带 ?u=用户名 核验别人的兑换码 */
+  if (pathname === "/api/lottery/prizes" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const target = (new URL(request.url).searchParams.get("u") || me).trim();
+    if (target.toLowerCase() !== me.toLowerCase()
+        && me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
+      return json({ ok: false, error: "只能查看自己的奖品" }, 403);
+    }
+    if (!isValidUsername(target)) return json({ ok: false, error: "用户名无效" }, 400);
+    const raw = await env.AUTH_KV.get(userKey(target));
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 404);
+    const u = JSON.parse(raw);
+    return json({
+      ok: true,
+      username: u.name,
+      prizes: Array.isArray(u.lotteryPrizes) ? u.lotteryPrizes : [],
+    }, 200);
+  }
+
+  /* ---------- 像素画板（256×256，20 色）：状态在 PixelDO（SQLite 持久化）---------- */
   if (pathname === "/api/pixel") {
-    const PX_KEY = "pixel:main";
-    const PX_SIZE = 256 * 256;
-    const MAX_PIXELS_PER_REQ = 3000;
+    const stub = collabStub(env, "pixel");
 
     if (method === "GET") {
-      const raw = await env.AUTH_KV.get(PX_KEY);
-      if (!raw) return json({ data: "", v: 0 }, 200);
-      try {
-        const obj = JSON.parse(raw);
-        return json({ data: obj.data || "", v: obj.v || 0 }, 200);
-      } catch {
-        return json({ data: "", v: 0 }, 200);
-      }
+      return stub.fetch("https://do/pixel/state");
     }
 
     if (method === "POST") {
@@ -305,46 +987,16 @@ async function handleApi(request, env, pathname) {
       const body = await request.json().catch(() => ({}));
       const pixels = Array.isArray(body.pixels) ? body.pixels : null;
       if (!pixels || !pixels.length) return json({ ok: false, error: "没有要画的像素" }, 400);
-      if (pixels.length > MAX_PIXELS_PER_REQ) return json({ ok: false, error: "一次画得太多了，慢一点～" }, 400);
-
-      // 读当前网格
-      const raw = await env.AUTH_KV.get(PX_KEY);
-      let grid = new Uint8Array(PX_SIZE);
-      let v = 0;
-      if (raw) {
-        try {
-          const obj = JSON.parse(raw);
-          if (obj.data) grid = rleDecode(obj.data, PX_SIZE);
-          v = obj.v || 0;
-        } catch { /* 数据损坏则从空白开始 */ }
-      }
-
-      // 合并本批像素（c: 0=橡皮/空白，1-20=调色板颜色）
-      let changed = 0;
-      for (const p of pixels) {
-        const x = Number(p && p.x), y = Number(p && p.y), c = Number(p && p.c);
-        if (!Number.isInteger(x) || x < 0 || x > 255) continue;
-        if (!Number.isInteger(y) || y < 0 || y > 255) continue;
-        if (!Number.isInteger(c) || c < 0 || c > 20) continue;
-        const idx = y * 256 + x;
-        if (grid[idx] !== c) { grid[idx] = c; changed++; }
-      }
-      if (!changed) return json({ ok: true, v }, 200);
-
-      v++;
-      const data = rleEncode(grid);
-      await env.AUTH_KV.put(PX_KEY, JSON.stringify({ v, data }));
-      return json({ ok: true, v }, 200);
+      if (pixels.length > 8000) return json({ ok: false, error: "一次画得太多了，慢一点～" }, 400);
+      return doPost(stub, "/pixel/pixels", { pixels });
     }
   }
 
   if (pathname === "/api/board") {
+    const stub = collabStub(env, "board");
     // GET：公开读取文字画板
     if (method === "GET") {
-      const raw = await env.AUTH_KV.get("board:main");
-      if (!raw) return json({ text: "", editor: null, updatedAt: null }, 200);
-      const data = JSON.parse(raw);
-      return json({ text: data.text || "", editor: data.editor || null, updatedAt: data.updatedAt || null }, 200);
+      return stub.fetch("https://do/board/state");
     }
     // POST/PUT：任何登录用户都可编辑（≤3500 字，后写入者覆盖）
     if (method === "POST" || method === "PUT") {
@@ -353,10 +1005,7 @@ async function handleApi(request, env, pathname) {
       const body = await request.json().catch(() => ({}));
       const text = typeof body.text === "string" ? body.text : "";
       if ([...text].length > 3500) return json({ ok: false, error: "画板内容不能超过 3500 字" }, 400);
-
-      const data = { text, editor: me, updatedAt: Date.now() };
-      await env.AUTH_KV.put("board:main", JSON.stringify(data));
-      return json({ ok: true, ...data }, 200);
+      return doPost(stub, "/board/save", { text, editor: me, updatedAt: Date.now() });
     }
   }
 
@@ -374,7 +1023,7 @@ async function handleApi(request, env, pathname) {
         if (uRaw) {
           const u = JSON.parse(uRaw);
           if (u.searchable) {
-            results.push({ username: u.name, uid: u.uid || digits, avatar: u.avatar ?? 0, frame: u.frame || null });
+            results.push({ username: u.name, uid: u.uid || digits, avatar: u.avatar ?? 0, frame: canUseFrame(u, u.frame) ? u.frame : null, vip: isVipActive(u) });
             seen.add(lower);
           }
         }
@@ -393,7 +1042,7 @@ async function handleApi(request, env, pathname) {
         try { u = JSON.parse(uRaw); } catch { continue; }
         if (!u.searchable) continue;
         if ((u.name || "").toLowerCase().includes(ql)) {
-          results.push({ username: u.name, uid: u.uid || null, avatar: u.avatar ?? 0, frame: u.frame || null });
+          results.push({ username: u.name, uid: u.uid || null, avatar: u.avatar ?? 0, frame: canUseFrame(u, u.frame) ? u.frame : null, vip: isVipActive(u) });
         }
       }
     }
@@ -493,15 +1142,14 @@ async function handleApi(request, env, pathname) {
     return json({ ok: true, username: newName }, 200);
   }
 
+  // ============ 聊天室（网页 + MC 互通，最近 100 条由 ChatDO 存 SQLite）============
+  const MSG_MAX = 500;
+
   if (pathname === "/api/chat") {
-    const CHAT_KEY = "chat:messages";
-    const CHAT_MAX = 150;
-    const MSG_MAX = 500;
+    const chat = collabStub(env, "chat");
 
     if (method === "GET") {
-      const raw = await env.AUTH_KV.get(CHAT_KEY);
-      const messages = raw ? JSON.parse(raw) : [];
-      return json({ messages }, 200);
+      return chat.fetch("https://do/chat/state");
     }
 
     if (method === "POST") {
@@ -512,25 +1160,248 @@ async function handleApi(request, env, pathname) {
       if (!text) return json({ ok: false, error: "消息不能为空" }, 400);
       if ([...text].length > MSG_MAX) return json({ ok: false, error: `每条消息最多 ${MSG_MAX} 字` }, 400);
 
-      const raw = await env.AUTH_KV.get(CHAT_KEY);
-      const messages = raw ? JSON.parse(raw) : [];
       const uRaw = await env.AUTH_KV.get(userKey(me));
       const u = uRaw ? JSON.parse(uRaw) : {};
       const msg = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
         username: me,
         avatar: u.avatar ?? 0,
-        frame: u.frame || null,
-        bubble: (u.bubbles || []).includes(u.bubble) ? u.bubble : null,
+        frame: canUseFrame(u, u.frame) ? u.frame : null,
+        bubble: canUseBubble(u, u.bubble) ? u.bubble : null,
+        vip: isVipActive(u),
         text,
         ts: Date.now(),
+        source: "web",
       };
-      messages.push(msg);
-      // 只保留最近 CHAT_MAX 条
-      const trimmed = messages.slice(-CHAT_MAX);
-      await env.AUTH_KV.put(CHAT_KEY, JSON.stringify(trimmed));
+      const appendResp = await doPost(chat, "/chat/append", { message: msg });
+      if (!appendResp.ok) return appendResp;
+      // 网页 -> 游戏方向由 mod 轮询 /api/mc/poll 完成（面板服无公网 RCON 端口）
       return json({ ok: true, message: msg }, 200);
     }
+  }
+
+  // MC 服务端 mod 轮询网页新消息（X-MC-Secret 鉴权，?after=上次收到的 ts）
+  if (pathname === "/api/mc/poll" && method === "GET") {
+    const secret = request.headers.get("X-MC-Secret") || "";
+    if (!env.MC_INGEST_SECRET || secret !== env.MC_INGEST_SECRET) {
+      return json({ ok: false, error: "密钥无效" }, 401);
+    }
+    const after = Number(new URL(request.url).searchParams.get("after")) || 0;
+    const stateResp = await collabStub(env, "chat").fetch("https://do/chat/state");
+    const state = await stateResp.json().catch(() => ({ messages: [] }));
+    // 游戏内消息不回灌游戏，只推网页来源的
+    const messages = (state.messages || [])
+      .filter(m => m && m.source !== "mc" && Number(m.ts) > after);
+    const latest = messages.length ? messages[messages.length - 1].ts : after;
+    return json({ ok: true, messages, latest }, 200);
+  }
+
+  // MC 服务端 mod 上报游戏内聊天 / 死亡 / 加入 / 退出（X-MC-Secret 鉴权）
+  // body.kind: "chat"(默认) | "death" | "join" | "quit"
+  if (pathname === "/api/mc/ingest" && method === "POST") {
+    const secret = request.headers.get("X-MC-Secret") || "";
+    if (!env.MC_INGEST_SECRET || secret !== env.MC_INGEST_SECRET) {
+      return json({ ok: false, error: "密钥无效" }, 401);
+    }
+    const body = await request.json().catch(() => ({}));
+    const username = typeof body.username === "string" ? body.username.trim() : "";
+    // MC 正版用户名规则
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) {
+      return json({ ok: false, error: "用户名不合法" }, 400);
+    }
+    const kind = ["death", "join", "quit"].includes(body.kind) ? body.kind : "chat";
+    let text;
+    if (kind === "join" || kind === "quit") {
+      // 加入/退出无正文，服务端统一补齐，前端按 kind 渲染
+      text = kind === "join" ? "加入了游戏" : "退出了游戏";
+    } else {
+      // chat / death 必须带文本（聊天内容按 MC 上限 256，死亡提示同样不会超长）
+      text = typeof body.text === "string" ? body.text.trim() : "";
+      if (!text || [...text].length > 256) {
+        return json({ ok: false, error: "消息内容不合法" }, 400);
+      }
+    }
+    const msg = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      username,
+      text,
+      ts: Date.now(),
+      source: "mc",
+      kind,
+    };
+    return doPost(collabStub(env, "chat"), "/chat/append", { message: msg });
+  }
+
+  // MC 死亡榜（公开只读）：返回累计死亡次数 Top N
+  if (pathname === "/api/mc/deaths" && method === "GET") {
+    return collabStub(env, "chat").fetch(new Request("https://do/chat/deaths"));
+  }
+
+  /* ---------- MC 游戏内二手交易 ----------
+     绑定：网页登录后 POST /api/mc/bind-code 生成 6 位一次性码（10 分钟有效），
+     游戏内 /buybind <码> → mod 调 /api/mc/market/bind，建立 mc:bind:<mcname>=网站用户名。
+     之后 MC 侧所有请求：X-MC-Secret 证明是服务器，mcname 经绑定映射身份。*/
+
+  // 生成绑定码（网页登录用户，一次性 6 位数字，10 分钟有效）
+  if (pathname === "/api/mc/bind-code" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await env.AUTH_KV.put(`mc:bindcode:${code}`, me.toLowerCase(), { expirationTtl: 600 });
+    return json({ ok: true, code, expiresIn: 600 }, 200);
+  }
+
+  // mod 上报绑定码 + MC 用户名，建立绑定
+  if (pathname === "/api/mc/market/bind" && method === "POST") {
+    const secret = request.headers.get("X-MC-Secret") || "";
+    if (!env.MC_INGEST_SECRET || secret !== env.MC_INGEST_SECRET) {
+      return json({ ok: false, error: "密钥无效" }, 401);
+    }
+    const body = await request.json().catch(() => ({}));
+    const mcname = String(body.mcname || "").trim();
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(mcname)) {
+      return json({ ok: false, error: "MC 用户名不合法" }, 400);
+    }
+    const code = String(body.code || "").trim();
+    const codeKey = `mc:bindcode:${code}`;
+    const owner = await env.AUTH_KV.get(codeKey);
+    if (!owner) return json({ ok: false, error: "绑定码无效或已过期" }, 400);
+    await env.AUTH_KV.delete(codeKey); // 一次性，用过即废
+    await env.AUTH_KV.put(`mc:bind:${mcname.toLowerCase()}`, owner);
+    return json({ ok: true, user: owner, mcname }, 200);
+  }
+
+  // 游戏内看在架物品（无需绑定，密钥对就行）
+  if (pathname === "/api/mc/market" && method === "GET") {
+    const secret = request.headers.get("X-MC-Secret") || "";
+    if (!env.MC_INGEST_SECRET || secret !== env.MC_INGEST_SECRET) {
+      return json({ ok: false, error: "密钥无效" }, 401);
+    }
+    const list = await loadMarket(env);
+    if (await settleExpiredMarket(env, list)) {
+      try { await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list)); } catch { /* 照旧展示 */ }
+    }
+    const open = list.filter(l => l.status === "open")
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(marketView);
+    return json({ ok: true, open }, 200);
+  }
+
+  // 游戏内拍下：POST { id, mcname }
+  if (pathname === "/api/mc/market/take" && method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const auth = await mcBoundUser(env, request, String(body.mcname || ""));
+    if (auth.err) return auth.err;
+    const list = await loadMarket(env);
+    await settleExpiredMarket(env, list);
+    const listing = list.find(l => l.id === String(body.id || ""));
+    if (!listing) return json({ ok: false, error: "帖子不存在" }, 400);
+    const r = await marketTake(env, list, listing, auth.user);
+    if (!r.ok) return json({ ok: false, error: r.error }, r.status);
+    return json({ ok: true, listing: r.listing }, 200);
+  }
+
+  // 游戏内查看自己进行中的交易列表：GET ?mcname=xxx（/buytell 的序号对照）
+  if (pathname === "/api/mc/market/chats" && method === "GET") {
+    const auth = await mcBoundUser(env, request, String(new URL(request.url).searchParams.get("mcname") || ""));
+    if (auth.err) return auth.err;
+    const list = await loadMarket(env);
+    if (await settleExpiredMarket(env, list)) {
+      try { await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list)); } catch { /* 照旧展示 */ }
+    }
+    const chats = list.filter(l => l.status === "taken" && (l.owner === auth.user || l.taker === auth.user))
+      .sort((a, b) => (a.takenAt || 0) - (b.takenAt || 0))
+      .map(marketView);
+    return json({ ok: true, chats, me: auth.user }, 200);
+  }
+
+  // 游戏内临时聊天读写：GET ?lid&mcname / POST { lid, mcname, text }
+  if (pathname === "/api/mc/market/chat") {
+    let lid = "";
+    let mcname = "";
+    let text = "";
+    if (method === "GET") {
+      const q = new URL(request.url).searchParams;
+      lid = String(q.get("lid") || "");
+      mcname = String(q.get("mcname") || "");
+    } else if (method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      lid = String(body.lid || "");
+      mcname = String(body.mcname || "");
+      text = String(body.text || "").trim().slice(0, MARKET_MSG_MAX);
+      if (!text) return json({ ok: false, error: "消息不能为空" }, 400);
+    } else {
+      return json({ ok: false, error: "方法不允许" }, 405);
+    }
+    const auth = await mcBoundUser(env, request, mcname);
+    if (auth.err) return auth.err;
+    const meLower = auth.user;
+    const access = await marketChatAccess(env, lid, meLower);
+    if (access.err) return access.err;
+    const listing = access.listing;
+    const cKey = marketChatKey(lid);
+
+    if (method === "GET") {
+      let chat = { msgs: [] };
+      const raw = await env.AUTH_KV.get(cKey);
+      if (raw) { try { const c = JSON.parse(raw); if (Array.isArray(c.msgs)) chat = c; } catch { /* 损坏按空 */ } }
+      const counterparty = meLower === listing.owner ? listing.taker : listing.owner;
+      return json({
+        ok: true,
+        msgs: chat.msgs.slice(-MARKET_MSG_CAP),
+        listing: marketView(listing),
+        me: meLower, counterparty,
+      }, 200);
+    }
+
+    // POST 发消息：沿用 7 天绝对过期，不续命
+    let chat = { msgs: [] };
+    const raw = await env.AUTH_KV.get(cKey);
+    if (raw) { try { const c = JSON.parse(raw); if (Array.isArray(c.msgs)) chat = c; } catch { /* 覆盖损坏记录 */ } }
+    chat.msgs.push({ f: meLower, t: Date.now(), x: text });
+    if (chat.msgs.length > MARKET_MSG_CAP) chat.msgs = chat.msgs.slice(-MARKET_MSG_CAP);
+    await env.AUTH_KV.put(cKey, JSON.stringify(chat), {
+      expiration: Math.ceil(listing.expireAt / 1000),
+    });
+    return json({ ok: true, msgs: chat.msgs }, 200);
+  }
+
+  /* ---------- DontClick 存档：云端保存玩家进度（DO SQLite，登录用户）---------- */
+  if (pathname === "/api/dc/save") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    // slot=classic 为怀旧版独立存档槽，其余为主槽
+    const slot = new URL(request.url).searchParams.get("slot") === "classic" ? "classic" : "main";
+
+    // GET：读取云端存档
+    if (method === "GET") {
+      return doPost(collabStub(env, "dc"), "/dc/get", { username: me, slot });
+    }
+    // POST：写入云端存档（body.data 为 JSON 字符串）
+    if (method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const data = typeof body.data === "string" ? body.data.slice(0, 200000) : "";
+      if (!data) return json({ ok: false, error: "存档内容为空" }, 400);
+      const bodySlot = body.slot === "classic" ? "classic" : slot;
+      return doPost(collabStub(env, "dc"), "/dc/set", { username: me, slot: bodySlot, data });
+    }
+    return json({ ok: false, error: "method" }, 405);
+  }
+
+  /* ---------- DontClick Infinity 飞升：服务端校验后发全站金币（DO 原子处理） ---------- */
+  if (pathname === "/api/dc/ascend" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const data = typeof body.data === "string" ? body.data.slice(0, 200000) : "";
+    if (!data) return json({ ok: false, error: "飞升存档为空" }, 400);
+    return doPost(collabStub(env, "dc"), "/dc/ascend", { username: me, data });
+  }
+
+  /* ---------- DontClick 排行榜（金币 / 反骨之魂 / 点击数，公开） ---------- */
+  if (pathname === "/api/dc/leaderboard" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    return doPost(collabStub(env, "dc"), "/dc/leaderboard", { me: me || null });
   }
 
   if (pathname === "/api/bookmarks") {
@@ -600,10 +1471,119 @@ async function handleApi(request, env, pathname) {
     return json({ ok: true, username: user.name }, 200, authHeaders(cookie));
   }
 
+  // ============「偷还是分？」双人金币博弈（匹配大厅 + 单局 DO）============
+  const SPLIT_GAME_RE = /^\/api\/split\/game\/([a-f0-9]{64})(?:\/(choice|quit))?$/;
+
+  /* 开始匹配：押金 1～10 金币先入池（KV 扣除），DO 不碰押金；5 秒无真人由人机补位 */
+  if (pathname === "/api/split/match" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const ante = Number(body.ante);
+    if (!Number.isInteger(ante) || ante < 1 || ante > 10) {
+      return json({ ok: false, error: "押金只能是 1～10 个金币" }, 400);
+    }
+
+    // 已有队列/对局：恢复，不重复扣费
+    const activeResp = await doPost(lobbyStub(env), "/lobby/active", { u: me });
+    const active = await activeResp.json().catch(() => ({ active: false }));
+    if (active && active.active) {
+      return json({ ok: true, resumed: true, queued: !!active.queued, gameId: active.gameId || null });
+    }
+
+    // 扣押金
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    if ((user.coins || 0) < ante) {
+      return json({ ok: false, error: "金币不够，先去首页签到攒一点吧～" }, 400);
+    }
+    user.coins = (user.coins || 0) - ante;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+
+    const joinResp = await doPost(lobbyStub(env), "/lobby/join", {
+      u: me, ante, avatar: user.avatar ?? 0,
+    });
+    const join = await joinResp.json().catch(() => ({ ok: false, error: "匹配服务异常" }));
+    if (!joinResp.ok || !join.ok) {
+      await adjustUserCoins(env, me, ante); // DO 拒绝：立即退款
+      return json(join, joinResp.status || 502);
+    }
+    if (join.resumed) await adjustUserCoins(env, me, ante); // 并发竞态：退重复扣款
+    return json(join);
+  }
+
+  /* 取消排队：退回押金 */
+  if (pathname === "/api/split/cancel" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const resp = await doPost(lobbyStub(env), "/lobby/cancel", { u: me });
+    const data = await resp.json().catch(() => ({ ok: false }));
+    if (data.ok && data.refund > 0) await adjustUserCoins(env, me, Number(data.refund));
+    return json(data, resp.ok ? 200 : 502);
+  }
+
+  /* 恢复：我当前是否在排队/对局中 */
+  if (pathname === "/api/split/active" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ active: false }, 200);
+    return doPost(lobbyStub(env), "/lobby/active", { u: me });
+  }
+
+  /* 对局长轮询 / 提交选择 / 逃跑（仅参与者，DO 内二次鉴权）*/
+  const gm = pathname.match(SPLIT_GAME_RE);
+  if (gm && (method === "GET" || method === "POST")) {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const stub = env.GAME_DO.get(env.GAME_DO.idFromString(gm[1]));
+    if (method === "GET") {
+      const ver = parseInt(new URL(request.url).searchParams.get("ver") || "0", 10) || 0;
+      return stub.fetch(`https://do/match/state?u=${encodeURIComponent(me)}&ver=${ver}`);
+    }
+    const action = gm[2];
+    if (action !== "choice" && action !== "quit") {
+      return json({ ok: false, error: "Not found" }, 404);
+    }
+    const reqBody = await request.json().catch(() => ({}));
+    return doPost(stub, `/match/${action}`, { ...reqBody, u: me });
+  }
+
   return json({ ok: false, error: "Not found" }, 404);
 }
 
+/*「偷还是分？」匹配大厅（具名单实例）*/
+function lobbyStub(env) {
+  return env.GAME_LOBBY_DO.get(env.GAME_LOBBY_DO.idFromName("lobby"));
+}
+
+/* KV 用户金币增减（退款等 worker 侧记账；罚金扣减不允许变成负数）*/
+async function adjustUserCoins(env, username, delta, clampZero = false) {
+  const key = userKey(username);
+  const raw = await env.AUTH_KV.get(key);
+  if (!raw) return false;
+  const user = JSON.parse(raw);
+  let coins = (user.coins || 0) + delta;
+  if (clampZero && coins < 0) coins = 0;
+  user.coins = coins;
+  await env.AUTH_KV.put(key, JSON.stringify(user));
+  return true;
+}
+
 /* ---------------- 工具函数 ---------------- */
+
+// 协作类 DO 具名实例：chat / pixel / board
+function collabStub(env, name) {
+  return env.COLLAB_DO.get(env.COLLAB_DO.idFromName(name));
+}
+// 向 DO 发内部 JSON POST，响应直接透传给客户端
+function doPost(stub, path, payload) {
+  return stub.fetch(new Request("https://do" + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }));
+}
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -616,51 +1596,7 @@ function json(data, status = 200, extraHeaders = {}) {
   });
 }
 
-/* ============ 像素画板：RLE(varint) + base64 ============ */
-function writeVarint(arr, n) {
-  while (n >= 0x80) { arr.push((n & 0x7f) | 0x80); n >>>= 7; }
-  arr.push(n);
-}
-function rleEncode(grid) {
-  const out = [];
-  let run = 1;
-  for (let i = 1; i <= grid.length; i++) {
-    if (i < grid.length && grid[i] === grid[i - 1]) { run++; continue; }
-    writeVarint(out, run);
-    out.push(grid[i - 1]);
-    run = 1;
-  }
-  return bytesToB64(new Uint8Array(out));
-}
-function rleDecode(b64, size) {
-  const bytes = b64ToBytes(b64);
-  const grid = new Uint8Array(size);
-  let p = 0, idx = 0;
-  while (p < bytes.length && idx < size) {
-    // varint
-    let len = 0, shift = 0, b;
-    do { b = bytes[p++]; len |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80);
-    const c = bytes[p++];
-    const end = Math.min(idx + (len >>> 0), size);
-    grid.fill(c, idx, end);
-    idx = end;
-  }
-  return grid;
-}
-function bytesToB64(bytes) {
-  let bin = "";
-  const CH = 0x8000; // 分块避免 apply 参数过多
-  for (let i = 0; i < bytes.length; i += CH) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
-  }
-  return btoa(bin);
-}
-function b64ToBytes(b64) {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
+/* ============ 网页 -> 游戏：由 MC mod 轮询 /api/mc/poll 实现（面板服无公网 RCON）============ */
 
 function toHex(buf) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -704,7 +1640,21 @@ function bookmarksKey(username) {
   return `bookmarks:${username.toLowerCase()}`;
 }
 
-/* /api/me 与商店操作返回的用户视图（缺失字段按默认值，不写盘） */
+/* 抽奖接口返回给前端的奖品视图（服务端配置的安全投影） */
+function prizeView(p) {
+  return {
+    id: p.id,
+    type: p.type,
+    icon: p.icon,
+    label: p.label,
+    hidden: !!p.hidden,
+    amount: p.amount || null,
+    days: p.days || null,
+  };
+}
+
+/* /api/me 与商店操作返回的用户视图（缺失字段按默认值，不写盘）
+   frame/bubble 按当前 VIP 状态做有效性收口，过期会员不会看到自己还挂着 VIP 装扮 */
 function meView(u) {
   return {
     username: u.name,
@@ -715,8 +1665,10 @@ function meView(u) {
     lastCheckin: u.lastCheckin || null,
     frames: Array.isArray(u.frames) ? u.frames : [],
     bubbles: Array.isArray(u.bubbles) ? u.bubbles : [],
-    frame: u.frame || null,
-    bubble: u.bubble || null,
+    frame: canUseFrame(u, u.frame) ? u.frame : null,
+    bubble: canUseBubble(u, u.bubble) ? u.bubble : null,
+    vipUntil: typeof u.vipUntil === "number" ? u.vipUntil : null,
+    vip: isVipActive(u),
   };
 }
 
@@ -726,10 +1678,26 @@ function beijingDate(offset = 0) {
   return d.toISOString().slice(0, 10);
 }
 
-async function readPresence(env, key) {
-  const raw = await env.AUTH_KV.get(key);
-  if (!raw) return {};
-  try { return JSON.parse(raw) || {}; } catch { return {}; }
+/* KV 容错包装：读/列举失败（额度耗尽、KV 短时故障）一律视为"无数据"，
+ * 不允许异常冒泡成 500；写/删仍直接抛，由业务或全局 catch 转友好提示。 */
+function faultTolerantKV(kv) {
+  if (!kv || kv.__xrstSafe) return kv;
+  const safe = async (key, opts) => {
+    try { return await kv.get(key, opts); } catch { return null; }
+  };
+  return new Proxy(kv, {
+    get(target, prop) {
+      if (prop === "__xrstSafe") return true;
+      if (prop === "get") return safe;
+      if (prop === "list") {
+        return async (opts) => {
+          try { return await kv.list(opts); } catch { return { keys: [], list_complete: true, cursor: null }; }
+        };
+      }
+      const v = target[prop];
+      return typeof v === "function" ? v.bind(target) : v;
+    },
+  });
 }
 
 /* 生成 12 位纯随机数字 UID（查重直到不冲突） */
@@ -796,7 +1764,10 @@ async function getSessionUser(request, env) {
 
 async function destroySession(request, env) {
   const token = readCookie(request, SESSION_COOKIE);
-  if (token) await env.AUTH_KV.delete(`session:${token}`);
+  // 删除失败（额度耗尽等）不阻断登出：cookie 清掉会话即失效
+  if (token) {
+    try { await env.AUTH_KV.delete(`session:${token}`); } catch { /* 忽略 */ }
+  }
 }
 
 function readCookie(request, name) {

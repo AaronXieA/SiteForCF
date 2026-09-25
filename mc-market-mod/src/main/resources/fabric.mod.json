@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "xrst_market",
+  "version": "${version}",
+  "name": "XRST Web Market",
+  "description": "游戏内访问网站二手交易：/buy 开箱子 GUI 看在架物品并拍下，/buybind 绑定网站账号，/buytell 发临时聊天。（仅服务端）",
+  "authors": [
+    "AaronXie"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "server": [
+      "uk.xrst.market.XrstMarketMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "${mc_version}",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

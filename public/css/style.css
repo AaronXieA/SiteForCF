@@ -1913,6 +1913,37 @@ a.nav-user:hover strong { color: var(--accent); }
 .mc-status-lg .mc-status-players { font-size: 40px; }
 .srv-refresh { margin: 0 auto; }
 
+/* 双服怎么选 · 对比卡 */
+.srv-pick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 26px;
+}
+.srv-pick {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 24px 26px;
+  background: #fff;
+}
+.srv-pick-casual { border-top: 4px solid #3fbf7a; }
+.srv-pick-hard { border-top: 4px solid #e0654f; }
+.srv-pick-head { display: flex; align-items: center; gap: 12px; }
+.srv-pick-head h3 { font-size: 19px; margin: 0; }
+.srv-pick-icon { font-size: 26px; }
+.srv-pick-tag {
+  margin: 10px 0 12px;
+  font-size: 13.5px; font-weight: 700;
+}
+.srv-pick-casual .srv-pick-tag { color: #2a9d63; }
+.srv-pick-hard .srv-pick-tag { color: #c8503c; }
+.srv-pick-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.srv-pick-list li { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+
+@media (max-width: 760px) {
+  .srv-pick-grid { grid-template-columns: 1fr; }
+}
+
 /* 特性 */
 .feature-grid {
   display: grid;
@@ -1933,6 +1964,15 @@ a.nav-user:hover strong { color: var(--accent); }
 .feature-icon { font-size: 26px; line-height: 1; margin-bottom: 14px; }
 .feature h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
 .feature p { font-size: 13.5px; color: var(--ink-2); }
+
+/* /map/ 种子地图工具卡片（可点击的链接卡片） */
+a.feature-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+a.feature-link:hover h3 { color: var(--accent); }
 
 @media (max-width: 720px) {
   .join-grid { grid-template-columns: 1fr; }
@@ -3401,6 +3441,8 @@ a.nav-user:hover strong { color: var(--accent); }
   gap: 6px;
 }
 .dc-ach-btn:hover { background: rgba(167,139,250,.3); transform: translateY(-2px); }
+/* 证书按钮默认隐藏：上面 display:inline-flex 会盖过浏览器 [hidden]，必须显式兜底 */
+.dc-ach-btn[hidden] { display: none; }
 #achCount {
   font-size: 12px;
   background: rgba(0,0,0,.25);
@@ -4498,5 +4540,71 @@ a.nav-user:hover strong { color: var(--accent); }
   .mk-grid { grid-template-columns: 1fr; }
   .mk-chat-row { flex-wrap: wrap; }
   .mk-chat-row .btn { width: 100%; }
+}
+
+
+/* ===== 金币获取金色提示（主页 wkw 卡片 / 游戏中心顶部） ===== */
+.coin-tips {
+  margin: 12px 0 2px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 206, 58, .14), rgba(255, 206, 58, .06));
+  border: 1px solid rgba(255, 206, 58, .4);
+  color: #f0c13a;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.75;
+  letter-spacing: .2px;
+}
+.coin-tips b { color: #ffd94d; font-weight: 800; }
+.coin-tips .coin-tips-title { color: #ffe27a; font-weight: 800; }
+.coin-tips-lg {
+  max-width: 680px;
+  margin: 18px auto 6px;
+  font-size: 13.5px;
+  padding: 14px 20px;
+  text-align: center;
+  box-shadow: 0 8px 28px rgba(255, 206, 58, .12);
+}
+
+/* ---------- 玩家榜单 ---------- */
+.lb-sub { text-align: center; font-size: 13.5px; color: var(--ink-3); margin: -8px 0 22px; }
+.lb-loading { text-align: center; color: var(--ink-3); font-size: 13.5px; padding: 30px 0; }
+.lb-wrap {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+.lb-board {
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 8px;
+}
+.lb-board-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.lb-board-icon { font-size: 18px; }
+.lb-board-title { font-size: 15px; font-weight: 700; margin: 0; }
+.lb-board-sub { font-size: 11.5px; color: var(--ink-3); margin: 0; }
+.lb-list { display: flex; flex-direction: column; gap: 4px; }
+.lb-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 10px;
+  font-size: 13.5px;
+}
+.lb-row.top1 { background: linear-gradient(135deg, #fff6d8, #fffbee); border: 1px solid #f0d98c; }
+.lb-row.top2 { background: #f6f6f8; border: 1px solid var(--line); }
+.lb-row.top3 { background: #fdf3ec; border: 1px solid #ecc9a8; }
+.lb-row:not(.top1):not(.top2):not(.top3) { border: 1px solid transparent; }
+.lb-rank { width: 24px; text-align: center; font-weight: 700; font-size: 12.5px; color: var(--ink-3); flex-shrink: 0; }
+.lb-row.top1 .lb-rank { color: #c98a00; }
+.lb-row.top2 .lb-rank { color: #8a93a6; }
+.lb-row.top3 .lb-rank { color: #b87333; }
+.lb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.lb-val { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.lb-empty { text-align: center; color: var(--ink-3); font-size: 12.5px; padding: 18px 0; }
+.lb-me {
+  margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+  background: var(--bg-alt); border: 1px dashed var(--line);
+  font-size: 12.5px; color: var(--ink-2); text-align: center;
+}
+.lb-me b { color: var(--accent); }
+@media (max-width: 860px) {
+  .lb-wrap { grid-template-columns: 1fr; }
 }
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/mc-bridge-mod" />
+        <option name="gradleJvm" value="25" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/mc-market-mod" />
+        <option name="gradleJvm" value="25 (2)" />
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

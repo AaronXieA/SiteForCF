@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ABC Survival · 我的世界服务器 · XRST.Uk</title>
-  <meta name="description" content="ABC Survival 我的世界服务器：Java 版 1.21.6 - 26.2，Fabric 纯净生存公益服。查看服务器地址、QQ 群与实时在线人数。" />
-  <link rel="stylesheet" href="../css/style.css?v=4" />
+  <title>ABC 服务器 · 生存服 & SMP · XRST.Uk</title>
+  <meta name="description" content="ABC 我的世界服务器双服齐开：生存服死亡不掉落，轻松养老；SMP 死亡掉落，硬核原味。Java 版 1.21.6 - 26.2，Fabric 纯净公益服。加入官方 QQ 群获取服务器地址。" />
+  <link rel="stylesheet" href="../css/style.css?v=26" />
 </head>
-<body data-mc-autoload>
+<body>
 
   <header class="nav" id="nav">
     <div class="nav-inner">
@@ -15,7 +15,9 @@
       <nav class="nav-links">
         <a href="/#about">关于</a>
         <a href="/#works">好玩的</a>
+        <a href="/market/">二手交易</a>
         <a href="/#rewards">签到</a>
+        <a href="/chat/">聊天室</a>
         <a href="/server/">服务器</a>
       </nav>
       <div class="nav-auth" id="navAuth"></div>
@@ -25,13 +27,13 @@
   <!-- Hero -->
   <section class="srv-hero">
     <div class="srv-hero-inner">
-      <p class="srv-eyebrow">Minecraft Java Server</p>
-      <h1 class="srv-title">ABC <span class="accent">Survival</span></h1>
-      <p class="srv-sub">纯净生存 · 死亡不掉落 · 公益服，欢迎大家来玩！</p>
+      <p class="srv-eyebrow">Minecraft Java Server · 双服齐开</p>
+      <h1 class="srv-title">ABC <span class="accent">服务器</span></h1>
+      <p class="srv-sub">生存服（死亡不掉落）· SMP（死亡掉落）· 纯净公益服，欢迎大家来玩！</p>
       <div class="srv-pills">
         <span class="pill">支持 1.21.6 – 26.2</span>
         <span class="pill">Fabric</span>
-        <span class="pill pill-live" id="srvLivePill"><i class="dot"></i>状态加载中</span>
+        <span class="pill">双服齐开</span>
       </div>
     </div>
   </section>
@@ -43,61 +45,75 @@
       <div class="join-grid">
 
         <div class="join-card">
-          <div class="join-label">服务器地址（任选一个）</div>
-          <div class="join-ip-list">
-            <div class="join-ip-row">
-              <div class="join-value">mc.xrst.uk</div>
-              <button class="btn btn-solid join-copy" type="button" data-copy="mc.xrst.uk">
-                复制
-              </button>
-            </div>
-            <div class="join-ip-row">
-              <div class="join-value">mc.xrtech.dpdns.org</div>
-              <button class="btn btn-outline join-copy" type="button" data-copy="mc.xrtech.dpdns.org">
-                复制
-              </button>
-            </div>
-          </div>
-          <p class="join-note">Java 版直接添加服务器，端口自动解析</p>
+          <div class="join-label">第一步 · 加入官方 QQ 群</div>
+          <div class="join-value">服务器地址只在群内公布</div>
+          <p class="join-note">进群后在「群公告 / 群置顶」查看地址，Java 版直接添加、端口自动解析</p>
         </div>
 
         <div class="join-card">
-          <div class="join-label">官方 QQ 群</div>
+          <div class="join-label">第二步 · 官方 QQ 群号</div>
           <div class="join-value">545397370</div>
-          <p class="join-note">进群聊天、获取公告、一起联机</p>
+          <p class="join-note">进群聊天、获取服务器地址与公告、一起联机</p>
           <button class="btn btn-outline join-copy" type="button" data-copy="545397370">
             复制 QQ 群号
           </button>
         </div>
 
       </div>
+      <p class="join-note" style="margin-top:22px;">
+        🗺️ 想看服务器地图？<a href="/map/" style="color:var(--accent);font-weight:600;">种子地图</a> 一键查看群系、史莱姆区块、要塞等结构分布（种子 918332695799929542 自动填好）。
+      </p>
     </div>
   </section>
 
-  <!-- 实时状态 -->
+  <!-- 两个服怎么选 -->
   <section class="section section-alt">
-    <div class="section-inner srv-status-wrap">
-      <h2 class="section-title">实时状态</h2>
+    <div class="section-inner">
+      <h2 class="section-title">两个服怎么选？</h2>
+      <p class="join-note" style="max-width:720px;">
+        两个服共用同一个群、同一批玩家，区别只在一条规则：<b>死亡掉不掉落</b>。
+        想轻松玩选生存服，想找刺激选 SMP，随时可以两边串门。
+      </p>
+      <div class="srv-pick-grid">
 
-      <div class="mc-status mc-status-lg" id="mcStatus">
-        <div class="mc-status-head">
-          <span class="pill" id="mcStatusPill">加载中…</span>
-          <span class="mc-version" id="mcStatusVersion"></span>
+        <div class="srv-pick srv-pick-casual">
+          <div class="srv-pick-head">
+            <span class="srv-pick-icon">🌿</span>
+            <h3>生存服</h3>
+          </div>
+          <p class="srv-pick-tag">死亡不掉落 · keepInventory</p>
+          <ul class="srv-pick-list">
+            <li>下矿探险零心理负担，死了装备还在</li>
+            <li>适合养老、盖建筑、红石、摸鱼挂机</li>
+            <li>新手友好，翻车了也不会一夜回到解放前</li>
+          </ul>
         </div>
-        <div class="mc-status-players" id="mcStatusPlayers">— / —</div>
-        <div class="mc-status-motd" id="mcStatusMotd">正在连接服务器…</div>
-      </div>
 
-      <button class="btn btn-ghost srv-refresh" id="mcStatusBtn" type="button">
-        <span id="mcStatusBtnText">刷新状态</span>
-      </button>
+        <div class="srv-pick srv-pick-hard">
+          <div class="srv-pick-head">
+            <span class="srv-pick-icon">⚔️</span>
+            <h3>SMP</h3>
+          </div>
+          <p class="srv-pick-tag">死亡掉落 · 原味硬核</p>
+          <ul class="srv-pick-list">
+            <li>标准 Survival MultiPlayer 体验，死了装备全掉</li>
+            <li>每次下矿都有紧张感，资源和装备更值钱</li>
+            <li>玩家之间的交易、救援、整活全都更有戏</li>
+          </ul>
+        </div>
+
+      </div>
+      <p class="join-note" style="max-width:720px; margin-top:22px;">
+        <b>什么是 SMP？</b>SMP 即 Survival MultiPlayer（生存多人服务器）：不堆浮夸插件、不卖付费特权，
+        一群玩家在同一个长期存档里生存、盖房、经商、整活。我们的 SMP 就是一间<b>死亡掉落的标准原味服</b>。
+      </p>
     </div>
   </section>
 
   <!-- 特性 -->
   <section class="section">
     <div class="section-inner">
-      <h2 class="section-title">这里有什么</h2>
+      <h2 class="section-title">两个服共有的东西</h2>
       <div class="feature-grid">
         <div class="feature">
           <div class="feature-icon">⛏</div>
@@ -105,14 +121,14 @@
           <p>简单直接的原版生存玩法，不加花里胡哨的东西。</p>
         </div>
         <div class="feature">
-          <div class="feature-icon">❤</div>
-          <h3>死亡不掉落</h3>
-          <p>安心下矿放心探险，再也不怕装备一夜回到解放前。</p>
-        </div>
-        <div class="feature">
           <div class="feature-icon">👥</div>
           <h3>多人联机</h3>
           <p>和好友一起建房、红石、整活，人多更热闹。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📖</div>
+          <h3>长期存档</h3>
+          <p>同一个世界长期开服，你盖的楼、修的路一直都在。</p>
         </div>
         <div class="feature">
           <div class="feature-icon">💬</div>
@@ -120,11 +136,18 @@
           <p>QQ 群里随时交流，公告与活动第一时间知道。</p>
         </div>
       </div>
+    </div>
+  </section>
 
-      <p class="srv-oldsite">
-        也可以访问旧版主站：
-        <a href="https://xrtech.dpdns.org" target="_blank" rel="noopener">xrtech.dpdns.org ↗</a>
-      </p>
+  <!-- 网页 × 游戏聊天互通 -->
+  <section class="section section-alt">
+    <div class="section-inner">
+      <div class="feature" style="text-align:center;">
+        <div class="feature-icon">🔗</div>
+        <h3>网页 × 游戏聊天互通</h3>
+        <p>聊天室与服务器双向同步：网页发的消息游戏里看得到，游戏内的聊天也会实时显示在网页。注册登录后即可发言。</p>
+        <a class="btn btn-solid" href="/chat/" style="margin-top:14px;">进入聊天室 →</a>
+      </div>
     </div>
   </section>
 
@@ -177,8 +200,7 @@
   <div class="toast-box" id="toastBox"></div>
 
   <script src="../js/auth.js"></script>
-  <script src="../js/main.js"></script>
-  <script src="../js/mcstatus.js"></script>
-  <script src="../js/server.js"></script>
+  <script src="../js/main.js?v=15"></script>
+  <script src="../js/server.js?v=3"></script>
 </body>
 </html>

@@ -149,7 +149,7 @@ async function settleExpiredMarket(env, list, now = Date.now()) {
   for (const l of list) {
     if (l.status !== "taken" || !l.expireAt || l.expireAt > now) continue;
     try {
-      if (l.held > 0 && l.buyer) await adjustUserCoins(env, l.buyer, l.held);
+      if (l.held > 0 && l.buyer) await adjustUserCoins(env, l.buyer, l.held, false, { type: "market_refund", memo: "交易超时未完成，担保金币退回" });
       try { await env.AUTH_KV.delete(marketChatKey(l.id)); } catch { /* 聊天键可能已被 KV 过期清掉 */ }
       l.status = "open"; l.taker = null; l.buyer = null; l.seller = null;
       l.held = 0; l.takenAt = null; l.expireAt = null;
@@ -185,6 +185,10 @@ async function marketTake(env, list, listing, meLower) {
     }
     buyerUser.coins = (buyerUser.coins || 0) - listing.price;
     await env.AUTH_KV.put(userKey(buyer), JSON.stringify(buyerUser));
+    await addCoinLedger(env, buyer, {
+      delta: -listing.price, balance: buyerUser.coins, type: "market_take",
+      memo: listing.type === "buy" ? "收购帖成交，金币进入担保" : "拍下商品，金币进入担保",
+    });
   }
 
   const now = Date.now();
@@ -463,6 +467,16 @@ async function handleApi(request, env, pathname) {
     return json(meView(user), 200);
   }
 
+  /* 我的金币账单（仅本人）*/
+  if (pathname === "/api/me/coinlog" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    let log = [];
+    try { log = JSON.parse((await env.AUTH_KV.get(`coinlog:${me.toLowerCase()}`)) || "[]"); } catch { log = []; }
+    if (!Array.isArray(log)) log = [];
+    return json({ ok: true, log: log.slice(0, 100) });
+  }
+
   /* ---------- 每日签到 ---------- */
   if (pathname === "/api/checkin" && method === "POST") {
     const me = await getSessionUser(request, env);
@@ -483,7 +497,186 @@ async function handleApi(request, env, pathname) {
     user.streak = streak;
     user.lastCheckin = today;
     await env.AUTH_KV.put(key, JSON.stringify(user));
+    await addCoinLedger(env, me, { delta: reward, balance: user.coins, type: "checkin", memo: `每日签到（连签 ${streak} 天）` });
     return json({ ok: true, reward, coins: user.coins, streak, checked: true }, 200);
+  }
+
+  /* ---------- wkw 小游戏游玩时长奖励 ----------
+     前端每 30s 上报一个"活跃周期"（挂机/切标签页不上报或报 0）。
+     服务端三重防刷：单次最多 30s、按墙钟间隔钳制、每日封顶 100 分钟=1000 金币。*/
+  if (pathname === "/api/playtime/beat" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const PLAY_GAMES = { match3: "消消乐", cards: "斗地主掼蛋升级", watermelon: "合成大西瓜", fourchess: "四棋会", sort: "水排序解谜" };
+    const game = PLAY_GAMES[body.game] ? body.game : null;
+    if (!game) return json({ ok: false, error: "未知游戏" }, 400);
+    /* KV 省额度：客户端每 180s 批量上报一次活跃秒数（旧版 SDK 每 30s 一拍也兼容）。
+       服务端每次写 KV = 用户 JSON ×1 + 当日账本 ×1（原来是每拍 2~3 次写，现降 ~9 倍） */
+    const BEAT_SEC = 180;         // 单次上报秒数上限（3 分钟一批）
+    const UNIT_SEC = 30;          // 计费单位：每 30s 活跃算 1 个单位
+    const COINS_PER_UNIT = 5;     // 每单位 5 金币（每分钟 10）
+    const DAILY_CAP_SEC = 6000;   // 100 分钟 → 1000 金币/天
+    const now = Date.now();
+
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+    const today = beijingDate();
+    if (!user.playtime || user.playtime.day !== today) {
+      user.playtime = { day: today, sec: 0, coins: 0, lastBeat: 0 };
+    }
+    const pt = user.playtime;
+
+    // ① 请求值钳到 [0,180] 整数
+    let credited = Math.max(0, Math.min(BEAT_SEC, Math.floor(Number(body.sec) || 0)));
+    // ② 墙钟钳制：距上次落库的真实间隔不够，多报部分不给（容差 15s 覆盖上报抖动）
+    if (pt.lastBeat > 0) {
+      const elapsed = (now - pt.lastBeat) / 1000;
+      credited = Math.max(0, Math.min(credited, Math.floor(elapsed + 15)));
+    }
+    pt.lastBeat = now;
+    // ③ 日封顶
+    const beforeUnits = Math.floor(pt.sec / UNIT_SEC);
+    pt.sec = Math.min(DAILY_CAP_SEC, pt.sec + credited);
+    const afterUnits = Math.floor(pt.sec / UNIT_SEC);
+    const gained = Math.max(0, afterUnits - beforeUnits) * COINS_PER_UNIT;
+
+    if (gained > 0) {
+      user.coins = (user.coins || 0) + gained;
+      pt.coins = (pt.coins || 0) + gained;
+    }
+    if (credited > 0) {
+      /* 单次合并写：金币/时长/lastBeat 一份 JSON 落库（原来金币到账时写两次） */
+      await env.AUTH_KV.put(key, JSON.stringify(user));
+      if (gained > 0) {
+        const minutes = Math.floor(pt.sec / 60);
+        await updateDailyLedger(env, me, "playtime", () => ({
+          deltaAdd: gained,
+          balance: user.coins,
+          memo: `玩小游戏 ${minutes} 分钟（今日封顶 ${DAILY_CAP_SEC / 60} 分钟）`,
+        }));
+      }
+    }
+
+    return json({
+      ok: true,
+      gained,                       // 本次实际到账金币
+      coins: user.coins || 0,
+      dailySec: pt.sec,
+      dailyCapSec: DAILY_CAP_SEC,
+      dailyCoins: pt.coins || 0,
+      capped: pt.sec >= DAILY_CAP_SEC,
+      game,
+    });
+  }
+
+  /* ---------- 小游戏成就金币奖励 ----------
+     A. 合成大西瓜：合出隐藏球 stage 9/10，随机 20~100，日限 10 次、间隔 60s
+     B. 四棋会：人机对局玩家获胜，按 AI 难度 8/15/25/40/60，日限共 8 次、同棋种间隔 60s */
+  if (pathname === "/api/game/bonus" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const now = Date.now(), today = beijingDate();
+    const rand = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+
+    let coins = 0, memo = "", dailyMax = 0, bucket = null, gateKind = "";
+
+    if (body.game === "watermelon" && (body.stage === 9 || body.stage === 10 || body.stage === 11)) {
+      dailyMax = 10;
+      if (!user.wmBonus || user.wmBonus.day !== today) user.wmBonus = { day: today, count: 0, lastAt: 0 };
+      bucket = user.wmBonus;
+      const ballName = body.stage === 11 ? "金色隐藏球" : body.stage === 10 ? "彩虹隐藏球" : "白色隐藏球";
+      // 白球/彩虹球 20~100；金球（12 阶顶端，极稀有）100~260
+      coins = body.stage === 11 ? 100 + rand(161) : 20 + rand(81);
+      memo = `合成大西瓜 · 合出${ballName}`;
+    } else if (body.game === "chess") {
+      const CHESS = {
+        chess:   ["国际象棋", [8, 15, 25, 40, 60]],
+        xq:      ["中国象棋", [8, 15, 25, 40, 60]],
+        gomoku:  ["五子棋",   [8, 15, 25, 40, 60]],
+        go:      ["围棋",     [8, 15, 25, 40, 60]],
+      };
+      const cfg = CHESS[body.kind];
+      const level = Math.floor(Number(body.level));
+      if (!cfg || !(level >= 0 && level <= 4)) return json({ ok: false, error: "未知事件" }, 400);
+      dailyMax = 8; // 四种棋每天合计 8 次胜利奖励
+      if (!user.chessBonus || user.chessBonus.day !== today) {
+        user.chessBonus = { day: today, count: 0, last: {} };
+      }
+      bucket = user.chessBonus;
+      gateKind = body.kind;
+      const gap = now - (bucket.last[gateKind] || 0);
+      if (gap < 60000) return json({ ok: false, error: "操作太快了", tooFast: true });
+      coins = cfg[1][level];
+      memo = `四棋会 · ${cfg[0]}击败 ${["新手", "简单", "中等", "困难", "大师"][level]} AI`;
+    } else {
+      return json({ ok: false, error: "未知事件" }, 400);
+    }
+
+    if (bucket.count >= dailyMax) return json({ ok: false, error: "今日奖励已领满", dailyLimit: true });
+    if (body.game === "watermelon" && bucket.lastAt && now - bucket.lastAt < 60000) {
+      return json({ ok: false, error: "操作太快了", tooFast: true });
+    }
+
+    bucket.count += 1;
+    if (body.game === "watermelon") bucket.lastAt = now;
+    else bucket.last[gateKind] = now;
+    user.coins = (user.coins || 0) + coins;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    await addCoinLedger(env, me, { delta: coins, balance: user.coins, type: "game_bonus", memo });
+    const resp = { ok: true, coins, balance: user.coins, memo, left: dailyMax - bucket.count };
+    if (body.game === "watermelon") {
+      resp.ballName = body.stage === 11 ? "金色隐藏球" : body.stage === 10 ? "彩虹隐藏球" : "白色隐藏球";
+    }
+    return json(resp);
+  }
+
+  /* ---------- 水排序解谜：游戏积分 ↔ 网站金币 双向兑换（1:1，日限防刷） ---------- */
+  if (pathname === "/api/game/exchange" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const dir = body.dir; // "toCoins" 游戏积分→金币 / "toPoints" 金币→游戏积分
+    const amount = Math.floor(Number(body.amount));
+    if (!dir || !amount || amount <= 0) return json({ ok: false, error: "参数错误" }, 400);
+
+    const now = Date.now(), today = beijingDate();
+    const key = userKey(me);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(raw);
+
+    if (!user.wsortEx || user.wsortEx.day !== today) user.wsortEx = { day: today, toCoins: 0, toPoints: 0 };
+    const ex = user.wsortEx;
+    const EX_DAILY = 200; // 每日双向各限 200 积分/金币
+
+    if (dir === "toCoins") {
+      // 游戏积分 → 金币：用户传入 amount（前端已扣本地积分），服务端只负责加金币
+      if (ex.toCoins + amount > EX_DAILY) return json({ ok: false, error: "今日积分兑换金币已达上限" });
+      ex.toCoins += amount;
+      user.coins = (user.coins || 0) + amount;
+      await env.AUTH_KV.put(key, JSON.stringify(user));
+      await addCoinLedger(env, me, { delta: amount, balance: user.coins, type: "game_exchange", memo: `水排序解谜 · 积分兑换金币 +${amount}` });
+      return json({ ok: true, dir, amount, balance: user.coins, leftToday: EX_DAILY - ex.toCoins });
+    } else if (dir === "toPoints") {
+      // 金币 → 游戏积分：扣用户金币，返回积分给前端存 localStorage
+      if (ex.toPoints + amount > EX_DAILY) return json({ ok: false, error: "今日金币兑换积分已达上限" });
+      if ((user.coins || 0) < amount) return json({ ok: false, error: "金币不足" });
+      ex.toPoints += amount;
+      user.coins -= amount;
+      await env.AUTH_KV.put(key, JSON.stringify(user));
+      await addCoinLedger(env, me, { delta: -amount, balance: user.coins, type: "game_exchange", memo: `水排序解谜 · 金币兑换积分 -${amount}` });
+      return json({ ok: true, dir, amount, balance: user.coins, leftToday: EX_DAILY - ex.toPoints });
+    }
+    return json({ ok: false, error: "未知方向" }, 400);
   }
 
   /* ---------- VIP 会员：250 金币 / 30 天，可叠加续费 ---------- */
@@ -509,6 +702,7 @@ async function handleApi(request, env, pathname) {
     user.frame = VIP_FRAME;
     user.bubble = VIP_BUBBLE;
     await env.AUTH_KV.put(key, JSON.stringify(user));
+    await addCoinLedger(env, me, { delta: -VIP_PRICE, balance: user.coins, type: "vip", memo: isVipActive(user) && base > Date.now() ? "续费 VIP 30 天" : "开通 VIP 30 天" });
     return json({ ok: true, ...meView(user) }, 200);
   }
 
@@ -558,6 +752,7 @@ async function handleApi(request, env, pathname) {
       user[ownedKey].push(id);
       user[equipKey] = id; // 买完自动装备
       await env.AUTH_KV.put(key, JSON.stringify(user));
+      await addCoinLedger(env, me, { delta: -price, balance: user.coins, type: "shop", memo: `兑换商店：${type === "frame" ? "头像框 " : "聊天气泡 "}${id}` });
       return json({ ok: true, ...meView(user) }, 200);
     }
 
@@ -727,7 +922,7 @@ async function handleApi(request, env, pathname) {
         if (meLower !== listing.owner && meLower !== listing.taker) {
           return json({ ok: false, error: "只有交易双方能操作" }, 403);
         }
-        if (listing.held > 0 && listing.seller) await adjustUserCoins(env, listing.seller, listing.held);
+        if (listing.held > 0 && listing.seller) await adjustUserCoins(env, listing.seller, listing.held, false, { type: "market_sold", memo: "二手交易完成，担保金币到账" });
         list.splice(list.indexOf(listing), 1);
         await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
         try { await env.AUTH_KV.delete(marketChatKey(id)); } catch { /* 已被 KV 清掉也无妨 */ }
@@ -818,7 +1013,16 @@ async function handleApi(request, env, pathname) {
     if (invalid) return json({ ok: false, error: invalid }, 400);
 
     const key = userKey(username);
-    if (await env.AUTH_KV.get(key)) return json({ ok: false, error: "该用户名已被注册" }, 409);
+    const existedRaw = await env.AUTH_KV.get(key);
+    if (existedRaw) {
+      try {
+        const ex = JSON.parse(existedRaw);
+        if (ex && ex.disabled === true) {
+          return json({ ok: false, error: "用户名不合法，已注销" }, 403);
+        }
+      } catch { /* 解析失败按已注册处理 */ }
+      return json({ ok: false, error: "该用户名已被注册" }, 409);
+    }
 
     const salt = randomHex(16);
     const hash = await hashPassword(password, salt);
@@ -900,6 +1104,106 @@ async function handleApi(request, env, pathname) {
     }
   }
 
+  /* ---------- 管理员：用户金币管理（仅 AaronXie） ---------- */
+
+  // 解析用户名或 12 位 UID → 用户记录；不存在返回 null
+  async function resolveAdminUser(query) {
+    const q = (query || "").trim();
+    if (!q) return null;
+    let key = null;
+    if (/^\d{12}$/.test(q)) key = (await env.AUTH_KV.get(`uid:${q}`)) || null;
+    if (!key && isValidUsername(q)) key = userKey(q);
+    if (!key) return null;
+    const raw = await env.AUTH_KV.get(key);
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  const ADMIN_COIN_LOG_KEY = "admin:coinlog";
+  async function appendCoinLog(entry) {
+    let log = [];
+    try { log = JSON.parse((await env.AUTH_KV.get(ADMIN_COIN_LOG_KEY)) || "[]"); } catch { log = []; }
+    if (!Array.isArray(log)) log = [];
+    log.unshift(entry);
+    await env.AUTH_KV.put(ADMIN_COIN_LOG_KEY, JSON.stringify(log.slice(0, 200)));
+  }
+
+  // 查询用户：?u=用户名 或 12 位 UID
+  if (pathname === "/api/admin/user" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) return json({ ok: false, error: "没有管理员权限" }, 403);
+    const u = await resolveAdminUser(new URL(request.url).searchParams.get("u"));
+    if (!u) return json({ ok: false, error: "用户不存在（可用用户名或 12 位 UID）" }, 404);
+    return json({
+      ok: true,
+      username: u.name,
+      uid: u.uid || null,
+      coins: u.coins || 0,
+      vipUntil: u.vipUntil || null,
+      vip: isVipActive(u),
+      createdAt: u.createdAt || null,
+      lastCheckin: u.lastCheckin || null,
+      streak: u.streak || 0,
+    });
+  }
+
+  // 调整金币：{u, action:"add"|"sub"|"set", amount:1~1e9整数, reason?}
+  if (pathname === "/api/admin/coins" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) return json({ ok: false, error: "没有管理员权限" }, 403);
+
+    const body = await request.json().catch(() => ({}));
+    const action = body.action;
+    if (!["add", "sub", "set"].includes(action)) return json({ ok: false, error: "操作类型无效" }, 400);
+    const amount = Math.floor(Number(body.amount));
+    if (!Number.isFinite(amount) || amount < 1 || amount > 1e9) {
+      return json({ ok: false, error: "金额必须是 1～10 亿之间的整数" }, 400);
+    }
+    const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 100) : "";
+
+    const q = (body.u || "").trim();
+    let key = null;
+    if (/^\d{12}$/.test(q)) key = (await env.AUTH_KV.get(`uid:${q}`)) || null;
+    if (!key && isValidUsername(q)) key = userKey(q);
+    if (!key) return json({ ok: false, error: "用户名或 UID 无效" }, 400);
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在" }, 404);
+    const user = JSON.parse(raw);
+
+    const before = user.coins || 0;
+    let after;
+    if (action === "add") after = before + amount;
+    else if (action === "set") after = amount;
+    else after = Math.max(0, before - amount);
+    if (after > 1e12) return json({ ok: false, error: "调整后余额超出上限" }, 400);
+    user.coins = after;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+
+    const entry = {
+      ts: Date.now(), admin: me, target: user.name, uid: user.uid || null,
+      action, amount, before, after, reason,
+      clamped: action === "sub" && before < amount, // 扣除时余额不足、已钳到 0
+    };
+    await appendCoinLog(entry);
+    // 给被调整的用户本人账单也记一条（管理员操作对用户可见）
+    await addCoinLedger(env, user.name, {
+      delta: after - before, balance: after, type: "admin",
+      memo: (reason ? reason + " · " : "") + `管理员 ${me}${action === "add" ? "发放" : action === "sub" ? "扣除" : "设置"}`,
+    });
+    return json({ ok: true, ...entry });
+  }
+
+  // 操作日志
+  if (pathname === "/api/admin/coinlog" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) return json({ ok: false, error: "没有管理员权限" }, 403);
+    let log = [];
+    try { log = JSON.parse((await env.AUTH_KV.get(ADMIN_COIN_LOG_KEY)) || "[]"); } catch { log = []; }
+    return json({ ok: true, log: Array.isArray(log) ? log.slice(0, 100) : [] });
+  }
+
   /* ---------- 金币抽奖：100 金币一次，服务端开奖防伪造 ---------- */
   if (pathname === "/api/lottery/draw" && method === "POST") {
     const me = await getSessionUser(request, env);
@@ -917,6 +1221,7 @@ async function handleApi(request, env, pathname) {
       }, 400);
     }
     user.coins = (user.coins || 0) - LOTTERY_COST;
+    await addCoinLedger(env, me, { delta: -LOTTERY_COST, balance: user.coins, type: "lottery", memo: "抽奖 1 次" });
 
     // 拒绝采样消除取模偏差，roll ∈ [0, 2000)
     const buf = new Uint32Array(1);
@@ -932,6 +1237,7 @@ async function handleApi(request, env, pathname) {
 
     if (prize.type === "coins") {
       user.coins += prize.amount;
+      await addCoinLedger(env, me, { delta: prize.amount, balance: user.coins, type: "lottery_prize", memo: `抽奖中奖：${prize.label}` });
     } else if (prize.type === "vip") {
       // 与商店开通一致：有效期叠加并自动换上 VIP 专属套装
       const base = isVipActive(user) ? user.vipUntil : Date.now();
@@ -1267,7 +1573,8 @@ async function handleApi(request, env, pathname) {
     return json({ ok: true, user: owner, mcname }, 200);
   }
 
-  // 游戏内看在架物品（无需绑定，密钥对就行）
+  // 游戏内看在架物品（无需绑定，密钥对就行）。带 mcname 时顺带返回绑定身份，
+  // mod 用它把「我自己的帖子」在箱子里标出来（自己的帖不能拍）。
   if (pathname === "/api/mc/market" && method === "GET") {
     const secret = request.headers.get("X-MC-Secret") || "";
     if (!env.MC_INGEST_SECRET || secret !== env.MC_INGEST_SECRET) {
@@ -1280,7 +1587,54 @@ async function handleApi(request, env, pathname) {
     const open = list.filter(l => l.status === "open")
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(marketView);
-    return json({ ok: true, open }, 200);
+    let me = null;
+    const mcname = String(new URL(request.url).searchParams.get("mcname") || "").trim();
+    if (/^[A-Za-z0-9_]{3,16}$/.test(mcname)) {
+      me = await env.AUTH_KV.get(`mc:bind:${mcname.toLowerCase()}`);
+    }
+    return json({ ok: true, open, me }, 200);
+  }
+
+  // 游戏内挂单：POST { mcname, type, item, desc, price }（校验与网页发帖一致）
+  if (pathname === "/api/mc/market/post" && method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const auth = await mcBoundUser(env, request, String(body.mcname || ""));
+    if (auth.err) return auth.err;
+    const meLower = auth.user;
+    const type = body.type;
+    if (!MARKET_TYPES.has(type)) return json({ ok: false, error: "交易类型错误" }, 400);
+    const item = String(body.item || "").trim();
+    if (!item) return json({ ok: false, error: "请填写物品名称" }, 400);
+    if (item.length > MARKET_ITEM_MAX) return json({ ok: false, error: `物品名不能超过 ${MARKET_ITEM_MAX} 个字` }, 400);
+    const desc = String(body.desc || "").trim().slice(0, MARKET_DESC_MAX);
+    let price = 0;
+    if (type !== "barter") {
+      price = Number(body.price);
+      if (!Number.isInteger(price) || price < 0 || price > MARKET_MAX_PRICE) {
+        return json({ ok: false, error: `定价只能是 0～${MARKET_MAX_PRICE} 的整数金币` }, 400);
+      }
+    }
+    const list = await loadMarket(env);
+    await settleExpiredMarket(env, list);
+    const used = list.filter(l => l.owner === meLower).length;
+    const userRaw = await env.AUTH_KV.get(userKey(meLower));
+    let user = null;
+    if (userRaw) { try { user = JSON.parse(userRaw); } catch { /* 损坏 */ } }
+    if (!user) return json({ ok: false, error: "账号异常" }, 400);
+    const maxSlots = isVipActive(user) ? MARKET_SLOTS_VIP : MARKET_SLOTS_FREE;
+    if (used >= maxSlots) {
+      return json({ ok: false, error: `栏位已满（${maxSlots} 个），等交易完成或下架旧帖后再发` }, 400);
+    }
+    let id;
+    do { id = randomHex(6); } while (list.some(l => l.id === id));
+    const listing = {
+      id, type, owner: meLower, item, want: null, desc, price,
+      status: "open", taker: null, buyer: null, seller: null, held: 0,
+      createdAt: Date.now(), takenAt: null, expireAt: null,
+    };
+    list.push(listing);
+    await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
+    return json({ ok: true, listing: marketView(listing) }, 200);
   }
 
   // 游戏内拍下：POST { id, mcname }
@@ -1460,6 +1814,9 @@ async function handleApi(request, env, pathname) {
     if (!raw) return json({ ok: false, error: "用户不存在，请先注册" }, 401);
 
     const user = JSON.parse(raw);
+    if (user.disabled === true) {
+      return json({ ok: false, error: "用户名不合法，已注销" }, 403);
+    }
     const hash = await hashPassword(password, user.salt);
     if (hash !== user.hash) return json({ ok: false, error: "密码错误" }, 401);
 
@@ -1497,16 +1854,17 @@ async function handleApi(request, env, pathname) {
     }
     user.coins = (user.coins || 0) - ante;
     await env.AUTH_KV.put(key, JSON.stringify(user));
+    await addCoinLedger(env, me, { delta: -ante, balance: user.coins, type: "split_ante", memo: "「偷还是分？」入场押金" });
 
     const joinResp = await doPost(lobbyStub(env), "/lobby/join", {
       u: me, ante, avatar: user.avatar ?? 0,
     });
     const join = await joinResp.json().catch(() => ({ ok: false, error: "匹配服务异常" }));
     if (!joinResp.ok || !join.ok) {
-      await adjustUserCoins(env, me, ante); // DO 拒绝：立即退款
+      await adjustUserCoins(env, me, ante, false, { type: "split_refund", memo: "匹配失败，入场押金退回" }); // DO 拒绝：立即退款
       return json(join, joinResp.status || 502);
     }
-    if (join.resumed) await adjustUserCoins(env, me, ante); // 并发竞态：退重复扣款
+    if (join.resumed) await adjustUserCoins(env, me, ante, false, { type: "split_refund", memo: "重复排队扣款退回" }); // 并发竞态：退重复扣款
     return json(join);
   }
 
@@ -1516,7 +1874,7 @@ async function handleApi(request, env, pathname) {
     if (!me) return json({ ok: false, error: "请先登录" }, 401);
     const resp = await doPost(lobbyStub(env), "/lobby/cancel", { u: me });
     const data = await resp.json().catch(() => ({ ok: false }));
-    if (data.ok && data.refund > 0) await adjustUserCoins(env, me, Number(data.refund));
+    if (data.ok && data.refund > 0) await adjustUserCoins(env, me, Number(data.refund), false, { type: "split_refund", memo: "取消排队，入场押金退回" });
     return json(data, resp.ok ? 200 : 502);
   }
 
@@ -1553,8 +1911,22 @@ function lobbyStub(env) {
   return env.GAME_LOBBY_DO.get(env.GAME_LOBBY_DO.idFromName("lobby"));
 }
 
-/* KV 用户金币增减（退款等 worker 侧记账；罚金扣减不允许变成负数）*/
-async function adjustUserCoins(env, username, delta, clampZero = false) {
+/* 金币账单流水：每用户一个 KV 键，最新在前，最多保留 100 条。
+   写流水失败只吞错，绝不能阻断金币交易主流程。*/
+async function addCoinLedger(env, username, entry) {
+  try {
+    const lkey = `coinlog:${String(username).toLowerCase()}`;
+    let log = [];
+    try { log = JSON.parse((await env.AUTH_KV.get(lkey)) || "[]"); } catch { log = []; }
+    if (!Array.isArray(log)) log = [];
+    log.unshift({ ts: Date.now(), delta: 0, balance: 0, type: "", memo: "", ...entry });
+    await env.AUTH_KV.put(lkey, JSON.stringify(log.slice(0, 100)));
+  } catch { /* 忽略账单错误 */ }
+}
+
+/* KV 用户金币增减（退款等 worker 侧记账；罚金扣减不允许变成负数）
+   ledger = { type, memo } 时同步写一条账单流水 */
+async function adjustUserCoins(env, username, delta, clampZero = false, ledger = null) {
   const key = userKey(username);
   const raw = await env.AUTH_KV.get(key);
   if (!raw) return false;
@@ -1563,7 +1935,35 @@ async function adjustUserCoins(env, username, delta, clampZero = false) {
   if (clampZero && coins < 0) coins = 0;
   user.coins = coins;
   await env.AUTH_KV.put(key, JSON.stringify(user));
+  if (ledger) await addCoinLedger(env, username, { delta, balance: coins, type: ledger.type, memo: ledger.memo || "" });
   return true;
+}
+
+/* 当天聚合型账单（如小游戏计时奖励，全天只占一条，随玩随累加金额与时长）。
+   updater(prevEntry|null) 返回 {deltaAdd, balance, memo} 或 null（不更新）*/
+async function updateDailyLedger(env, username, type, updater) {
+  try {
+    const lkey = `coinlog:${String(username).toLowerCase()}`;
+    const today = beijingDate();
+    let log = [];
+    try { log = JSON.parse((await env.AUTH_KV.get(lkey)) || "[]"); } catch { log = []; }
+    if (!Array.isArray(log)) log = [];
+    const isToday = ts => new Date(ts + 8 * 3600 * 1000).toISOString().slice(0, 10) === today;
+    const idx = log.findIndex(e => e.type === type && isToday(e.ts));
+    const cur = idx >= 0 ? log[idx] : null;
+    const u = await updater(cur);
+    if (!u) return;
+    if (idx >= 0) {
+      log[idx] = {
+        ...log[idx],
+        delta: Math.max(0, (log[idx].delta || 0) + (u.deltaAdd || 0)),
+        balance: u.balance, ts: Date.now(), memo: u.memo,
+      };
+    } else {
+      log.unshift({ ts: Date.now(), delta: Math.max(0, u.deltaAdd || 0), balance: u.balance, type, memo: u.memo });
+    }
+    await env.AUTH_KV.put(lkey, JSON.stringify(log.slice(0, 100)));
+  } catch { /* 账单失败不影响主流程 */ }
 }
 
 /* ---------------- 工具函数 ---------------- */
@@ -1755,7 +2155,18 @@ async function createSession(env, username) {
 async function getSessionUser(request, env) {
   const token = readCookie(request, SESSION_COOKIE);
   if (!token) return null;
-  return (await env.AUTH_KV.get(`session:${token}`)) || null;
+  const name = (await env.AUTH_KV.get(`session:${token}`)) || null;
+  if (!name) return null;
+  // 已注销（封号）用户：会话立即失效并清掉（强制退登）
+  try {
+    const raw = await env.AUTH_KV.get(userKey(name));
+    const u = raw ? JSON.parse(raw) : null;
+    if (!u || u.disabled === true) {
+      try { await env.AUTH_KV.delete(`session:${token}`); } catch { /* 忽略 */ }
+      return null;
+    }
+  } catch { /* 读取失败不阻断登录态 */ }
+  return name;
 }
 
 async function destroySession(request, env) {

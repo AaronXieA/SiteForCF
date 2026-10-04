@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=11.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>生命游戏 · 康威模拟器 · XRST.Uk</title>
+<meta name="description" content="康威生命游戏（Game of Life）在线模拟器：可选画布大小、单步演化、播放调速、无限倒退、双指平移，手机也能玩。" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5' fill='%2359ff9f'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1.5' fill='%2359ff9f' opacity='.45'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1.5' fill='%2359ff9f' opacity='.45'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1.5' fill='%2359ff9f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../css/style.css?v=31" />
+<style>
+  body.lg-body {
+    background: linear-gradient(170deg,#0d1424 0%,#0a0f1c 55%,#0b1322 100%);
+    color:#e6edf7; min-height:100vh; display:flex; flex-direction:column;
+  }
+  .lg-body .nav { background:rgba(10,15,28,.82); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,.07); }
+  .lg-wrap { flex:1; width:100%; max-width:1200px; margin:0 auto; padding:16px 14px 22px; display:flex; flex-direction:column; gap:12px; }
+
+  .lg-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .lg-title { font-size:22px; font-weight:800; letter-spacing:.5px; margin:0; }
+  .lg-title .ac { color:#59ff9f; }
+  .lg-stats { font-size:13.5px; color:#9fb0c8; font-variant-numeric:tabular-nums; }
+  .lg-stats b { color:#59ff9f; font-size:15px; }
+
+  /* 工具栏 */
+  .lg-bar {
+    background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08);
+    border-radius:14px; padding:10px 12px;
+    display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center;
+  }
+  .lg-group { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .lg-sep { width:1px; align-self:stretch; background:rgba(255,255,255,.1); margin:2px 2px; }
+  .lg-btn {
+    font:inherit; font-size:13.5px; font-weight:700; color:#dbe6f5;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+    border-radius:10px; padding:9px 13px; min-height:40px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:5px;
+    transition:background .15s,border-color .15s,transform .1s;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  }
+  .lg-btn:hover { background:rgba(255,255,255,.13); }
+  .lg-btn:active { transform:scale(.95); }
+  .lg-btn:disabled { opacity:.35; cursor:default; transform:none; }
+  .lg-btn.play { background:rgba(89,255,159,.14); border-color:rgba(89,255,159,.45); color:#8dffbf; min-width:84px; justify-content:center; }
+  .lg-btn.size-btn.on { background:rgba(124,180,255,.18); border-color:#7cb4ff; color:#bcd8ff; }
+  .lg-icon-btn { padding:9px 11px; }
+  .lg-label { font-size:12.5px; color:#8fa0bb; display:inline-flex; align-items:center; gap:6px; }
+  .lg-speed { width:130px; accent-color:#59ff9f; height:40px; }
+  .lg-num { font-variant-numeric:tabular-nums; color:#cfe0f7; min-width:42px; text-align:right; font-size:13px; }
+  .lg-input {
+    width:62px; font:inherit; font-size:13.5px; text-align:center;
+    background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.15); border-radius:9px;
+    color:#e6edf7; padding:8px 4px; min-height:40px;
+  }
+  .lg-x { color:#7488a8; font-size:13px; }
+  .lg-select {
+    font:inherit; font-size:13px; font-weight:600; color:#dbe6f5;
+    background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.15);
+    border-radius:9px; padding:8px 8px; min-height:40px; max-width:172px;
+  }
+  .lg-select option { background:#131d31; color:#e6edf7; }
+
+  /* 设置弹窗 */
+  .lg-modal {
+    position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+    background:rgba(5,9,18,.62); backdrop-filter:blur(3px); padding:16px;
+  }
+  .lg-modal[hidden] { display:none; }
+  .lg-modal-card {
+    width:100%; max-width:460px; max-height:86vh; overflow:auto;
+    background:linear-gradient(175deg,#141e33,#0e1626);
+    border:1px solid rgba(255,255,255,.12); border-radius:16px;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+  }
+  .lg-modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 18px 10px; }
+  .lg-modal-head h2 { margin:0; font-size:17px; }
+  .lg-modal-close {
+    width:34px; height:34px; border-radius:9px; font-size:20px; line-height:1;
+    background:rgba(255,255,255,.07); color:#cfe0f7; border:1px solid rgba(255,255,255,.12); cursor:pointer;
+  }
+  .lg-modal-body { padding:6px 18px 18px; display:flex; flex-direction:column; gap:12px; }
+  .lg-set-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+  .lg-set-row.lg-set-column { flex-direction:column; align-items:stretch; gap:8px; }
+  .lg-set-text { display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .lg-set-text b { font-size:14px; font-weight:700; }
+  .lg-set-text small { font-size:12px; color:#8fa0bb; line-height:1.5; }
+  .lg-set-text em { font-style:normal; color:#8dffbf; }
+  .lg-set-row input[type="checkbox"] { width:22px; height:22px; flex:none; accent-color:#59ff9f; }
+  .lg-set-row .lg-select { min-width:150px; flex:none; }
+  .lg-age-legend { display:flex; align-items:center; gap:8px; font-size:11px; color:#8fa0bb; margin:-4px 0 2px; }
+  .lg-age-bar { flex:1; height:10px; border-radius:5px;
+    background:linear-gradient(90deg,hsl(150,85%,62%),hsl(195,85%,60%),hsl(235,85%,64%),hsl(275,85%,66%),hsl(320,85%,64%)); }
+
+  /* 自定义结构列表 */
+  .lg-custom-list { display:flex; flex-direction:column; gap:6px; margin-top:2px; }
+  .lg-custom-empty { font-size:12.5px; color:#7488a8; padding:4px 0; }
+  .lg-custom-item {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09);
+    border-radius:9px; padding:7px 10px;
+  }
+  .lg-custom-item .ci-name { font-size:13px; font-weight:600; color:#dbe6f5; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lg-custom-item .ci-meta { font-size:11.5px; color:#8fa0bb; font-variant-numeric:tabular-nums; flex:none; }
+  .lg-custom-item .ci-del {
+    flex:none; width:30px; height:30px; border-radius:8px; cursor:pointer;
+    background:rgba(255,90,110,.1); border:1px solid rgba(255,90,110,.3); color:#ff8a9b; font-size:15px;
+  }
+  .lg-custom-item .ci-del:active { transform:scale(.92); }
+
+  /* 画布视口 */
+  .lg-view {
+    position:relative; flex:1; min-height:52vh; border-radius:16px; overflow:hidden;
+    border:1px solid rgba(255,255,255,.1);
+    background:radial-gradient(120% 120% at 50% 0%, #101a2e 0%, #0a101d 70%);
+    touch-action:none; overscroll-behavior:contain; cursor:crosshair;
+  }
+  .lg-view canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .lg-hint {
+    position:absolute; left:10px; bottom:10px; z-index:2;
+    font-size:11.5px; line-height:1.7; color:rgba(190,208,232,.78);
+    background:rgba(8,13,24,.62); border:1px solid rgba(255,255,255,.08);
+    border-radius:10px; padding:7px 11px; max-width:calc(100% - 20px);
+    transition:max-width .2s ease, padding .2s ease, background .2s ease;
+  }
+  .lg-hint b { color:#a9d7ff; font-weight:700; }
+  .lg-hint-body { pointer-events:none; }
+  .lg-hint-close { position:absolute; right:4px; top:2px; pointer-events:auto; cursor:pointer;
+    color:#8fa0bb; background:none; border:none; font-size:14px; line-height:1; padding:4px 6px; }
+  .lg-hint-close:hover { color:#dbe6f5; }
+  /* 折叠态：只留一个小条，不挡画布内容 */
+  .lg-hint.collapsed {
+    padding:4px 10px; max-width:150px; background:rgba(8,13,24,.55);
+    cursor:pointer; user-select:none;
+  }
+  .lg-hint.collapsed .lg-hint-body { display:none; }
+  .lg-hint.collapsed .lg-hint-close { display:none; }
+  .lg-hint-collapsed-label { display:none; font-size:12px; color:#a9d7ff; font-weight:700; }
+  .lg-hint.collapsed .lg-hint-collapsed-label { display:inline; }
+  .lg-zoomctl { position:absolute; right:10px; bottom:10px; z-index:2; display:flex; flex-direction:column; gap:6px; }
+  .lg-zoomctl button {
+    width:40px; height:40px; border-radius:11px; font-size:19px; font-weight:800;
+    background:rgba(12,19,33,.72); color:#cfe0f7; border:1px solid rgba(255,255,255,.14); cursor:pointer;
+  }
+  .lg-zoomctl button:active { transform:scale(.93); }
+
+  /* 模式切换按钮 */
+  .lg-btn.mode-btn.on { background:rgba(124,180,255,.18); border-color:#7cb4ff; color:#bcd8ff; }
+  .lg-view.pan-mode { cursor:grab; }
+  .lg-view.pan-mode.panning { cursor:grabbing; }
+  .lg-view.place-mode { cursor:copy; }
+
+  @media (max-width:640px){
+    .lg-wrap { padding:12px 10px 16px; gap:10px; }
+    .lg-title { font-size:19px; }
+    .lg-bar { padding:9px; gap:7px 8px; border-radius:12px; }
+    .lg-btn { padding:9px 11px; min-height:42px; font-size:13px; }
+    .lg-btn.play { min-width:76px; }
+    .lg-sep { display:none; }
+    .lg-speed-wrap { width:100%; order:5; justify-content:space-between; }
+    .lg-speed { flex:1; width:auto; }
+    .lg-view { min-height:56vh; border-radius:13px; }
+    .lg-hint { font-size:11px; }
+  }
+</style>
+</head>
+<body class="lg-body">
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="lg-wrap">
+    <div class="lg-head">
+      <h1 class="lg-title">🧫 <span data-i18n="life.title">康威生命游戏</span></h1>
+      <div class="lg-stats" id="lgStats">第 <b id="lgGen">0</b> 代 · 存活 <b id="lgPop">0</b> · 最高龄 <b id="lgMaxAge">0</b> · 画布 <b id="lgSize">96×72</b></div>
+    </div>
+
+    <div class="lg-bar">
+      <div class="lg-group" id="modeGroup">
+        <button class="lg-btn mode-btn on" data-mode="paint" type="button" data-i18n="life.modePaint">🖌️ 画笔</button>
+        <button class="lg-btn mode-btn" data-mode="pan" type="button" data-i18n="life.modePan">✋ 平移</button>
+        <button class="lg-btn mode-btn" data-mode="place" type="button" data-i18n="life.modePlace">✈️ 放置</button>
+      </div>
+      <div class="lg-sep"></div>
+      <div class="lg-group">
+        <button class="lg-btn" id="btnBack" type="button" title="倒退一代（长按连退）" data-i18n="life.backGen">⏮ 倒退</button>
+        <button class="lg-btn play" id="btnPlay" type="button" data-i18n="life.play">▶ 播放</button>
+        <button class="lg-btn" id="btnStep" type="button" title="向前演化一代" data-i18n="life.step">步进 ⏭</button>
+      </div>
+      <div class="lg-sep"></div>
+      <div class="lg-group lg-speed-wrap">
+        <span class="lg-label">🐢</span>
+        <input class="lg-speed" id="speed" type="range" min="1" max="60" value="10" />
+        <span class="lg-label">🐇</span>
+        <span class="lg-num"><span id="speedVal">10</span> <span data-i18n="life.genPerSec">代/秒</span></span>
+      </div>
+      <div class="lg-sep"></div>
+      <div class="lg-group">
+        <button class="lg-btn" id="btnRand" type="button" data-i18n="life.random">🎲 随机</button>
+        <button class="lg-btn" id="btnClear" type="button" data-i18n="life.clear">🧹 清空</button>
+        <select class="lg-select" id="patSelect" title="选择预设图案"></select>
+        <button class="lg-btn" id="btnSavePat" type="button" title="把当前画布上的细胞裁剪保存为自定义结构" data-i18n="life.savePattern">💾 存结构</button>
+        <button class="lg-btn" id="btnSettings" type="button" title="深层设置" data-i18n="life.settings">⚙️ 设置</button>
+      </div>
+      <div class="lg-sep"></div>
+      <div class="lg-group" id="sizeGroup">
+        <button class="lg-btn size-btn" data-w="48"  data-h="36"  type="button" data-i18n="life.sizeSmall">小</button>
+        <button class="lg-btn size-btn on" data-w="96" data-h="72" type="button" data-i18n="life.sizeMedium">中</button>
+        <button class="lg-btn size-btn" data-w="160" data-h="120" type="button" data-i18n="life.sizeLarge">大</button>
+        <button class="lg-btn size-btn" data-w="240" data-h="160" type="button" data-i18n="life.sizeXlarge">超大</button>
+        <input class="lg-input" id="customW" type="number" min="10" max="400" data-i18n="life.width" data-i18n-attr="placeholder" placeholder="宽" inputmode="numeric" />
+        <span class="lg-x">×</span>
+        <input class="lg-input" id="customH" type="number" min="10" max="400" data-i18n="life.height" data-i18n-attr="placeholder" placeholder="高" inputmode="numeric" />
+        <button class="lg-btn" id="btnCustom" type="button" data-i18n="life.apply">应用</button>
+      </div>
+    </div>
+
+    <div class="lg-view" id="lgView">
+      <canvas id="lgCanvas"></canvas>
+      <div class="lg-hint collapsed" id="lgHint">
+        <span class="lg-hint-collapsed-label">💡 操作提示</span>
+        <button class="lg-hint-close" id="lgHintClose" type="button" aria-label="收起提示">×</button>
+        <div class="lg-hint-body">
+          <span data-i18n="life.hintPc"><b>电脑：</b>画笔模式左键拖动；平移模式左键拖拽或触控板双指；放置模式悬浮预览、左键放下</span><br>
+          <span data-i18n="life.hintMobile"><b>手机：</b>用上方 <b>🖌️ / ✋ / ✈️</b> 切换；放置模式下点一下预览、再点一下放下</span>
+        </div>
+      </div>
+      <div class="lg-zoomctl">
+        <button id="btnZoomIn" type="button" aria-label="放大">＋</button>
+        <button id="btnZoomOut" type="button" aria-label="缩小">－</button>
+        <button id="btnFit" type="button" aria-label="适应屏幕" style="font-size:15px;">⛶</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 深层设置 -->
+  <div class="lg-modal" id="lgModal" hidden>
+    <div class="lg-modal-card">
+      <div class="lg-modal-head">
+        <h2 data-i18n="life.modalTitle">⚙️ 深层设置</h2>
+        <button class="lg-modal-close" id="lgModalClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="lg-modal-body">
+
+        <label class="lg-set-row">
+          <span class="lg-set-text">
+            <b data-i18n="life.gradientTitle">渐变着色</b>
+            <small data-i18n="life.gradientDesc">按细胞已存活代数上色：新生为绿，越古老越偏向蓝紫、品红</small>
+          </span>
+          <input type="checkbox" id="setGradient" />
+        </label>
+        <div class="lg-age-legend" id="ageLegend" hidden>
+          <span data-i18n="life.ageNew">新生 1 代</span>
+          <div class="lg-age-bar"></div>
+          <span data-i18n="life.ageOld">古老 200+</span>
+        </div>
+
+        <label class="lg-set-row">
+          <span class="lg-set-text">
+            <b data-i18n="life.ruleTitle">演化规则（B/S 记法）</b>
+            <small data-i18n="life.ruleDesc">决定细胞出生/存活所需的邻居数，换个规则像换个宇宙</small>
+          </span>
+          <select class="lg-select" id="setRule">
+            <option value="B3/S23">经典生命 B3/S23</option>
+            <option value="B36/S23">HighLife B36/S23</option>
+            <option value="B36/S125">2×2 B36/S125</option>
+            <option value="B3678/S34678">昼夜 Day &amp; Night</option>
+            <option value="B1357/S1357">复制元胞 Replicator</option>
+            <option value="B2/S">种子 Seeds B2/S</option>
+            <option value="B3/S012345678">永生 Life Without Death</option>
+          </select>
+        </label>
+
+        <label class="lg-set-row">
+          <span class="lg-set-text">
+            <b data-i18n="life.wrapTitle">环形世界</b>
+            <small data-i18n="life.wrapDesc">边界与对侧相连（拓扑为环面）；关闭则边界外视为死亡</small>
+          </span>
+          <input type="checkbox" id="setWrap" />
+        </label>
+
+        <div class="lg-set-row">
+          <span class="lg-set-text">
+            <b>网格线</b>
+            <small>放大时显示单元格分割线</small>
+          </span>
+          <select class="lg-select" id="setGrid">
+            <option value="auto">自动（放大显示）</option>
+            <option value="on">总是显示</option>
+            <option value="off">从不显示</option>
+          </select>
+        </div>
+
+        <div class="lg-set-row lg-set-column">
+          <span class="lg-set-text">
+            <b>随机初始密度 <em id="setDensityVal">26%</em></b>
+            <small>点「🎲 随机」时的活细胞占比</small>
+          </span>
+          <input class="lg-speed" id="setDensity" type="range" min="5" max="60" value="26" style="width:100%" />
+        </div>
+
+        <div class="lg-set-row lg-set-column" style="border-bottom:none">
+          <span class="lg-set-text">
+            <b data-i18n="life.customTitle">自定义结构</b>
+            <small data-i18n="life.customDesc">在画布上画好后点工具栏「💾 存结构」，会自动裁掉空白边缘保存在此浏览器，之后可在图案下拉中快速放置。</small>
+          </span>
+          <div class="lg-custom-list" id="customList"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/i18n.js?v=4"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js?v=16"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    /* ---------------- 状态 ---------------- */
+    var isMobile = matchMedia("(max-width:640px)").matches;
+    var W = 96, H = 72;
+    var grid = new Uint8Array(W * H);
+    var age = new Uint16Array(W * H); // 每个活细胞已连续存活的代数
+    var gen = 0, pop = 0, maxAge = 0;
+    var history = [];
+    function histMax() {
+      // 历史栈：每代 grid(1字节/格)+age(2字节/格)，总量控制在 ~24MB
+      return Math.max(30, Math.min(600, Math.floor(24e6 / (W * H * 3))));
+    }
+
+    /* 深层设置（localStorage 持久化） */
+    var settings = { gradient: false, rule: "B3/S23", wrap: false, grid: "auto", density: 0.26 };
+    try {
+      var saved = JSON.parse(localStorage.getItem("lg-settings-v1") || "null");
+      if (saved) {
+        ["gradient", "rule", "wrap", "grid", "density"].forEach(function (k) {
+          if (saved[k] !== undefined) settings[k] = saved[k];
+        });
+      }
+    } catch (e) { /* 隐私模式等：忽略 */ }
+    function saveSettings() {
+      try { localStorage.setItem("lg-settings-v1", JSON.stringify(settings)); } catch (e) {}
+    }
+    var birth = new Uint8Array(9), surv = new Uint8Array(9);
+    function parseRule(str) {
+      var m = /^B(\d*)\/S(\d*)$/.exec(str);
+      birth = new Uint8Array(9); surv = new Uint8Array(9);
+      if (m) {
+        m[1].split("").forEach(function (d) { birth[+d] = 1; });
+        m[2].split("").forEach(function (d) { surv[+d] = 1; });
+      }
+    }
+
+    // 环形边界邻居索引（wrap 开启时用）
+    var xm = null, xp = null, ym = null, yp = null;
+    function buildWrapIndex() {
+      xm = new Int32Array(W); xp = new Int32Array(W);
+      ym = new Int32Array(H); yp = new Int32Array(H);
+      for (var x = 0; x < W; x++) { xm[x] = x > 0 ? x - 1 : W - 1; xp[x] = x + 1 < W ? x + 1 : 0; }
+      for (var y = 0; y < H; y++) { ym[y] = y > 0 ? y - 1 : H - 1; yp[y] = y + 1 < H ? y + 1 : 0; }
+    }
+
+    var playing = false, fps = 10, acc = 0, lastT = 0;
+
+    /* 相机：世界网格原点(0,0)在视口中的 CSS 像素位置 cam，每格屏幕边长 scale */
+    var cam = { x: 0, y: 0, scale: 12 };
+    var SCALE_MIN = 2, SCALE_MAX = 80;
+
+    var view = document.getElementById("lgView");
+    var canvas = document.getElementById("lgCanvas");
+    var ctx = canvas.getContext("2d");
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var viewW = 0, viewH = 0;
+
+    /* ---------------- DOM ---------------- */
+    var genEl = document.getElementById("lgGen"),
+        popEl = document.getElementById("lgPop"),
+        maxAgeEl = document.getElementById("lgMaxAge"),
+        sizeEl = document.getElementById("lgSize"),
+        btnPlay = document.getElementById("btnPlay"),
+        btnStep = document.getElementById("btnStep"),
+        btnBack = document.getElementById("btnBack"),
+        speedEl = document.getElementById("speed"),
+        speedVal = document.getElementById("speedVal");
+
+    /* ---------------- 尺寸 / 重置 ---------------- */
+    function resetGrid(w, h, randomize) {
+      W = w; H = h;
+      grid = new Uint8Array(W * H);
+      age = new Uint16Array(W * H);
+      history = [];
+      gen = 0;
+      buildWrapIndex();
+      if (randomize) {
+        for (var i = 0; i < grid.length; i++) {
+          if (Math.random() < settings.density) { grid[i] = 1; age[i] = 1; }
+        }
+      }
+      fitView();
+      updateStats();
+      updateBackBtn();
+    }
+
+    function updateStats() {
+      var n = 0, oldest = 0;
+      for (var i = 0; i < grid.length; i++) {
+        if (grid[i]) { n++; if (age[i] > oldest) oldest = age[i]; }
+      }
+      pop = n; maxAge = oldest;
+      genEl.textContent = gen;
+      popEl.textContent = pop;
+      maxAgeEl.textContent = maxAge;
+      sizeEl.textContent = W + "×" + H;
+    }
+    function updateBackBtn() { btnBack.disabled = history.length === 0; }
+
+    /* ---------------- 演化（规则与边界由设置决定） ---------------- */
+    function stepForward() {
+      history.push({ g: grid, a: age }); // 旧数组不再被修改，存引用零拷贝
+      if (history.length > histMax()) history.shift();
+      var next = new Uint8Array(W * H), nextAge = new Uint16Array(W * H);
+      var wrapOn = settings.wrap;
+      for (var y = 0; y < H; y++) {
+        var y0 = wrapOn ? ym[y] : (y > 0 ? y - 1 : -1);
+        var y1 = wrapOn ? yp[y] : (y + 1 < H ? y + 1 : -1);
+        var r0 = y0 >= 0 ? y0 * W : -1, r1 = y1 >= 0 ? y1 * W : -1, ry = y * W;
+        for (var x = 0; x < W; x++) {
+          var x0 = wrapOn ? xm[x] : (x > 0 ? x - 1 : -1);
+          var x1 = wrapOn ? xp[x] : (x + 1 < W ? x + 1 : -1);
+          var n = 0;
+          if (r0 >= 0) { if (x0 >= 0) n += grid[r0 + x0]; n += grid[r0 + x]; if (x1 >= 0) n += grid[r0 + x1]; }
+          if (x0 >= 0) n += grid[ry + x0]; if (x1 >= 0) n += grid[ry + x1];
+          if (r1 >= 0) { if (x0 >= 0) n += grid[r1 + x0]; n += grid[r1 + x]; if (x1 >= 0) n += grid[r1 + x1]; }
+          var cur = ry + x;
+          var alive = grid[cur] === 1;
+          var keep = alive ? surv[n] : birth[n];
+          if (keep) {
+            next[cur] = 1;
+            nextAge[cur] = alive ? Math.min(65535, age[cur] + 1) : 1;
+          }
+        }
+      }
+      grid = next; age = nextAge;
+      gen++;
+      updateStats();
+      updateBackBtn();
+    }
+
+    function stepBack() {
+      if (!history.length) return;
+      var snap = history.pop();
+      grid = snap.g; age = snap.a;
+      gen = Math.max(0, gen - 1);
+      updateStats();
+      updateBackBtn();
+    }
+
+    /* ---------------- 图案库：内置 + 自定义（localStorage） ---------------- */
+    var BUILTINS = [
+      { name: "滑翔机 Glider（飞船）", cells: [[1,0],[2,1],[0,2],[1,2],[2,2]] },
+      { name: "轻量飞船 LWSS", cells: [[0,0],[3,0],[4,1],[0,2],[4,2],[1,3],[2,3],[3,3],[4,3]] },
+      { name: "闪烁体 Blinker（周期2）", cells: [[0,0],[1,0],[2,0]] },
+      { name: "蟾蜍 Toad（周期2）", cells: [[0,0],[1,0],[2,0],[1,1],[2,1],[3,1]] },
+      { name: "信标 Beacon（周期2）", cells: [[0,0],[1,0],[0,1],[1,1],[2,2],[3,2],[2,3],[3,3]] },
+      { name: "脉冲星 Pulsar（周期3）", cells: pulsar() },
+      { name: "十五连 Pentadecathlon（周期15）",
+        cells: (function () {
+          var c = [];
+          [[2,0],[7,0]].concat([[0,1],[1,1],[3,1],[4,1],[5,1],[6,1],[8,1],[9,1]]).concat([[2,2],[7,2]])
+            .forEach(function (p) { c.push([p[0], p[1]]); });
+          return c;
+        })() },
+      { name: "高斯帕滑翔机枪", cells: gosperGun() },
+      { name: "R 五连子（玛土撒拉）", cells: [[1,0],[2,0],[0,1],[1,1],[1,2]] },
+      { name: "橡果 Acorn（长命混沌）", cells: [[1,0],[3,1],[0,2],[1,2],[4,2],[5,2],[6,2]] },
+      { name: "顽固分子 Diehard（130代）", cells: [[6,0],[0,1],[1,1],[1,2],[5,2],[6,2],[7,2]] },
+      { name: "方块 Block（静止）", cells: [[0,0],[1,0],[0,1],[1,1]] },
+      { name: "蜂巢 Beehive（静止）", cells: [[1,0],[2,0],[0,1],[3,1],[1,2],[2,2]] },
+      { name: "面包 Loaf（静止）", cells: [[1,0],[2,0],[0,1],[3,1],[1,2],[3,2],[2,3]] }
+    ];
+
+    var customs = [];
+    try {
+      var rawCustoms = JSON.parse(localStorage.getItem("lg-custom-pats-v1") || "[]");
+      if (Array.isArray(rawCustoms)) {
+        customs = rawCustoms.filter(function (p) {
+          return p && typeof p.name === "string" && Array.isArray(p.cells) &&
+            p.cells.every(function (c) { return Array.isArray(c) && c.length === 2 &&
+              Number.isInteger(c[0]) && Number.isInteger(c[1]); });
+        }).map(function (p) { return { name: p.name.slice(0, 24), cells: p.cells }; });
+      }
+    } catch (e) { customs = []; }
+    function saveCustoms() {
+      try { localStorage.setItem("lg-custom-pats-v1", JSON.stringify(customs)); } catch (e) {}
+    }
+
+    var patSelect = document.getElementById("patSelect");
+    function i18nT(key, fallback) {
+      try {
+        var s = window.I18n && window.I18n.t(key);
+        return s && s !== key ? s : fallback;
+      } catch (e) { return fallback; }
+    }
+    function renderPatOptions(preferKey) {
+      patSelect.innerHTML = "";
+      var g1 = document.createElement("optgroup");
+      g1.label = i18nT("life.groupBuiltin", "经典结构");
+      BUILTINS.forEach(function (p, i) {
+        var o = document.createElement("option");
+        o.value = "b:" + i; o.textContent = p.name;
+        g1.appendChild(o);
+      });
+      patSelect.appendChild(g1);
+      if (customs.length) {
+        var g2 = document.createElement("optgroup");
+        g2.label = i18nT("life.groupCustom", "⭐ 我的结构");
+        customs.forEach(function (p, i) {
+          var o = document.createElement("option");
+          o.value = "c:" + i; o.textContent = p.name;
+          g2.appendChild(o);
+        });
+        patSelect.appendChild(g2);
+      }
+      patSelect.value = preferKey && [...patSelect.options].some(function (o) { return o.value === preferKey; })
+        ? preferKey : patSelect.options[0].value;
+      previewAnchor = null;
+    }
+    renderPatOptions();
+
+    function pulsar() {
+      // 标准 Pulsar（周期 3，13×13）
+      var c = [];
+      function row(y, xs) { xs.forEach(function (x) { c.push([x, y]); }); }
+      var pts = [2, 3, 4, 8, 9, 10];
+      var side = [0, 5, 7, 12];
+      row(0, pts); row(5, pts); row(7, pts); row(12, pts);
+      [2, 3, 4, 8, 9, 10].forEach(function (y) { row(y, side); });
+      return c;
+    }
+    function gosperGun() {
+      return [[24,0],[22,1],[24,1],[12,2],[13,2],[20,2],[21,2],[34,2],[35,2],
+              [11,3],[15,3],[20,3],[21,3],[34,3],[35,3],[0,4],[1,4],[10,4],[16,4],[20,4],[21,4],
+              [0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],
+              [10,6],[16,6],[24,6],[11,7],[15,7],[12,8],[13,8]];
+    }
+    function currentPattern() {
+      var v = patSelect.value || "b:0";
+      if (v[0] === "c") {
+        var ci = +v.slice(2);
+        return customs[ci] || BUILTINS[0];
+      }
+      return BUILTINS[+v.slice(2)] || BUILTINS[0];
+    }
+
+    /* ---------------- 自定义结构：保存 / 列表 / 删除 ---------------- */
+    var CUSTOM_LIMIT = 24;
+    var customList = document.getElementById("customList");
+
+    function cropAliveCells() {
+      // 把当前所有活细胞平移到以 (0,0) 为左上的包围盒
+      var minX = W, minY = H, maxX = -1, maxY = -1, n = 0;
+      for (var y = 0; y < H; y++) {
+        for (var x = 0; x < W; x++) {
+          if (grid[y * W + x]) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            n++;
+          }
+        }
+      }
+      if (!n) return null;
+      var cells = [];
+      for (var yy = minY; yy <= maxY; yy++) {
+        for (var xx = minX; xx <= maxX; xx++) {
+          if (grid[yy * W + xx]) cells.push([xx - minX, yy - minY]);
+        }
+      }
+      return { cells: cells, n: n, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+
+    function saveCustomFromBoard() {
+      var cropped = cropAliveCells();
+      if (!cropped) {
+        showHint(i18nT("life.boardEmpty", "画布上没有细胞，先画点什么再保存"), 1800);
+        return;
+      }
+      if (customs.length >= CUSTOM_LIMIT) {
+        showHint(i18nT("life.customLimit", "自定义结构已达上限（24个），请先删除几个"), 2200);
+        return;
+      }
+      var defName = i18nT("life.defaultName", "我的结构") + " " + (customs.length + 1);
+      var name = window.prompt(i18nT("life.savePrompt", "给这个结构起个名字："), defName);
+      if (name === null) return;
+      name = name.trim().slice(0, 24);
+      if (!name) name = defName;
+      customs.push({ name: name, cells: cropped.cells });
+      saveCustoms();
+      var idx = customs.length - 1;
+      renderPatOptions("c:" + idx);
+      renderCustomList();
+      setMode("place");
+      showHint(i18nT("life.savedFmt", "已保存「{n}」，{c} 个细胞").replace("{n}", name).replace("{c}", cropped.n), 2200);
+    }
+
+    function renderCustomList() {
+      customList.innerHTML = "";
+      if (!customs.length) {
+        var empty = document.createElement("div");
+        empty.className = "lg-custom-empty";
+        empty.textContent = i18nT("life.customEmpty", "还没有自定义结构。画好图案 → 点 💾 存结构");
+        customList.appendChild(empty);
+        return;
+      }
+      customs.forEach(function (p, i) {
+        var row = document.createElement("div");
+        row.className = "lg-custom-item";
+        var nm = document.createElement("span");
+        nm.className = "ci-name"; nm.textContent = p.name;
+        var meta = document.createElement("span");
+        meta.className = "ci-meta";
+        meta.textContent = i18nT("life.cellCount", "{c} 细胞").replace("{c}", p.cells.length);
+        var del = document.createElement("button");
+        del.type = "button"; del.className = "ci-del";
+        del.textContent = "×"; del.title = i18nT("life.customDelete", "删除");
+        del.addEventListener("click", function () {
+          var cur = patSelect.value;
+          customs.splice(i, 1);
+          saveCustoms();
+          renderPatOptions(cur);
+          renderCustomList();
+        });
+        row.appendChild(nm); row.appendChild(meta); row.appendChild(del);
+        customList.appendChild(row);
+      });
+    }
+    renderCustomList();
+    window.addEventListener("lang-changed", function () {
+      var cur = patSelect.value;
+      renderPatOptions(cur);
+      renderCustomList();
+    });
+    document.getElementById("btnSavePat").addEventListener("click", saveCustomFromBoard);
+    function patDims(cells) {
+      var pw = 0, ph = 0;
+      cells.forEach(function (c) { pw = Math.max(pw, c[0]); ph = Math.max(ph, c[1]); });
+      return [pw, ph];
+    }
+    // 以世界格 (cx,cy) 为图案包围盒中心，求左上角锚点
+    function anchorAtCell(cx, cy) {
+      var dims = patDims(currentPattern().cells);
+      return { x: cx - (dims[0] >> 1), y: cy - (dims[1] >> 1) };
+    }
+    // 临时提示：借用速度值区域显示 toast
+    var hintTimer = null;
+    function showHint(msg, ms) {
+      speedVal.textContent = msg;
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(function () { speedVal.textContent = fps + " 代/秒"; }, ms || 1500);
+    }
+    function placeAt(ax, ay) {
+      var cells = currentPattern().cells;
+      var placed = 0;
+      cells.forEach(function (c) {
+        var x = c[0] + ax, y = c[1] + ay;
+        if (x >= 0 && y >= 0 && x < W && y < H) {
+          var idx = y * W + x;
+          if (!grid[idx]) { grid[idx] = 1; age[idx] = 1; }
+          placed++;
+        }
+      });
+      updateStats();
+      if (!placed) {
+        showHint(i18nT("life.noFit", "放不下"), 1100);
+      }
+      return placed;
+    }
+
+    /* ---------------- 渲染 ---------------- */
+    function resizeCanvas() {
+      var r = view.getBoundingClientRect();
+      viewW = r.width; viewH = r.height;
+      canvas.width = Math.round(viewW * dpr);
+      canvas.height = Math.round(viewH * dpr);
+    }
+    window.addEventListener("resize", function () { resizeCanvas(); });
+
+    var ALIVE = "#63f0a6";
+    // 年龄配色：16 个桶，色相 150（绿）→ 320（品红），对 1~256+ 代做对数映射
+    var AGE_BUCKETS = 16, ageColors = [];
+    (function () {
+      for (var b = 0; b < AGE_BUCKETS; b++) {
+        var hue = 150 + b / (AGE_BUCKETS - 1) * 170;
+        ageColors.push("hsl(" + Math.round(hue) + ",85%," + (b < 2 ? 62 : 60) + "%)");
+      }
+    })();
+    var ageBuckets = [];
+    for (var ab = 0; ab < AGE_BUCKETS; ab++) ageBuckets.push([]);
+    function ageBucket(a) {
+      // 1~13代为绿色新生，约200代以上到品红（每桶约13代）
+      if (a <= 1) return 0;
+      return Math.min(AGE_BUCKETS - 1, Math.floor((a - 1) / 13));
+    }
+
+    function draw() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, viewW, viewH);
+      var s = cam.scale;
+      var x0 = Math.max(0, Math.floor(-cam.x / s) - 1);
+      var y0 = Math.max(0, Math.floor(-cam.y / s) - 1);
+      var x1 = Math.min(W - 1, Math.floor((viewW - cam.x) / s) + 1);
+      var y1 = Math.min(H - 1, Math.floor((viewH - cam.y) / s) + 1);
+
+      // 世界边框
+      ctx.strokeStyle = "rgba(120,150,190,.25)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cam.x - 1, cam.y - 1, W * s + 2, H * s + 2);
+
+      // 网格线
+      if (settings.grid === "on" || (settings.grid === "auto" && s >= 6)) {
+        ctx.strokeStyle = "rgba(255,255,255," + (s > 14 ? .07 : .045) + ")";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (var gx = x0; gx <= x1 + 1; gx++) {
+          var px = Math.round(cam.x + gx * s) + .5;
+          ctx.moveTo(px, Math.max(0, cam.y));
+          ctx.lineTo(px, Math.min(viewH, cam.y + H * s));
+        }
+        for (var gy = y0; gy <= y1 + 1; gy++) {
+          var py = Math.round(cam.y + gy * s) + .5;
+          ctx.moveTo(Math.max(0, cam.x), py);
+          ctx.lineTo(Math.min(viewW, cam.x + W * s), py);
+        }
+        ctx.stroke();
+      }
+
+      var pad = s > 8 ? 1.5 : s > 4 ? 1 : 0.3;
+      var size = Math.max(1, s - pad * 2);
+
+      if (!settings.gradient) {
+        // 单色
+        ctx.fillStyle = ALIVE;
+        for (var y = y0; y <= y1; y++) {
+          var row = y * W;
+          for (var x = x0; x <= x1; x++) {
+            if (grid[row + x]) ctx.fillRect(cam.x + x * s + pad, cam.y + y * s + pad, size, size);
+          }
+        }
+      } else {
+        // 按年龄分桶，每种颜色只设置一次 fillStyle
+        for (var bk = 0; bk < AGE_BUCKETS; bk++) ageBuckets[bk].length = 0;
+        for (var yy = y0; yy <= y1; yy++) {
+          var r = yy * W;
+          for (var xx = x0; xx <= x1; xx++) {
+            if (grid[r + xx]) ageBuckets[ageBucket(age[r + xx])].push(r + xx);
+          }
+        }
+        for (var bi = 0; bi < AGE_BUCKETS; bi++) {
+          var arr = ageBuckets[bi];
+          if (!arr.length) continue;
+          ctx.fillStyle = ageColors[bi];
+          for (var k = 0; k < arr.length; k++) {
+            var idx = arr[k];
+            ctx.fillRect(cam.x + (idx % W) * s + pad, cam.y + ((idx / W) | 0) * s + pad, size, size);
+          }
+        }
+      }
+
+      // 放置模式：图案悬浮预览
+      if (mode === "place" && previewAnchor) drawPreview(s, pad, size);
+    }
+
+    function drawPreview(s, pad, size) {
+      var cells = currentPattern().cells, ax = previewAnchor.x, ay = previewAnchor.y;
+      var dims = patDims(cells);
+      // 包围盒
+      ctx.save();
+      ctx.globalAlpha = .9;
+      ctx.strokeStyle = "rgba(141,255,191,.75)";
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cam.x + ax * s + .5, cam.y + ay * s + .5, (dims[0] + 1) * s - 1, (dims[1] + 1) * s - 1);
+      ctx.setLineDash([]);
+      cells.forEach(function (c) {
+        var x = c[0] + ax, y = c[1] + ay, inside = x >= 0 && y >= 0 && x < W && y < H;
+        ctx.globalAlpha = inside ? .55 : .3;
+        ctx.fillStyle = inside ? "#63f0a6" : "#ff6b81";
+        ctx.fillRect(cam.x + x * s + pad, cam.y + y * s + pad, size, size);
+      });
+      ctx.restore();
+    }
+
+    function fitView() {
+      if (!viewW) resizeCanvas();
+      cam.scale = Math.max(SCALE_MIN, Math.min(SCALE_MAX, Math.min(viewW / W, viewH / H) * 0.94));
+      cam.x = (viewW - W * cam.scale) / 2;
+      cam.y = (viewH - H * cam.scale) / 2;
+    }
+    function clampCam() {
+      cam.scale = Math.max(SCALE_MIN, Math.min(SCALE_MAX, cam.scale));
+      var minX = Math.min(-140, viewW - W * cam.scale - 140);
+      var maxX = Math.max(140, viewW + 140);
+      var minY = Math.min(-140, viewH - H * cam.scale - 140);
+      var maxY = Math.max(140, viewH + 140);
+      cam.x = Math.max(minX, Math.min(maxX, cam.x));
+      cam.y = Math.max(minY, Math.min(maxY, cam.y));
+    }
+    function zoomAt(px, py, f) {
+      var ns = Math.max(SCALE_MIN, Math.min(SCALE_MAX, cam.scale * f));
+      var real = ns / cam.scale;
+      cam.x = px - (px - cam.x) * real;
+      cam.y = py - (py - cam.y) * real;
+      cam.scale = ns;
+      clampCam();
+    }
+
+    /* ---------------- 坐标转换（所有输入路径统一走这里） ---------------- */
+    function screenToCell(clientX, clientY) {
+      var r = canvas.getBoundingClientRect();
+      var sx = clientX - r.left, sy = clientY - r.top;
+      var cx = Math.floor((sx - cam.x) / cam.scale);
+      var cy = Math.floor((sy - cam.y) / cam.scale);
+      if (cx < 0 || cy < 0 || cx >= W || cy >= H) return null;
+      return [cx, cy];
+    }
+
+    /* ---------------- 模式状态机：paint 画笔 / pan 平移 / place 放置结构 ---------------- */
+    var mode = "paint";
+    var previewAnchor = null;   // 放置预览的图案左上角世界格
+    var mousePan = null;        // 桌面平移拖拽
+    var mousePaint = null, lastCell = null;
+
+    function setMode(m) {
+      mode = m;
+      previewAnchor = null;
+      document.querySelectorAll(".mode-btn").forEach(function (b) {
+        b.classList.toggle("on", b.dataset.mode === m);
+      });
+      view.classList.toggle("pan-mode", m === "pan");
+      view.classList.toggle("place-mode", m === "place");
+    }
+    document.getElementById("modeGroup").addEventListener("click", function (e) {
+      var b = e.target.closest(".mode-btn");
+      if (b) setMode(b.dataset.mode);
+    });
+    // 切换图案时旧预览的尺寸可能变化，清掉
+    patSelect.addEventListener("change", function () { previewAnchor = null; });
+
+    function paintCell(x, y, v) {
+      var idx = y * W + x;
+      if (grid[idx] !== v) {
+        grid[idx] = v;
+        age[idx] = v ? 1 : 0;
+        updateStats();
+      }
+    }
+
+    /* ---- 桌面鼠标 ---- */
+    canvas.addEventListener("mousedown", function (e) {
+      if (e.button !== 0) return;
+      var c = screenToCell(e.clientX, e.clientY);
+      if (mode === "paint") {
+        if (!c) return;
+        mousePaint = grid[c[1] * W + c[0]] ? 0 : 1; // 整笔同起手状态
+        paintCell(c[0], c[1], mousePaint);
+        lastCell = c.join(",");
+      } else if (mode === "pan") {
+        mousePan = { x: e.clientX, y: e.clientY };
+        view.classList.add("panning");
+      } else if (mode === "place") {
+        if (!c) return;
+        var a = anchorAtCell(c[0], c[1]);
+        placeAt(a.x, a.y);
+        previewAnchor = a; // 放下后继续悬浮，方便连续放
+      }
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", function (e) {
+      if (mode === "paint" && mousePaint !== null) {
+        var c = screenToCell(e.clientX, e.clientY);
+        if (c) {
+          var key = c[0] + "," + c[1];
+          if (key !== lastCell) { paintCell(c[0], c[1], mousePaint); lastCell = key; }
+        }
+      } else if (mode === "pan" && mousePan) {
+        cam.x += e.clientX - mousePan.x;
+        cam.y += e.clientY - mousePan.y;
+        mousePan.x = e.clientX; mousePan.y = e.clientY;
+        clampCam();
+      } else if (mode === "place") {
+        var rc = screenToCell(e.clientX, e.clientY);
+        if (rc) previewAnchor = anchorAtCell(rc[0], rc[1]);
+      }
+    });
+    window.addEventListener("mouseup", function () {
+      mousePaint = null; mousePan = null;
+      view.classList.remove("panning");
+    });
+    canvas.addEventListener("mouseleave", function () {
+      if (mode === "place") previewAnchor = null;
+    });
+
+    /* ---------------- 触控板双指平移 / 捏合缩放（Mac，任何模式都可用） ---------------- */
+    view.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      var r = canvas.getBoundingClientRect();
+      var px = e.clientX - r.left, py = e.clientY - r.top;
+      if (e.ctrlKey || e.metaKey) {
+        // 捏合 / Ctrl+滚轮：以指针位置为锚点缩放
+        zoomAt(px, py, Math.exp(-e.deltaY * 0.012));
+      } else {
+        // 双指滑动（自然滚动方向，内容随手走）
+        cam.x -= e.deltaX;
+        cam.y -= e.deltaY;
+        clampCam();
+      }
+    }, { passive: false });
+
+    /* ---------------- 触屏：三种模式均为单指；放置=点一下预览、再点一下放下 ---------------- */
+    var touchPaint = null, tLast = null, touchPan = null, touchDown = null;
+
+    canvas.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) return; // 忽略多指
+      var t = e.touches[0];
+      touchDown = { x: t.clientX, y: t.clientY, moved: false };
+      if (mode === "pan") {
+        touchPan = { x: t.clientX, y: t.clientY };
+        view.classList.add("panning");
+      } else if (mode === "paint") {
+        var c = screenToCell(t.clientX, t.clientY);
+        if (!c) return;
+        touchPaint = grid[c[1] * W + c[0]] ? 0 : 1;
+        paintCell(c[0], c[1], touchPaint);
+        tLast = c[0] + "," + c[1];
+      }
+      // place 模式：等 touchend 判定为 tap 再动作，避免和滚动混淆
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (e) {
+      if (e.touches.length !== 1 || !touchDown) return;
+      var t = e.touches[0];
+      if (Math.abs(t.clientX - touchDown.x) > 12 || Math.abs(t.clientY - touchDown.y) > 12) {
+        touchDown.moved = true;
+      }
+      if (mode === "pan" && touchPan) {
+        cam.x += t.clientX - touchPan.x;
+        cam.y += t.clientY - touchPan.y;
+        touchPan.x = t.clientX; touchPan.y = t.clientY;
+        clampCam();
+      } else if (mode === "paint" && touchPaint !== null) {
+        var c = screenToCell(t.clientX, t.clientY);
+        if (c) {
+          var key = c[0] + "," + c[1];
+          if (key !== tLast) { paintCell(c[0], c[1], touchPaint); tLast = key; }
+        }
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    function handleTap(clientX, clientY) {
+      var c = screenToCell(clientX, clientY);
+      if (!c) return;
+      if (!previewAnchor) {
+        // 第一下：锚定预览
+        previewAnchor = anchorAtCell(c[0], c[1]);
+      } else {
+        // 第二下：确认放下，清除预览
+        placeAt(previewAnchor.x, previewAnchor.y);
+        previewAnchor = null;
+      }
+    }
+    function endTouch(e) {
+      if (e.touches.length === 0) {
+        if (mode === "place" && touchDown && !touchDown.moved && e.changedTouches.length) {
+          var t = e.changedTouches[0];
+          handleTap(t.clientX, t.clientY);
+        }
+        touchPaint = null; touchPan = null; touchDown = null;
+        view.classList.remove("panning");
+      }
+      e.preventDefault();
+    }
+    canvas.addEventListener("touchend", endTouch, { passive: false });
+    canvas.addEventListener("touchcancel", endTouch, { passive: false });
+
+    /* ---------------- 控件 ---------------- */
+    btnPlay.addEventListener("click", function () {
+      playing = !playing;
+      btnPlay.textContent = playing ? "⏸ 暂停" : "▶ 播放";
+      acc = 0;
+    });
+    btnStep.addEventListener("click", function () { stepForward(); });
+    speedEl.addEventListener("input", function () {
+      fps = +speedEl.value;
+      speedVal.textContent = fps + " 代/秒";
+    });
+
+    // 倒退：单击一代，长按连续退
+    var holdTimer = null, holdInt = null;
+    function startHold() {
+      holdTimer = setTimeout(function () {
+        holdInt = setInterval(stepBack, 70);
+      }, 280);
+    }
+    function stopHold() {
+      clearTimeout(holdTimer); clearInterval(holdInt);
+      holdTimer = holdInt = null;
+    }
+    btnBack.addEventListener("click", stepBack);
+    btnBack.addEventListener("mousedown", startHold);
+    btnBack.addEventListener("touchstart", function (e) { startHold(); e.preventDefault(); }, { passive: false });
+    ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(function (ev) {
+      btnBack.addEventListener(ev, stopHold);
+    });
+
+    document.getElementById("btnRand").addEventListener("click", function () { resetGrid(W, H, true); });
+    document.getElementById("btnClear").addEventListener("click", function () { resetGrid(W, H, false); });
+
+    /* ---------------- 设置弹窗 ---------------- */
+    var modal = document.getElementById("lgModal");
+    var setGradient = document.getElementById("setGradient"),
+        setRule = document.getElementById("setRule"),
+        setWrap = document.getElementById("setWrap"),
+        setGrid = document.getElementById("setGrid"),
+        setDensity = document.getElementById("setDensity"),
+        setDensityVal = document.getElementById("setDensityVal"),
+        ageLegend = document.getElementById("ageLegend");
+
+    function syncSettingsUI() {
+      setGradient.checked = settings.gradient;
+      setRule.value = settings.rule;
+      setWrap.checked = settings.wrap;
+      setGrid.value = settings.grid;
+      setDensity.value = Math.round(settings.density * 100);
+      setDensityVal.textContent = Math.round(settings.density * 100) + "%";
+      ageLegend.hidden = !settings.gradient;
+    }
+    function openModal() { syncSettingsUI(); modal.hidden = false; }
+    function closeModal() { modal.hidden = true; }
+    document.getElementById("btnSettings").addEventListener("click", openModal);
+    document.getElementById("lgModalClose").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) { if (e.target === modal) closeModal(); });
+    window.addEventListener("keydown", function (e) { if (e.key === "Escape" && !modal.hidden) closeModal(); });
+
+    setGradient.addEventListener("change", function () {
+      settings.gradient = setGradient.checked;
+      ageLegend.hidden = !settings.gradient;
+      saveSettings();
+    });
+    setRule.addEventListener("change", function () {
+      settings.rule = setRule.value;
+      parseRule(settings.rule);
+      saveSettings();
+    });
+    setWrap.addEventListener("change", function () {
+      settings.wrap = setWrap.checked;
+      saveSettings();
+    });
+    setGrid.addEventListener("change", function () {
+      settings.grid = setGrid.value;
+      saveSettings();
+    });
+    setDensity.addEventListener("input", function () {
+      settings.density = +setDensity.value / 100;
+      setDensityVal.textContent = setDensity.value + "%";
+      saveSettings();
+    });
+
+    document.getElementById("sizeGroup").addEventListener("click", function (e) {
+      var b = e.target.closest(".size-btn");
+      if (!b) return;
+      document.querySelectorAll(".size-btn").forEach(function (x) { x.classList.remove("on"); });
+      b.classList.add("on");
+      resetGrid(+b.dataset.w, +b.dataset.h, false);
+    });
+    document.getElementById("btnCustom").addEventListener("click", function () {
+      var w = parseInt(document.getElementById("customW").value, 10);
+      var h = parseInt(document.getElementById("customH").value, 10);
+      if (!(w >= 10 && w <= 400 && h >= 10 && h <= 400)) {
+        speedVal.textContent = "10~400";
+        setTimeout(function () { speedVal.textContent = fps + " 代/秒"; }, 1200);
+        return;
+      }
+      document.querySelectorAll(".size-btn").forEach(function (x) { x.classList.remove("on"); });
+      resetGrid(w, h, false);
+    });
+
+    document.getElementById("btnZoomIn").addEventListener("click", function () {
+      zoomAt(viewW / 2, viewH / 2, 1.25);
+    });
+    document.getElementById("btnZoomOut").addEventListener("click", function () {
+      zoomAt(viewW / 2, viewH / 2, 1 / 1.25);
+    });
+    document.getElementById("btnFit").addEventListener("click", fitView);
+
+    var hintEl = document.getElementById("lgHint");
+    function toggleHint() { hintEl.classList.toggle("collapsed"); }
+    // 折叠态：点提示条展开；展开态：× 收起（不彻底隐藏，留个口子随时展开）
+    hintEl.addEventListener("click", function (e) {
+      if (hintEl.classList.contains("collapsed")) toggleHint();
+    });
+    document.getElementById("lgHintClose").addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!hintEl.classList.contains("collapsed")) toggleHint();
+    });
+
+    // 空格 = 播放/暂停，方向键 = 步进/倒退
+    window.addEventListener("keydown", function (e) {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.code === "Space") { btnPlay.click(); e.preventDefault(); }
+      else if (e.code === "ArrowRight") { stepForward(); e.preventDefault(); }
+      else if (e.code === "ArrowLeft") { stepBack(); e.preventDefault(); }
+      else if (e.key === "1") setMode("paint");
+      else if (e.key === "2") setMode("pan");
+      else if (e.key === "3") setMode("place");
+    });
+
+    /* ---------------- 主循环 ---------------- */
+    function loop(t) {
+      if (playing) {
+        if (!lastT) lastT = t;
+        acc += (t - lastT) / 1000;
+        var interval = 1 / fps, steps = 0;
+        while (acc >= interval && steps < 6) { stepForward(); acc -= interval; steps++; }
+        if (steps === 6) acc = 0; // 卡顿后不追帧
+      }
+      lastT = t;
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    /* ---------------- 启动 ---------------- */
+    parseRule(settings.rule);
+    resizeCanvas();
+    resetGrid(isMobile ? 60 : 96, isMobile ? 44 : 72, true);
+    if (isMobile) {
+      document.querySelectorAll(".size-btn").forEach(function (b) {
+        b.classList.toggle("on", +b.dataset.w === 60 && +b.dataset.h === 44);
+      });
+    }
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>

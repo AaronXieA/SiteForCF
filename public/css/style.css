@@ -598,6 +598,68 @@ a.nav-user:hover strong { color: var(--accent); }
 
 .card-danger .card-title { color: var(--danger); }
 
+/* ============ 一些小东西：默认折叠（露出第一行）+ 紧凑模式 ============ */
+.cards-wrap { position: relative; }
+#works .cards {
+  max-height: 196px;
+  overflow: hidden;
+  transition: max-height .45s ease;
+}
+#works.works-open .cards { max-height: 3000px; }
+
+/* 折叠条：贴在卡片底部，下半截渐变到板块底色 */
+.works-fold {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 96px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+  background: linear-gradient(to bottom, rgba(242,242,240,0), var(--bg-alt) 72%);
+  pointer-events: none;
+}
+.works-toggle {
+  pointer-events: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 8px 20px;
+  font-size: 13.5px;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  transition: color .2s, border-color .2s, transform .2s;
+}
+.works-toggle:hover { color: var(--accent); border-color: rgba(47,107,255,.45); transform: translateY(-1px); }
+
+/* 展开后：折叠条落到卡片下方，变成普通「收起」入口 */
+#works.works-open .works-fold {
+  position: static;
+  height: auto;
+  padding: 16px 0 2px;
+  background: none;
+}
+
+/* 卡片更紧凑：留白缩小、描述最多两行、按钮变小 */
+#works .cards { gap: 10px; }
+#works .card { padding: 12px 14px; }
+#works .card-tag { margin-bottom: 4px; }
+#works .card-title { font-size: 15px; margin-bottom: 3px; }
+#works .card-desc {
+  font-size: 12.5px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#works .card-meta { margin: 8px 0; gap: 6px; }
+#works .card-meta .pill { font-size: 11px; padding: 3px 8px; }
+#works .card-btn { padding: 6px 11px; font-size: 12px; margin-top: 8px; }
+#works .card-actions { margin-top: 8px; }
+
 /* 联系 */
 .contact-inner { text-align: center; }
 .contact-inner .section-title::after { margin-left: auto; margin-right: auto; }

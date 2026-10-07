@@ -8,3 +8,6 @@ node_modules/
 mc-market-mod/.gradle/
 mc-market-mod/build/
 mc-market-mod/run/
+
+# 启动器更新包镜像（发布产物，源文件在 GitHub Release）
+public/downloads/

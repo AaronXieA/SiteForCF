@@ -1954,6 +1954,33 @@ async function handleApi(request, env, pathname) {
     return json({ code: 0, msg: "success", data: null });
   }
 
+  // === 启动器自动更新（PCL.Mac XE） ===
+  // GET：公开读取更新清单（KV 键 launcher:update，结构与 UpdateModel 一致）
+  if (pathname === "/api/launcher/update" && method === "GET") {
+    const raw = await env.AUTH_KV.get("launcher:update");
+    if (!raw) return json({ ok: false, error: "暂无更新信息" }, 404);
+    try {
+      return json(JSON.parse(raw), 200);
+    } catch {
+      return json({ ok: false, error: "更新清单格式错误" }, 500);
+    }
+  }
+  // POST：仅管理员发布/更新更新清单，请求体即完整 UpdateModel JSON
+  if (pathname === "/api/launcher/update" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me || me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
+      return json({ ok: false, error: "没有管理员权限" }, 403);
+    }
+    const body = await request.json().catch(() => null);
+    const latest = body && body.latestVersion;
+    if (!latest || typeof latest.name !== "string" || typeof latest.bundleVersion !== "number"
+      || !latest.downloads || !latest.downloads.github || !latest.downloads.mirror) {
+      return json({ ok: false, error: "更新清单格式错误：需要 latestVersion.name/bundleVersion/downloads" }, 400);
+    }
+    await env.AUTH_KV.put("launcher:update", JSON.stringify(body));
+    return json({ ok: true, latestVersion: latest.name, bundleVersion: latest.bundleVersion });
+  }
+
   return json({ ok: false, error: "Not found" }, 404);
 }
 

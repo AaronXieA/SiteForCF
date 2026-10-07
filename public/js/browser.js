@@ -76,12 +76,12 @@ function restoreTabs() {
 
 function createTab(url = "", title = "", id = null) {
   if (tabs.length >= MAX_TABS) {
-    showToast(`最多 ${MAX_TABS} 个标签页`);
+    showToast(I18n.t("browser.maxTabs"));
     return null;
   }
   const tab = {
     id: id ?? "t" + (++tabSeq),
-    title: title || (url ? hostnameOf(url) : "新标签页"),
+    title: title || (url ? hostnameOf(url) : I18n.t("browser.newTabName")),
     url,
     blocked: false,
     frame: document.createElement("iframe"),
@@ -202,7 +202,7 @@ form.addEventListener("submit", e => {
   e.preventDefault();
   const url = normalizeUrl(urlInput.value);
   if (!url) {
-    showToast("请输入有效的网址");
+    showToast(I18n.t("browser.invalidUrl"));
     return;
   }
   visit(url);
@@ -241,7 +241,7 @@ async function apiBookmarks(method = "GET", payload = null, query = "") {
 function renderBookmarks(list) {
   bmCount.textContent = list.length ? `（${list.length} / 15）` : "";
   if (!list.length) {
-    bmList.innerHTML = '<li class="bm-empty">还没有收藏，访问一个网页后点「☆ 收藏」试试。</li>';
+    bmList.innerHTML = `<li class="bm-empty">${I18n.t("browser.bmEmpty")}</li>`;
     return;
   }
   bmList.innerHTML = list.map(b => `
@@ -251,7 +251,7 @@ function renderBookmarks(list) {
         <span class="bm-title">${escapeHtml(b.title || hostnameOf(b.url))}</span>
         <span class="bm-host">${escapeHtml(hostnameOf(b.url))}</span>
       </a>
-      <button class="bm-del" type="button" data-del="${escapeHtml(b.id)}" title="删除书签">×</button>
+      <button class="bm-del" type="button" data-del="${escapeHtml(b.id)}" title="${I18n.t("browser.bmDeleteTitle")}">×</button>
     </li>
   `).join("");
 }
@@ -259,18 +259,18 @@ function renderBookmarks(list) {
 async function loadBookmarks() {
   const me = await Auth.currentUser();
   if (!me) {
-    bmHint.textContent = "登录后可收藏网页，每人最多 15 个。";
-    bmList.innerHTML = '<li class="bm-empty">未登录 —— 登录后书签会保存在云端，换设备也能看到。</li>';
+    bmHint.textContent = I18n.t("browser.bookmarkHint");
+    bmList.innerHTML = `<li class="bm-empty">${I18n.t("browser.bmNotLoggedIn")}</li>`;
     bmCount.textContent = "";
     starBtn.disabled = false;
     return;
   }
   const { ok, data } = await apiBookmarks("GET");
   if (ok) {
-    bmHint.textContent = `你好 ${me}，书签存在云端，最多 15 个。`;
+    bmHint.textContent = I18n.t("browser.bmHello", { name: me });
     renderBookmarks(data.bookmarks || []);
   } else {
-    bmList.innerHTML = '<li class="bm-empty">书签加载失败，刷新试试。</li>';
+    bmList.innerHTML = `<li class="bm-empty">${I18n.t("browser.bmLoadFail")}</li>`;
   }
 }
 
@@ -282,12 +282,12 @@ starBtn.addEventListener("click", async () => {
   const t = activeTab();
   const url = (t && t.url) || normalizeUrl(urlInput.value);
   if (!url) {
-    showToast("先访问一个网页再收藏");
+    showToast(I18n.t("browser.bmVisitFirst"));
     return;
   }
   const me = await Auth.currentUser();
   if (!me) {
-    showToast("请先登录再收藏");
+    showToast(I18n.t("browser.bmLoginFirst"));
     if (typeof openAuthModal === "function") openAuthModal();
     return;
   }
@@ -296,12 +296,12 @@ starBtn.addEventListener("click", async () => {
     const { ok, data } = await apiBookmarks("POST", { url, title: hostnameOf(url) });
     if (ok) {
       renderBookmarks(data.bookmarks || []);
-      showToast("已收藏到云端 ☆");
+      showToast(I18n.t("browser.bmAdded"));
     } else {
-      showToast(data.error || "收藏失败");
+      showToast(data.error || I18n.t("browser.bmAddFail"));
     }
   } catch {
-    showToast("网络异常，收藏失败");
+    showToast(I18n.t("browser.bmNetworkFail"));
   } finally {
     starBtn.disabled = false;
   }
@@ -315,9 +315,9 @@ bmList.addEventListener("click", async e => {
     const { ok, data } = await apiBookmarks("DELETE", null, "?id=" + encodeURIComponent(del.dataset.del));
     if (ok) {
       renderBookmarks(data.bookmarks || []);
-      showToast("已删除书签");
+      showToast(I18n.t("browser.bmDeleted"));
     } else {
-      showToast(data.error || "删除失败");
+      showToast(data.error || I18n.t("browser.bmDeleteFail"));
     }
     return;
   }

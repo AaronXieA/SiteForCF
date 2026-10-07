@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合成大西瓜 · 颜色进化版</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23ff8a3d'/><circle cx='38' cy='34' r='13' fill='%23ffe14d'/></svg>">
+<style>
+  :root{
+    --bg-0:#151829; --bg-1:#202541;
+    --ink:#eef1fb; --ink-2:#aab2d0; --ink-3:#7c86ab;
+    --yellow:#ffd94d; --violet:#6a5cf5; --red:#ff5e57;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:
+      radial-gradient(900px 560px at 18% -12%, #3a4170 0%, rgba(58,65,112,0) 62%),
+      radial-gradient(820px 520px at 88% -8%, #463a66 0%, rgba(70,58,102,0) 60%),
+      radial-gradient(1000px 720px at 50% 118%, #2a2a4d 0%, rgba(42,42,77,0) 58%),
+      linear-gradient(180deg, #161a2b 0%, #0f1120 100%);
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink);
+    user-select:none; -webkit-user-select:none;
+    overflow:hidden;
+  }
+  header{ text-align:center; margin-bottom:16px; }
+  header .dots{ display:flex; justify-content:center; gap:7px; margin-bottom:8px; }
+  header .dots i{ width:9px;height:9px;border-radius:50%; display:block; box-shadow:0 0 10px currentColor; }
+  header h1{
+    font-size:30px; letter-spacing:4px; font-weight:800;
+    background:linear-gradient(90deg,#ffe97d,#ffb84d,#ff5e57,#f5568f,#b050e8,#6a5cf5,#7fd1ff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 6px 24px rgba(120,96,240,.18);
+  }
+  header p{ font-size:12px; color:var(--ink-2); margin-top:7px; letter-spacing:1px; }
+
+  #stage{ position:relative; padding:10px; border-radius:22px;
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03) 46%, rgba(0,0,0,.18));
+    box-shadow:0 26px 70px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.10); }
+  canvas{ display:block; border-radius:16px; touch-action:none; background:#161a2b; }
+  .hint{ margin-top:14px; font-size:12px; color:var(--ink-3); letter-spacing:.4px; }
+  .hint b{ color:var(--ink-2); font-weight:500; }
+
+  #overlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(12,14,26,.82); border-radius:22px; flex-direction:column; text-align:center;
+  }
+  #overlay .go{
+    font-size:42px; font-weight:800; letter-spacing:6px;
+    background:linear-gradient(90deg,#ff5e57,#f5568f,#b050e8);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  #overlay .sub{ font-size:13px; color:var(--ink-2); margin-top:10px; }
+  #overlay .score{ font-size:15px; color:var(--ink-2); margin:16px 0 24px; }
+  #overlay .score b{ color:var(--yellow); font-size:34px; font-weight:800; margin-left:6px; }
+  #overlay button{
+    padding:13px 38px; font-size:16px; font-weight:700; color:#241c07;
+    background:linear-gradient(180deg,#ffe97d,#ffce3a); border:none; border-radius:40px; cursor:pointer;
+    box-shadow:0 10px 26px rgba(255,217,77,.30), inset 0 1px 0 rgba(255,255,255,.6);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  #overlay button:hover{ transform:translateY(-2px) scale(1.04); box-shadow:0 14px 30px rgba(255,217,77,.4); }
+  #overlay button:active{ transform:scale(.96); }
+  /* 隐藏球金币奖励 toast */
+  #bonusToast{
+    position:absolute; left:50%; top:60px; z-index:30;
+    transform:translateX(-50%) translateY(-10px) scale(.96);
+    background:linear-gradient(180deg,rgba(58,47,12,.96),rgba(34,27,8,.96));
+    border:1px solid rgba(255,217,77,.6); color:#ffe27a;
+    font-size:13px; font-weight:700; letter-spacing:.3px;
+    padding:10px 18px; border-radius:30px; max-width:86%; line-height:1.55;
+    text-align:center; pointer-events:none; opacity:0;
+    box-shadow:0 10px 30px rgba(255,206,58,.22), inset 0 1px 0 rgba(255,255,255,.18);
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  #bonusToast.show{ opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+  #bonusToast a{ color:#ffe9a8; pointer-events:auto; text-decoration:underline; }
+  #cheat{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:6;
+    display:none; flex-direction:column; gap:12px; align-items:stretch; text-align:left;
+    background:rgba(20,24,44,.96); border:1px solid rgba(255,255,255,.15); border-radius:16px;
+    padding:18px 22px; min-width:230px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  #cheat .ch-title{ font-size:14px; font-weight:700; color:#ffd94d; margin-bottom:2px; letter-spacing:1px; text-align:center; }
+  #cheat .ch-row{ display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#eef1fb; cursor:pointer; }
+  #cheat input[type=checkbox]{ width:17px; height:17px; accent-color:#ffd94d; cursor:pointer; }
+  #cheat input[type=number]{ width:56px; padding:3px 6px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:6px; color:#eef1fb; font-size:13px; text-align:center; }
+  #cheat button{ margin-top:4px; padding:8px 14px; font-size:13px; border:none; border-radius:20px;
+    background:linear-gradient(180deg,#ffe97d,#ffce3a); color:#241c07; font-weight:700; cursor:pointer; }
+  :focus-visible{ outline:2px solid var(--violet); outline-offset:2px; }
+  @media (max-width:560px){
+    header h1{ font-size:24px; letter-spacing:2px; }
+    #stage{ padding:8px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+  <div data-i18n="game.noI18n" style="background:#fff8e6;color:#92610a;border:1px solid #f3dfa2;border-radius:10px;padding:10px 14px;margin:12px auto;max-width:720px;font-size:14px;font-weight:700;text-align:center;">⚠️ 本小游戏由 wkw 制作，暂无英文版。</div>
+  <header>
+    <div class="dots" aria-hidden="true">
+      <i style="color:#f4f6f8;background:#f4f6f8"></i>
+      <i style="color:#eef0f3;background:#eef0f3"></i>
+      <i style="color:#e0424f;background:#e0424f"></i>
+      <i style="color:#d5e33d;background:#d5e33d"></i>
+      <i style="color:#f4f4ef;background:#f4f4ef"></i>
+      <i style="color:#2f7fd4;background:#2f7fd4"></i>
+      <i style="color:#f0c13a;background:#f0c13a"></i>
+      <i style="color:#3a3d42;background:#3a3d42"></i>
+      <i style="color:#e87a2a;background:#e87a2a"></i>
+      <i style="color:#fff;background:#fff;border:1px solid rgba(255,255,255,.35)"></i>
+      <i style="color:#c9a3f5;background:#c9a3f5"></i>
+    </div>
+    <h1>合成大西瓜</h1>
+    <p>球类进化版 · 12 个阶段</p>
+    <div style="font-size:10px;color:#8b94b8;margin-top:2px;letter-spacing:2px">WKW 制作</div>
+  </header>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="overlay">
+      <div class="go">游戏结束</div>
+      <div class="sub">球越过了危险线</div>
+      <div class="score">最终得分<b id="finalScore">0</b></div>
+      <button id="restart">再来一局</button>
+    </div>
+    <div id="bonusToast"></div>
+    <div id="cheat">
+      <div class="ch-title">后台</div>
+      <label class="ch-row"><span>连点器</span><input type="checkbox" id="chAuto"></label>
+      <label class="ch-row"><span>连点速度 (CPS)</span><input type="number" id="chCps" min="1" max="10" step="1" value="10"></label>
+      <label class="ch-row"><span>取消危险线</span><input type="checkbox" id="chDanger"></label>
+      <button id="chClose">关闭</button>
+    </div>
+  </div>
+  <div class="hint">拖动鼠标瞄准，<b>点击 / 单击</b>投球 · 相同的球相碰会<b>合成下一阶段</b></div>
+
+  <script src="/js/i18n.js?v=6"></script>
+<script>
+(function(){
+  "use strict";
+  // ============ 常量 ============
+  const W=540, H=720;
+  const FLOOR_H=26, FLOOR_Y=H-FLOOR_H;   // 底部实体地面：小球停在地面之上，不会漏下去
+  const TANK_W=380, TANK_L=(W-TANK_W)/2, TANK_R=TANK_L+TANK_W;   // 缸状容器：左右收窄
+  const TANK_THICK=14, TANK_TOP=96;   // 缸壁厚度、缸口高度
+  const STAGES=12;
+  // 球类贴图：从小到大 = 乒乓球 高尔夫球 台球 网球 棒球 手球 排球 足球 篮球 白球(隐藏) 彩虹球(隐藏) 金球(隐藏·不进进化条)
+  const COLORS=['#f4f6f8','#eef0f3','#e0424f','#d5e33d','#f4f4ef','#2f7fd4','#f0c13a','#3a3d42','#e87a2a','#ffffff','#c9a3f5','#ffcf33'];
+  const RADII=[17,22,27,33,40,48,57,67,78,88,98,104];
+  const DROP_WEIGHTS=[0,1,2,3,3,4,4];   // 洗牌池：偏重 3、4 阶大球，难度更高
+  const CEILING=172, SPAWN_Y=128, GHOST_Y=128;
+  const GRAV=1200, MAX_FALL=600, REST=0.12, WALL_FRICTION=0.98;   // 重力 + 终端下落速度上限（直落不再飞快）
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 预加载 10 张水果贴图（assets 相对路径），全部加载完才开玩，避免时而纯色圆、时而水果
+  const fruitImgs=[]; let imgsSettled=0;
+  (function(){ for(let i=0;i<STAGES;i++){ const im=new Image(); im.onload=im.onerror=()=>{ imgsSettled++; }; im.src='assets/ball'+i+'.png'; fruitImgs.push(im); } })();
+
+  // ============ 画布 ============
+  const canvas=document.getElementById('c');
+  const ctx=canvas.getContext('2d');
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  // 按窗口宽和高同时自适应缩放：任何窗口/缩放比例下都完整落在窗口内、居中不变形
+  function fitCanvas(){
+    const s=Math.min(1,(window.innerWidth-24)/W,(window.innerHeight-130)/H);
+    canvas.style.width=Math.round(W*s)+'px';
+    canvas.style.height=Math.round(H*s)+'px';
+  }
+  fitCanvas();
+  addEventListener('resize', fitCanvas);
+  ctx.scale(dpr,dpr);
+
+  // ============ 状态 ============
+  let dropBag=[];   // 洗牌袋：抽完再洗，相邻两次几乎不重复
+  let balls=[], ghostX=W/2, currentStage=randomStage(), nextStage=randomStage(), score=0;
+  let scoreShown=0, gameOver=false, overflowT=0;
+  let effects=[], rings=[], motes=[], t=0;
+  let cheatClicks=0, autoClicker=false, noDanger=false, legendBox={x:0,y:0,w:0,h:0}, autoTimer=null;
+  const overlay=document.getElementById('overlay');
+  const finalScoreEl=document.getElementById('finalScore');
+  const bonusToast=document.getElementById('bonusToast');
+  let bonusToastTimer=null;
+  function showBonusToast(html){
+    bonusToast.innerHTML=html;
+    bonusToast.classList.add('show');
+    clearTimeout(bonusToastTimer);
+    bonusToastTimer=setTimeout(()=>bonusToast.classList.remove('show'),4000);
+  }
+  // 合出隐藏球（9=白球、10=彩虹球、11=金球）→ 上报领网站金币，金球更稀有奖励更高
+  function reportHidden(stage,x,y){
+    fetch('/api/game/bonus',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({game:'watermelon',stage}),
+    }).then(r=>r.json().then(d=>({status:r.status,d}))).then(({status,d})=>{
+      if(status===401){
+        showBonusToast('🎉 合出隐藏球！<a href="/?z=wmbonus" target="_blank">登录 xrst.uk</a> 可领 20～260 金币');
+        return;
+      }
+      if(d.ok){
+        effects.push({x,y,text:'🪙+'+d.coins,color:'#ffd94d',t:1.6});
+        showBonusToast('🎉 合出<b>'+d.ballName+'</b>！网站金币 +<b>'+d.coins+'</b>');
+      }
+      // 今日领满 / 操作过快：静默，不打扰游戏
+    }).catch(()=>{});
+  }
+
+  function randomStage(){
+    if(dropBag.length===0){
+      dropBag=DROP_WEIGHTS.slice();
+      for(let i=dropBag.length-1;i>0;i--){
+        const j=(Math.random()*(i+1))|0;
+        const tmp=dropBag[i]; dropBag[i]=dropBag[j]; dropBag[j]=tmp;
+      }
+    }
+    return dropBag.pop();
+  }
+  function shade(hex,p){
+    const n=parseInt(hex.slice(1),16);
+    let r=n>>16,g=(n>>8)&255,b=n&255;
+    if(p>=0){ r+=(255-r)*p; g+=(255-g)*p; b+=(255-b)*p; }
+    else{ r+=r*p; g+=g*p; b+=b*p; }
+    return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
+  }
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath(); ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+
+  // 漂浮的柔和光斑（少量，克制）
+  if(!REDUCED){
+    for(let i=0;i<7;i++){
+      motes.push({x:Math.random()*W, y:Math.random()*H, r:2+Math.random()*5,
+        vx:(Math.random()-.5)*12, vy:-(4+Math.random()*10), a:.05+Math.random()*.09, c:COLORS[i%STAGES]});
+    }
+  }
+
+  // ============ 物理 ============
+  function stepPhysics(dt){
+    const n=balls.length;
+    for(let i=0;i<n;i++){
+      const b=balls[i];
+      b.vy+=GRAV*dt; if(b.vy>MAX_FALL)b.vy=MAX_FALL;
+      b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(b.x-b.r<TANK_L){ b.x=TANK_L+b.r; if(b.vx<0)b.vx*=-REST; }
+      if(b.x+b.r>TANK_R){ b.x=TANK_R-b.r; if(b.vx>0)b.vx*=-REST; }
+      if(b.y+b.r>FLOOR_Y){ b.y=FLOOR_Y-b.r; if(b.vy>0){ b.vy*=-REST; b.vx*=WALL_FRICTION; } }
+    }
+    for(let i=0;i<n;i++){
+      const a=balls[i];
+      for(let j=i+1;j<n;j++){
+        const c=balls[j];
+        const dx=c.x-a.x, dy=c.y-a.y, d2=dx*dx+dy*dy, rr=a.r+c.r;
+        if(d2<rr*rr && d2>1e-6){
+          const d=Math.sqrt(d2), nx=dx/d, ny=dy/d, pen=rr-d;
+          a.x-=nx*pen*.5; a.y-=ny*pen*.5; c.x+=nx*pen*.5; c.y+=ny*pen*.5;
+          const rel=(c.vx-a.vx)*nx+(c.vy-a.vy)*ny;
+          if(rel<0){ const imp=-rel*(1+REST)*.5; a.vx-=nx*imp; a.vy-=ny*imp; c.vx+=nx*imp; c.vy+=ny*imp; }
+          const tx=-ny, ty=nx, relT=(c.vx-a.vx)*tx+(c.vy-a.vy)*ty;
+          a.vx+=tx*relT*.08; a.vy+=ty*relT*.08; c.vx-=tx*relT*.08; c.vy-=ty*relT*.08;
+        }
+      }
+    }
+    for(const b of balls){ b.vx*=.9995; b.vy*=.9995; }
+  }
+
+  // ============ 合并 ============
+  function checkMerges(){
+    const n=balls.length, merged=new Array(n).fill(false), created=[];
+    let gained=0;
+    for(let i=0;i<n;i++){
+      if(merged[i])continue;
+      for(let j=i+1;j<n;j++){
+        if(merged[j])continue;
+        const a=balls[i], c=balls[j];
+        if(a.stage!==c.stage)continue;
+        const dx=a.x-c.x, dy=a.y-c.y;
+        if(dx*dx+dy*dy<(a.r+c.r)*(a.r+c.r)*1.02){
+          const mx=(a.x+c.x)/2, my=(a.y+c.y)/2, ns=a.stage+1;
+          if(ns>=STAGES){
+            gained+=300; effects.push({x:mx,y:my,text:'+300',color:'#ffd94d',t:1});
+          }else{
+            const wa=a.r*a.r, wb=c.r*c.r;
+            const nr=RADII[ns];
+            const nbx=Math.max(TANK_L+nr,Math.min(TANK_R-nr,(a.x*wa+c.x*wb)/(wa+wb)));
+            const nby=Math.max(nr,Math.min(FLOOR_Y-nr,(a.y*wa+c.y*wb)/(wa+wb)));
+            // 合成后保留更多沿原轨迹的动能，让它继续滑动、慢慢稳定，而不是瞬间定住
+            const avx=(a.vx*wa+c.vx*wb)/(wa+wb), avy=(a.vy*wa+c.vy*wb)/(wa+wb);
+            const sp=Math.hypot(avx,avy);
+            const boost=sp<60?1.7:1.15;
+            created.push({x:nbx,y:nby,
+              vx:avx*boost+(Math.random()-.5)*16,
+              vy:avy*boost+34+Math.random()*14,
+              stage:ns,r:nr,born:t});
+            gained+=ns*10; effects.push({x:mx,y:my,text:'+'+ns*10,color:COLORS[ns],t:1});
+            if(ns===9||ns===10||ns===11) reportHidden(ns,mx,my);
+          }
+          rings.push({x:mx,y:my,r:(a.r+c.r)/2,color:COLORS[ns]||COLORS[STAGES-1],t:1});
+          merged[i]=merged[j]=true; break;
+        }
+      }
+    }
+    if(gained) score+=gained;
+    const kept=[];
+    for(let i=0;i<n;i++) if(!merged[i]) kept.push(balls[i]);
+    kept.push.apply(kept,created);
+    balls=kept;
+  }
+
+  // ============ 投球 / 结束 ============
+  function drop(){
+    if(gameOver || overlay.style.display==='flex')return;
+    balls.push({x:ghostX,y:SPAWN_Y,vx:0,vy:45,r:RADII[currentStage],stage:currentStage,born:t});
+    currentStage=nextStage; nextStage=randomStage();
+  }
+  function checkOverflow(dt){
+    if(noDanger) return;   // 后门：取消危险线后不判负
+    // 判负：任一“出生>0.25s（已稳定）”的球，其顶部边缘越过危险线即累积判负。
+    // 用顶部边缘而非球心：球心还压在线上但顶部已探出也要算，堆很高也不会漏判；
+    // 刚放下的球在坠落时短暂豁免，避免正常投球误判。
+    let above=false;
+    for(const s of balls){
+      if((t-s.born)>0.25 && (s.y-s.r)<CEILING){ above=true; break; }
+    }
+    overflowT = above ? overflowT+dt : 0;
+    if(overflowT>0.3){ endGame(); }
+  }
+  function endGame(){ gameOver=true; finalScoreEl.textContent=score; overlay.style.display='flex'; }
+  function reset(){ balls=[];effects=[];rings=[];score=0;scoreShown=0;gameOver=false;overflowT=0;currentStage=randomStage();nextStage=randomStage();ghostX=W/2;overlay.style.display='none'; }
+
+  // ============ 绘制：竞技场 ============
+  function drawBoard(){
+    ctx.clearRect(0,0,W,H);
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#1e2340'); bg.addColorStop(.55,'#181c34'); bg.addColorStop(1,'#12152a');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    // 顶部柔光
+    const glow=ctx.createRadialGradient(W/2,-40,20,W/2,-40,H*.7);
+    glow.addColorStop(0,'rgba(124,108,246,.16)'); glow.addColorStop(1,'rgba(124,108,246,0)');
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+    // 缸状容器：左右壁 + 缸底（左右收窄）
+    const wallL=ctx.createLinearGradient(TANK_L-TANK_THICK,0,TANK_L,0);
+    wallL.addColorStop(0,'#3a4268'); wallL.addColorStop(1,'#20263f');
+    ctx.fillStyle=wallL; ctx.fillRect(TANK_L-TANK_THICK,TANK_TOP,TANK_THICK,FLOOR_Y-TANK_TOP);
+    const wallR=ctx.createLinearGradient(TANK_R,0,TANK_R+TANK_THICK,0);
+    wallR.addColorStop(0,'#20263f'); wallR.addColorStop(1,'#3a4268');
+    ctx.fillStyle=wallR; ctx.fillRect(TANK_R,TANK_TOP,TANK_THICK,FLOOR_Y-TANK_TOP);
+    // 壁轮廓高光
+    ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(TANK_L-TANK_THICK,TANK_TOP); ctx.lineTo(TANK_R+TANK_THICK,TANK_TOP);
+    ctx.moveTo(TANK_L-TANK_THICK,TANK_TOP); ctx.lineTo(TANK_L-TANK_THICK,FLOOR_Y);
+    ctx.moveTo(TANK_R+TANK_THICK,TANK_TOP); ctx.lineTo(TANK_R+TANK_THICK,FLOOR_Y);
+    ctx.stroke();
+    // 缸底（实体地面）
+    const floor=ctx.createLinearGradient(0,FLOOR_Y,0,H);
+    floor.addColorStop(0,'#2a3150'); floor.addColorStop(.45,'#1f2440'); floor.addColorStop(1,'#14172e');
+    ctx.fillStyle=floor; ctx.fillRect(TANK_L-TANK_THICK,FLOOR_Y,TANK_W+TANK_THICK*2,FLOOR_H);
+    ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(TANK_L-TANK_THICK,FLOOR_Y+.75); ctx.lineTo(TANK_R+TANK_THICK,FLOOR_Y+.75); ctx.stroke();
+    // 缸内底部内阴影
+    const inner=ctx.createLinearGradient(0,FLOOR_Y,0,FLOOR_Y-40);
+    inner.addColorStop(0,'rgba(0,0,0,.22)'); inner.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=inner; ctx.fillRect(TANK_L,FLOOR_Y-40,TANK_W,40);
+    // 危险线（横跨缸内）——后门“取消危险线”时不绘制
+    if(!noDanger){
+      ctx.save();
+      ctx.setLineDash([7,7]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,94,87,.4)';
+      ctx.beginPath(); ctx.moveTo(TANK_L,CEILING); ctx.lineTo(TANK_R,CEILING); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,94,87,.7)'; ctx.font='9px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='right';
+      ctx.fillText('危险线', TANK_R-6, CEILING-7);
+      ctx.restore();
+    }
+  }
+
+  // ============ 绘制：小球（糖果质感） ============
+  function drawBall(b,alpha){
+    // 接触投影
+    const dh=FLOOR_Y-(b.y+b.r);
+    if(dh<3.2*b.r){
+      const sA=Math.max(0,1-dh/(2.6*b.r))*.28;
+      ctx.globalAlpha=alpha*sA;
+      ctx.beginPath();
+      ctx.ellipse(b.x,FLOOR_Y, b.r*1.05, Math.max(2,b.r*.32*(1-dh/(2.6*b.r))), 0,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fill();
+      ctx.globalAlpha=1;
+      // 地面反光
+      const fA=Math.max(0,1-dh/(2.2*b.r))*.30;
+      ctx.globalAlpha=alpha*fA;
+      ctx.beginPath();
+      ctx.ellipse(b.x, FLOOR_Y+4, b.r*.95, Math.max(1.5,b.r*.28*(1-dh/(2.2*b.r))), 0,0,Math.PI*2);
+      ctx.fillStyle=COLORS[b.stage]; ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    // 主体（水果底 + 贴图）
+    const g=ctx.createRadialGradient(b.x-b.r*.38,b.y-b.r*.44,b.r*.08,b.x,b.y,b.r);
+    g.addColorStop(0,shade(COLORS[b.stage],.62));
+    g.addColorStop(.42,shade(COLORS[b.stage],.18));
+    g.addColorStop(.78,COLORS[b.stage]);
+    g.addColorStop(1,shade(COLORS[b.stage],-.34));
+    ctx.globalAlpha=alpha;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.fillStyle=g; ctx.fill();
+    ctx.lineWidth=1.2; ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.stroke();
+    // 水果贴图（填满整个球）
+    drawFruit(b.x,b.y,b.r,b.stage);
+    ctx.globalAlpha=1;
+  }
+
+  // 水果贴图：用抠好的透明 PNG 铺满整颗球，保持宽高比，裁到圆内
+  function drawFruit(x,y,r,stage){
+    const img=fruitImgs[stage];
+    if(!img || !img.complete)return;
+    const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+    if(!W||!H)return;
+    const scale=2.15*r/Math.min(W,H);
+    const dw=W*scale, dh=H*scale;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.clip();
+    ctx.drawImage(img, x-dw/2, y-dh/2, dw, dh);
+    ctx.restore();
+    if(stage===9||stage===10||stage===11){
+      const txt=(stage===9)?'X R S T · U K':(stage===10?'X Z X D F B':'C H Y D F B');
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.clip();
+      const fs=Math.max(9,Math.round(r*0.22));
+      ctx.font='bold '+fs+'px "Arial Black","Arial",sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=Math.max(1.2,fs*0.16);
+      ctx.strokeText(txt,x,y+r*0.02);
+      ctx.fillStyle='rgba(30,32,46,.92)'; ctx.fillText(txt,x,y+r*0.02);
+      ctx.restore();
+    }
+  }
+
+  // ============ 绘制：幽灵球 ============
+  function drawGhost(){
+    const r=RADII[currentStage]*(REDUCED?1:1+.05*Math.sin(t*4));
+    const g=ctx.createRadialGradient(ghostX-r*.3,GHOST_Y-r*.4,r*.1,ghostX,GHOST_Y,r);
+    g.addColorStop(0,shade(COLORS[currentStage],.6)); g.addColorStop(1,shade(COLORS[currentStage],-.15));
+    ctx.globalAlpha=.6;
+    ctx.beginPath(); ctx.arc(ghostX,GHOST_Y,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.stroke();
+    ctx.globalAlpha=.85;
+    drawFruit(ghostX,GHOST_Y,r*.92,currentStage);
+    ctx.globalAlpha=1;
+    // 瞄准线 + 落点标记
+    ctx.setLineDash([5,7]); ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(ghostX,GHOST_Y+r+5); ctx.lineTo(ghostX,CEILING); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.moveTo(ghostX-5,CEILING); ctx.lineTo(ghostX+5,CEILING); ctx.lineTo(ghostX,CEILING-6); ctx.closePath(); ctx.fill();
+  }
+
+  // ============ 绘制：右上角进化条 ============
+  function drawLegend(){
+    // 7 阶进化条：按真实尺寸等比例缩放、不重叠、逐阶递增
+    const ds=RADII.map(r=>r*0.23);
+    const gap=3, lpad=11, rpad=11;
+    let w=lpad+rpad+ds[0];
+    for(let i=0;i<STAGES-1;i++) w+=ds[i]+ds[i+1]+gap;
+    w+=ds[STAGES-1];
+    const pw=Math.round(w), ph=86, px=W-pw-12, py=10, baseY=py+46;
+    legendBox={x:px,y:py,w:pw,h:ph};
+    ctx.save();
+    ctx.fillStyle='rgba(20,24,44,.82)'; ctx.strokeStyle='rgba(255,255,255,.13)'; ctx.lineWidth=1;
+    roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#aab2d0'; ctx.font='10px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='left';
+    ctx.fillText('球类进化 · 12 阶', px+12, py+18);
+    let x=px+lpad+ds[0];
+    for(let i=0;i<STAGES;i++){
+      const r=ds[i];
+      if(i>0){
+        ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(x-r-2,baseY); ctx.lineTo(x+r+2,baseY); ctx.stroke();
+      }
+      ctx.globalAlpha=.2;
+      ctx.beginPath(); ctx.arc(x,baseY,r+2.5,0,Math.PI*2); ctx.fillStyle=COLORS[i]; ctx.fill(); ctx.globalAlpha=1;
+      const g=ctx.createRadialGradient(x-r*.35,baseY-r*.4,r*.1,x,baseY,r);
+      g.addColorStop(0,shade(COLORS[i],.6)); g.addColorStop(1,COLORS[i]);
+      ctx.beginPath(); ctx.arc(x,baseY,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+      ctx.lineWidth=1; ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.stroke();
+      // 水果贴图（最后两个隐藏球显示问号）
+      if(i>=STAGES-3){ ctx.globalAlpha=1; ctx.beginPath(); ctx.arc(x,baseY,r*.5,0,Math.PI*2); ctx.fillStyle='rgba(26,28,44,.85)'; ctx.fill(); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='bold '+Math.round(r*.8)+'px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('?',x,baseY); }
+      else drawFruit(x,baseY,r*.92,i);
+      ctx.fillStyle='rgba(24,20,40,.9)'; ctx.font='bold 9px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='center';
+      ctx.fillText(String(i+1),x,baseY+r+9);
+      if(i<STAGES-1) x+=r+ds[i+1]+gap;
+    }
+    ctx.restore();
+  }
+
+  // ============ 绘制：左上 HUD ============
+  function drawHUD(){
+    const pw=170, ph=86, px=12, py=10;
+    ctx.save();
+    ctx.fillStyle='rgba(20,24,44,.82)'; ctx.strokeStyle='rgba(255,255,255,.13)'; ctx.lineWidth=1;
+    roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#aab2d0'; ctx.font='10px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='left';
+    ctx.fillText('得分', px+13, py+18);
+    const target=score;
+    if(Math.abs(scoreShown-target)>.5) scoreShown+=(target-scoreShown)*Math.min(1,.12); else scoreShown=target;
+    const pulse=REDUCED?1:(1+Math.min(1,(target-scoreShown)*.02));
+    ctx.save();
+    ctx.translate(px+13,py+46); ctx.scale(pulse,pulse);
+    ctx.fillStyle='#fff'; ctx.font='bold 24px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(String(Math.round(scoreShown)),0,0);
+    ctx.restore();
+    // 下一个：大小按阶段真实比例缩放，越大越醒目
+    ctx.fillStyle='#7c86ab'; ctx.font='10px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('下一个', px+104, py+18);
+    const pr=Math.max(RADII[nextStage]*0.6, 14);
+    const cx=px+pw-52, cy=py+50, wellR=pr+5;
+    ctx.globalAlpha=.16; ctx.beginPath(); ctx.arc(cx,cy,wellR,0,Math.PI*2); ctx.fillStyle=COLORS[nextStage]; ctx.fill(); ctx.globalAlpha=1;
+    drawBall({x:cx,y:cy,r:pr,stage:nextStage},1);
+    // 阶段号
+    ctx.fillStyle='rgba(255,255,255,.8)'; ctx.font='bold 10px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='center';
+    ctx.fillText('第'+String(nextStage+1)+'阶', cx, cy+pr+10);
+    ctx.restore();
+  }
+
+  // ============ 帧循环 ============
+  let last=0;
+  function frame(now){
+    // 等水果贴图全部加载完再进入游戏画面
+    if(imgsSettled<STAGES){
+      drawBoard();
+      ctx.fillStyle='#c9cfec'; ctx.font='15px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='center';
+      ctx.fillText('球类贴图加载中…', W/2, H/2);
+      requestAnimationFrame(frame); return;
+    }
+    const dt=Math.min((now-last)/1000,1/30); last=now; t+=dt;
+    if(!gameOver){
+      const steps=Math.max(1,Math.round(dt/(1/240))), sdt=dt/steps;
+      for(let s=0;s<steps;s++) stepPhysics(sdt);
+      checkMerges(); checkOverflow(dt);
+    }
+    // 光斑移动
+    for(const m of motes){
+      m.x+=m.vx*dt; m.y+=m.vy*dt;
+      if(m.y<-20){ m.y=H+10; m.x=Math.random()*W; }
+      if(m.x<0||m.x>W){ m.vx*=-1; }
+    }
+    // 特效 / 光环更新
+    for(let i=effects.length-1;i>=0;i--){ effects[i].t-=dt*1.8; if(effects[i].t<=0)effects.splice(i,1); }
+    for(let i=rings.length-1;i>=0;i--){ rings[i].t-=dt*2.2; if(rings[i].t<=0)rings.splice(i,1); }
+
+    drawBoard();
+    for(const m of motes){
+      ctx.globalAlpha=m.a; ctx.beginPath(); ctx.arc(m.x,m.y,m.r,0,Math.PI*2); ctx.fillStyle=m.c; ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    // 光环（合并扩散）
+    for(const rn of rings){
+      const rr=rn.r*(1+(1-rn.t)*2.2), a=rn.t*.6;
+      ctx.globalAlpha=a; ctx.lineWidth=2*(rn.t+.4); ctx.strokeStyle=rn.color;
+      ctx.beginPath(); ctx.arc(rn.x,rn.y,rr,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=1;
+    }
+    for(const b of balls) drawBall(b,1);
+    if(!gameOver) drawGhost();
+    drawLegend(); drawHUD();
+    // 浮动得分
+    for(const e of effects){
+      ctx.globalAlpha=Math.max(0,e.t); ctx.fillStyle=e.color;
+      ctx.font='bold 15px "PingFang SC","Microsoft YaHei",sans-serif'; ctx.textAlign='center';
+      ctx.fillText(e.text,e.x,e.y-(1-e.t)*26);
+      ctx.globalAlpha=1;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ============ 输入 ============
+  function toLocal(e){
+    const rect=canvas.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX);
+    return (cx-rect.left)*(W/rect.width);
+  }
+  canvas.addEventListener('pointermove',e=>{
+    if(gameOver)return;
+    const x=toLocal(e), r=RADII[currentStage];
+    ghostX=Math.max(TANK_L+r+4,Math.min(TANK_R-r-4,x));
+  });
+  canvas.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    const x=toLocal(e), r=RADII[currentStage];
+    const rect=canvas.getBoundingClientRect();
+    const cy=(e.touches?e.touches[0].clientY:e.clientY);
+    const y=(cy-rect.top)*(H/rect.height);
+    // 后门：连点右上角“球类进化·11阶”面板 5 次，弹出输入框
+    if(x>=legendBox.x && x<=legendBox.x+legendBox.w && y>=legendBox.y && y<=legendBox.y+legendBox.h){
+      cheatClicks++;
+      if(cheatClicks>=5){ cheatClicks=0; openCheat(); }
+      return;
+    }
+    ghostX=Math.max(TANK_L+r+4,Math.min(TANK_R-r-4,x)); drop();
+  });
+  canvas.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+  document.getElementById('restart').addEventListener('click',reset);
+
+  // ============ 后门（隐藏功能，不在界面任何文字中提示） ============
+  const cheatPanel=document.getElementById('cheat');
+  function openCheat(){
+    const v=(window.prompt('请输入后门口令','')||'').replace(/[^A-Za-z]/g,'').toUpperCase();
+    if(v==='XZXDFB'){ cheatPanel.style.display='flex'; }
+  }
+  function autoDrop(){
+    if(gameOver)return;
+    ghostX=TANK_L+40+Math.random()*(TANK_W-80);
+    drop();
+  }
+  const chCps=document.getElementById('chCps');
+  function startAuto(){
+    if(autoTimer)clearInterval(autoTimer);
+    const cps=Math.max(1,Math.min(10,parseInt(chCps.value,10)||1));
+    autoTimer=setInterval(autoDrop,1000/cps);
+  }
+  document.getElementById('chAuto').addEventListener('change',e=>{
+    autoClicker=e.target.checked;
+    if(autoClicker){ startAuto(); }
+    else if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+  });
+  chCps.addEventListener('change',()=>{ if(autoClicker) startAuto(); });
+  document.getElementById('chDanger').addEventListener('change',e=>{ noDanger=e.target.checked; });
+  document.getElementById('chClose').addEventListener('click',()=>{ cheatPanel.style.display='none'; });
+
+  requestAnimationFrame(frame);
+})();
+</script>
+<script src="/js/playtime.js?v=4" data-game="watermelon"></script>
+</body>
+</html>

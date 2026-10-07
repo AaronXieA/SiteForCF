@@ -19,8 +19,8 @@ document.querySelectorAll(".join-copy").forEach(btn => {
       ta.remove();
     }
     const original = btn.textContent;
-    btn.textContent = "已复制 ✓";
-    showToast(`已复制：${text}`);
+    btn.textContent = I18n.t("copy.copied");
+    showToast(I18n.t("copy.copiedText", { text }));
     setTimeout(() => { btn.textContent = original; }, 1600);
   });
 });

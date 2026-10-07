@@ -1,5 +1,6 @@
 /* =====================================================
- * /server/ 页 · 一键复制服务器地址 / QQ 群号
+ * /server/ 页 · 一键复制 QQ 群号
+ * （服务器实时状态查询已下线：地址不在网页公开）
  * ===================================================== */
 
 document.querySelectorAll(".join-copy").forEach(btn => {
@@ -19,8 +20,8 @@ document.querySelectorAll(".join-copy").forEach(btn => {
       ta.remove();
     }
     const original = btn.textContent;
-    btn.textContent = "已复制 ✓";
-    showToast(`已复制：${text}`);
+    btn.textContent = I18n.t("copy.copied");
+    showToast(I18n.t("copy.copiedText", { text }));
     setTimeout(() => { btn.textContent = original; }, 1600);
   });
 });

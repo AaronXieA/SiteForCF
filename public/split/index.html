@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="split.pageTitle">偷还是分？ · XRST.Uk</title>
+  <meta name="description" content="偷还是分？——双人金币心理博弈：各押 1～10 金币，十轮偷分对决，赢的人拿走奖池 120%。" />
+  <link rel="stylesheet" href="../css/style.css?v=24" />
+  <style>
+    .sg-wrap{max-width:860px;margin:0 auto;padding-bottom:60px;}
+    .sg-sub{color:var(--ink-2);font-size:14.5px;margin-bottom:22px;}
+    .sg-coins{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);
+      border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px;box-shadow:var(--shadow);margin-bottom:16px;}
+    .sg-panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px;}
+    .sg-panel h3{font-size:15px;margin-bottom:10px;}
+    .sg-rules{font-size:13.5px;color:var(--ink-2);line-height:1.9;}
+    .sg-rules b{color:var(--ink);}
+    .sg-rules .tag-s{color:#16a34a;font-weight:800;}
+    .sg-rules .tag-t{color:#dc2626;font-weight:800;}
+    .sg-ante-row{display:flex;flex-wrap:wrap;gap:8px;}
+    .sg-chip{min-width:46px;padding:9px 0;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+      font-weight:800;font-size:15px;cursor:pointer;transition:all .15s;color:var(--ink);}
+    .sg-chip:hover{border-color:var(--accent);}
+    .sg-chip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+    .sg-opps{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+    .sg-opp{text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:11px 13px;
+      cursor:pointer;transition:all .15s;position:relative;}
+    .sg-opp:hover{border-color:var(--accent);}
+    .sg-opp.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,107,255,.12);}
+    .sg-opp .n{font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;}
+    .sg-opp .d{font-size:12px;color:var(--ink-2);margin-top:2px;line-height:1.5;}
+    .sg-opp .bot-no{display:inline-flex;width:20px;height:20px;border-radius:6px;background:var(--ink);color:#fff;
+      font-size:11px;align-items:center;justify-content:center;font-weight:800;}
+    .sg-opp.match .bot-no{background:linear-gradient(135deg,#2f6bff,#22c3f0);}
+    .sg-start{margin-top:4px;}
+    .sg-hint{font-size:12.5px;color:var(--ink-3);margin-top:9px;}
+
+    /* 匹配中 */
+    .sg-matching{text-align:center;padding:70px 20px;}
+    .sg-spinner{width:52px;height:52px;border-radius:50%;border:4px solid var(--line);
+      border-top-color:var(--accent);animation:sgSpin 0.9s linear infinite;margin:0 auto 22px;}
+    @keyframes sgSpin{to{transform:rotate(360deg);}}
+    .sg-matching h2{font-size:21px;margin-bottom:8px;}
+    .sg-matching p{color:var(--ink-2);font-size:14px;margin-bottom:26px;}
+
+    /* 对局 */
+    .sg-gamehead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+    .sg-round{font-weight:800;font-size:15px;}
+    .sg-pool{display:inline-flex;align-items:center;gap:6px;background:#fff8e6;color:#92610a;
+      border:1px solid #f3dfa2;border-radius:999px;padding:5px 14px;font-weight:800;font-size:13.5px;}
+    .sg-timer{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:0 0 14px;}
+    .sg-timer i{display:block;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#22c55e,#eab308);
+      transition:width .25s linear;}
+    .sg-timer.urgent i{background:linear-gradient(90deg,#f97316,#dc2626);}
+    .sg-table{display:grid;grid-template-columns:1fr 96px 1fr;gap:12px;align-items:stretch;margin-bottom:14px;}
+    .sg-side{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+      padding:16px 14px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;}
+    .sg-side .who{font-weight:800;font-size:14.5px;display:flex;align-items:center;gap:7px;}
+    .sg-score{font-size:28px;font-weight:900;line-height:1;}
+    .sg-score small{font-size:12px;color:var(--ink-3);font-weight:700;}
+    .sg-card-slot{width:86px;height:86px;border-radius:16px;border:2px dashed var(--line);display:flex;
+      align-items:center;justify-content:center;font-size:30px;font-weight:900;color:var(--ink-3);
+      background:var(--bg-alt);transition:all .2s;}
+    .sg-card-slot.s{border-style:solid;border-color:#86efac;background:#f0fdf4;color:#16a34a;}
+    .sg-card-slot.t{border-style:solid;border-color:#fca5a5;background:#fef2f2;color:#dc2626;}
+    .sg-card-slot.waiting{font-size:12px;font-weight:700;}
+    .sg-card-slot.picked{border-style:solid;border-color:#bfdbfe;background:#eff6ff;color:var(--accent);font-size:13px;}
+    .sg-vs{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:var(--ink-3);}
+    .sg-banner{min-height:46px;display:flex;align-items:center;justify-content:center;text-align:center;
+      font-weight:800;font-size:15px;border-radius:12px;background:#fff;border:1px solid var(--line);
+      padding:8px 12px;margin-bottom:14px;box-shadow:var(--shadow);}
+    .sg-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .sg-action{padding:16px 0;border:none;border-radius:var(--radius);font-size:19px;font-weight:900;cursor:pointer;
+      color:#fff;transition:transform .12s,filter .12s;letter-spacing:2px;}
+    .sg-action:disabled{opacity:.45;cursor:not-allowed;}
+    .sg-action:not(:disabled):active{transform:scale(.97);}
+    .sg-action.split{background:linear-gradient(135deg,#22c55e,#16a34a);box-shadow:0 6px 18px rgba(34,197,94,.3);}
+    .sg-action.steal{background:linear-gradient(135deg,#f97316,#dc2626);box-shadow:0 6px 18px rgba(220,38,38,.3);}
+    .sg-hist{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+    .sg-hcell{width:44px;border-radius:10px;border:1px solid var(--line);background:#fff;padding:4px 0;text-align:center;font-size:11px;}
+    .sg-hcell .hr{font-weight:800;color:var(--ink-3);}
+    .sg-hcell .hp{display:flex;justify-content:center;gap:4px;margin-top:2px;font-weight:800;}
+    .sg-hcell .hp b{width:15px;height:15px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;
+      font-size:10px;color:#fff;}
+    .sg-hcell .hp b.s{background:#16a34a;}
+    .sg-hcell .hp b.t{background:#dc2626;}
+    .sg-hcell .hp b.n{background:var(--ink-3);}
+    .sg-hcell.cur{outline:2px solid var(--accent);outline-offset:1px;}
+    .sg-reconn{font-size:12.5px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;
+      padding:6px 12px;text-align:center;margin-bottom:10px;}
+    .sg-quit{background:none;border:none;color:var(--ink-3);font-size:13px;cursor:pointer;text-decoration:underline;}
+
+    /* 结算 / 通用弹窗 */
+    .sg-result{text-align:center;padding:10px 6px 4px;}
+    .sg-result .big{font-size:30px;font-weight:900;margin:6px 0 2px;}
+    .sg-result .big.win{color:#16a34a;}
+    .sg-result .big.lose{color:#dc2626;}
+    .sg-result .big.tie{color:#ca8a04;}
+    .sg-result p{color:var(--ink-2);font-size:14px;margin-bottom:14px;}
+    .sg-result .coins-line{font-size:17px;font-weight:800;margin:8px 0 4px;}
+    .sg-result .net{font-size:13.5px;font-weight:800;}
+    .sg-result .net.up{color:#16a34a;}
+    .sg-result .net.down{color:#dc2626;}
+    .sg-result .scores-line{font-size:13px;color:var(--ink-3);margin-bottom:12px;}
+    .sg-modal-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+    .sg-warn .modal{max-width:420px;}
+    .sg-warn p{font-size:14px;color:var(--ink-2);margin:10px 0 18px;line-height:1.8;}
+    .sg-warn .danger-text{color:#dc2626;font-weight:800;}
+    .sg-guest{text-align:center;padding:50px 20px;}
+    .sg-guest h2{margin-bottom:10px;}
+    .sg-guest p{color:var(--ink-2);font-size:14px;margin-bottom:20px;}
+    @media (max-width:600px){
+      .sg-table{grid-template-columns:1fr 60px 1fr;gap:8px;}
+      .sg-card-slot{width:64px;height:64px;font-size:23px;}
+      .sg-opps{grid-template-columns:1fr 1fr;}
+      .sg-opp .d{display:none;}
+    }
+  </style>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="wb-main">
+    <div class="sg-wrap">
+      <p class="wb-eyebrow" data-i18n="split.eyebrow">金币博弈 · 在线对战</p>
+      <h1 class="wb-title" data-i18n="split.title">偷还是分？</h1>
+      <p class="sg-sub" data-i18n="split.sub">两个人各押 1～10 个金币进奖池，十轮之内猜透对方——是联手分钱，还是背刺独吞？</p>
+
+      <!-- 大厅 -->
+      <section id="screenLobby">
+        <div class="sg-coins"><span data-i18n="split.myCoins">🪙 我的金币：</span><span id="lobbyCoins">–</span></div>
+
+        <div class="sg-panel">
+          <h3 data-i18n="split.rulesTitle">📜 玩法</h3>
+          <div class="sg-rules" data-i18n="split.rules">
+            双方各押 <b>1～10</b> 个金币进入奖池，共进行 <b>10</b> 轮，每轮在
+            <span class="tag-s">分</span> 和 <span class="tag-t">偷</span> 里二选一，每轮限时 <b>30 秒</b>，超时算弃权（对方 +1 分）：<br />
+            · <span class="tag-s">分-分</span>：各 +1 分　·　<span class="tag-s">分</span>-<span class="tag-t">偷</span>：偷的人 +2，分的人不得分　·　<span class="tag-t">偷-偷</span>：各 -2 分（最低 0 分）<br />
+            十轮后按分数结算（百分比一律向下取整）：<br />
+            · <b>平分且不是 0 分</b>：各得奖池的 80%<br />
+            · <b>打成 0:0</b>：各得自己押金的 80%<br />
+            · <b>分出胜负</b>：胜者拿走奖池的 120%（系统补贴 20%）<br />
+            真人对局中途逃跑：判负，奖池归对方，还会被扣除相当于奖池 50% 的金币罚金。
+          </div>
+        </div>
+
+        <div class="sg-panel">
+          <h3 data-i18n="split.anteTitle">🪙 选择押金</h3>
+          <div class="sg-ante-row" id="anteRow"></div>
+        </div>
+
+        <button class="btn btn-solid btn-block sg-start" id="startBtn" data-i18n="split.startMatch">开始匹配</button>
+      </section>
+
+      <!-- 匹配中 -->
+      <section id="screenMatching" hidden>
+        <div class="sg-panel sg-matching">
+          <div class="sg-spinner"></div>
+          <h2 data-i18n="split.matching">正在匹配…</h2>
+          <p data-i18n="split.matchingDesc" data-i18n-args='{"n":"1"}'>寻找同样押 <b id="matchAnte">1</b> 金币的玩家…</p>
+          <button class="btn btn-ghost" id="cancelMatchBtn" data-i18n="split.cancelMatch">取消匹配（退押金）</button>
+        </div>
+      </section>
+
+      <!-- 对局 -->
+      <section id="screenGame" hidden>
+        <div class="sg-gamehead">
+          <span class="sg-round" data-i18n="split.round" data-i18n-args='{"n":"1"}'>第 <span id="roundNo">1</span> / 10 轮</span>
+          <span class="sg-pool" data-i18n="split.pool" data-i18n-args='{"n":"0"}'>💰 奖池 <span id="poolNo">0</span> 金币</span>
+          <button class="sg-quit" id="quitBtn" data-i18n="split.quit">退出 / 认输</button>
+        </div>
+        <div class="sg-reconn" id="reconnBar" hidden data-i18n="split.reconnect">连接中断，正在重连…（60 秒内回来不算逃跑）</div>
+        <div class="sg-timer" id="timerBar"><i id="timerFill"></i></div>
+
+        <div class="sg-table">
+          <div class="sg-side" id="oppSide">
+            <div class="who" id="oppWho"></div>
+            <div class="sg-score"><span id="oppScore">0</span> <small data-i18n="split.scoreUnit">分</small></div>
+            <div class="sg-card-slot" id="oppSlot">?</div>
+          </div>
+          <div class="sg-vs">VS</div>
+          <div class="sg-side" id="mySide">
+            <div class="who" id="myWho"></div>
+            <div class="sg-score"><span id="myScore">0</span> <small data-i18n="split.scoreUnit">分</small></div>
+            <div class="sg-card-slot" id="mySlot">?</div>
+          </div>
+        </div>
+
+        <div class="sg-banner" id="banner" data-i18n="split.choose">做出你的选择</div>
+
+        <div class="sg-actions">
+          <button class="sg-action split" id="splitBtn" data-i18n="split.split">🤝 分</button>
+          <button class="sg-action steal" id="stealBtn" data-i18n="split.steal">🔪 偷</button>
+        </div>
+
+        <div class="sg-hist" id="histRow"></div>
+      </section>
+
+      <!-- 未登录 -->
+      <section id="screenGuest" hidden>
+        <div class="sg-panel sg-guest">
+          <h2 data-i18n="split.guestTitle">先登录才能上桌 🪙</h2>
+          <p data-i18n="split.guestDesc">对局押金和奖金都走你的站内金币账户，登录 / 注册一个账号再来吧。</p>
+          <button class="btn btn-solid" id="guestLoginBtn" data-i18n="split.guestBtn">去登录 / 注册</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 逃跑确认 -->
+  <div class="modal-mask sg-warn" id="quitMask" hidden>
+    <div class="modal">
+      <h3 class="modal-title" data-i18n="split.quitTitle">确定要退出吗？</h3>
+      <p id="quitText"></p>
+      <div class="sg-modal-btns">
+        <button class="btn btn-ghost" id="quitCancelBtn" data-i18n="split.quitCancel">再想想</button>
+        <button class="btn btn-outline-danger" id="quitConfirmBtn" data-i18n="split.quitConfirm">确认退出</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结算 -->
+  <div class="modal-mask" id="resultMask" hidden>
+    <div class="modal">
+      <div class="sg-result" id="resultBox"></div>
+      <div class="sg-modal-btns">
+        <button class="btn btn-ghost" id="resultLobbyBtn" data-i18n="split.backToLobby">返回大厅</button>
+        <button class="btn btn-solid" id="resultAgainBtn" data-i18n="split.playAgain">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" data-i18n="common.close" data-i18n-attr="aria-label" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="/js/i18n.js?v=6"></script>
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/avatars.js?v=1"></script>
+  <script src="../js/main.js?v=18"></script>
+  <script src="../js/split.js?v=1"></script>
+</body>
+</html>

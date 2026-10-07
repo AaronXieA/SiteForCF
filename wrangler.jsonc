@@ -2,6 +2,7 @@
   "name": "xrstuk",
   "main": "worker.js",
   "compatibility_date": "2026-09-12",
+  // cloudflare:sockets（RCON 的裸 TCP）已 GA，无需 compatibility flag
   "assets": {
     "directory": "public",
     // 显式声明 ASSETS binding，worker 内才能调用 env.ASSETS.fetch
@@ -14,6 +15,34 @@
     {
       "binding": "AUTH_KV",
       "id": "115ddb34bc304a28bf2f7db2248ba3f0"
+    }
+  ],
+  // 高频协作内容走 Durable Objects（免费版只能用 SQLite 后端）：
+  // COLLAB_DO 承载聊天 / 像素画 / 文字画板（各一个具名实例）。
+  // 在线心跳刻意不进 DO（全站每页面都发，太耗 DO 请求额度），留在 KV。
+  // GAME_LOBBY_DO 为「偷还是分？」匹配大厅（具名 lobby 单实例）；
+  // GAME_DO 每局一个独立实例，alarm 驱动 30s 回合计时，长轮询推送。
+  "durable_objects": {
+    "bindings": [
+      { "name": "COLLAB_DO", "class_name": "CollabDO" },
+      { "name": "GAME_LOBBY_DO", "class_name": "GameLobbyDO" },
+      { "name": "GAME_DO", "class_name": "GameMatchDO" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PresenceDO", "CollabDO"]
+    },
+    {
+      // PresenceDO 一度上线后撤回（心跳改回 KV），删除该类及其实例
+      "tag": "v2",
+      "deleted_classes": ["PresenceDO"]
+    },
+    {
+      //「偷还是分？」匹配大厅 + 对局实例
+      "tag": "v3",
+      "new_sqlite_classes": ["GameLobbyDO", "GameMatchDO"]
     }
   ]
 }

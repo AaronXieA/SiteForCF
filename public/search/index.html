@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>搜索用户 · XRST.Uk</title>
+  <title data-i18n="search.pageTitle">搜索用户 · XRST.Uk</title>
   <meta name="description" content="按用户名或 XRSTUID 搜索允许被搜索的用户。" />
-  <link rel="stylesheet" href="../css/style.css?v=6" />
+  <link rel="stylesheet" href="../css/style.css?v=24" />
 </head>
 <body>
 
@@ -13,72 +13,75 @@
     <div class="nav-inner">
       <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
       <nav class="nav-links">
-        <a href="/#about">关于</a>
-        <a href="/#works">好玩的</a>
-        <a href="/#rewards">签到</a>
-        <a href="/#contact">联系</a>
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
       </nav>
       <div class="nav-auth" id="navAuth"></div>
     </div>
   </header>
 
   <main class="us-main">
-    <p class="wb-eyebrow">社区</p>
-    <h1 class="wb-title">搜索用户</h1>
-    <p class="wb-sub">按用户名或 12 位 XRSTUID 搜索——只显示允许被搜索的用户。</p>
+    <p class="wb-eyebrow" data-i18n="search.eyebrow">社区</p>
+    <h1 class="wb-title" data-i18n="search.title">搜索用户</h1>
+    <p class="wb-sub" data-i18n="search.sub">按用户名或 12 位 XRSTUID 搜索——只显示允许被搜索的用户。</p>
 
     <form class="us-bar" id="usForm">
-      <input id="usInput" type="text" placeholder="输入用户名或 XRSTUID…" autocomplete="off" spellcheck="false" />
-      <button class="btn btn-solid" type="submit">搜索</button>
+      <input id="usInput" type="text" data-i18n="search.inputPlaceholder" data-i18n-attr="placeholder" placeholder="输入用户名或 XRSTUID…" autocomplete="off" spellcheck="false" />
+      <button class="btn btn-solid" type="submit" data-i18n="search.button">搜索</button>
     </form>
 
     <ul class="us-list" id="usList">
-      <li class="us-empty">输入关键词开始搜索。</li>
+      <li class="us-empty" data-i18n="search.emptyHint">输入关键词开始搜索。</li>
     </ul>
   </main>
 
   <!-- 登录 / 注册弹窗 -->
   <div class="modal-mask" id="authModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="authClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
       <div class="modal-tabs">
-        <button class="tab active" data-tab="login">登录</button>
-        <button class="tab" data-tab="register">注册</button>
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
       </div>
 
       <form id="loginForm" class="modal-form" autocomplete="on">
-        <label>用户名 / XRSTUID
-            <input type="text" name="username" required minlength="2" maxlength="20" placeholder="用户名或 XRSTUID" />
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+            <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">登录</button>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
       </form>
 
       <form id="registerForm" class="modal-form" hidden autocomplete="off">
-        <label>用户名
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
-        <label>确认密码
-          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
-        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
       </form>
     </div>
   </div>
 
   <div class="toast-box" id="toastBox"></div>
 
+  <script src="/js/i18n.js?v=6"></script>
   <script src="../js/auth.js?v=5"></script>
   <script src="../js/avatars.js?v=2"></script>
-  <script src="../js/main.js?v=8"></script>
-  <script src="../js/search.js?v=3"></script>
+  <script src="../js/main.js?v=18"></script>
+  <script src="../js/search.js?v=4"></script>
 </body>
 </html>

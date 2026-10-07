@@ -80,36 +80,45 @@ if (nav) {
 }
 
 /* ---------- 导航右上角登录区 ---------- */
+let _cachedNavUser = undefined;
 async function renderNavAuth(knownUser) {
   const box = document.getElementById("navAuth");
   if (!box) return;
   const user = knownUser !== undefined ? knownUser : await Auth.currentUser();
+  _cachedNavUser = user;
+  const langBtn = `<button class="btn btn-ghost btn-small nav-lang" id="navLangBtn" title="${I18n.getLang() === "zh" ? "Switch to English" : "切换到中文"}">${I18n.getLang() === "zh" ? "EN" : "中"}</button>`;
   if (user) {
     box.innerHTML = `
-      <a class="nav-shop-link" href="/#rewards" title="每日签到 · 兑换商店">🪙<b id="navCoins">–</b></a>
-      <a class="nav-search-link" href="/search/">搜索用户</a>
-      ${user === "AaronXie" ? '<a class="nav-search-link" href="/admin/coins" title="管理员金币后台">金币管理</a>' : ""}
-      <a class="nav-user" href="/profile/" title="进入我的个人主页">你好，<strong></strong><span class="vip-badge nav-vip" id="navVip" title="VIP 会员" hidden>👑</span></a>
-      <button class="btn btn-ghost btn-small" id="logoutBtn">退出</button>
+      ${langBtn}
+      <a class="nav-shop-link" href="/#rewards" title="${I18n.t("nav.coinsTip")}">🪙<b id="navCoins">–</b></a>
+      <a class="nav-search-link" href="/search/">${I18n.t("nav.searchUser")}</a>
+      ${user === "AaronXie" ? `<a class="nav-search-link" href="/admin/coins" title="${I18n.t("nav.coinManageTip")}">${I18n.t("nav.coinManage")}</a>` : ""}
+      <a class="nav-user" href="/profile/" title="${I18n.t("nav.profileTip")}">${I18n.t("nav.hello")}<strong></strong><span class="vip-badge nav-vip" id="navVip" title="${I18n.t("nav.vip")}" hidden>👑</span></a>
+      <button class="btn btn-ghost btn-small" id="logoutBtn">${I18n.t("nav.logout")}</button>
     `;
     box.querySelector("strong").textContent = user; // 防 XSS
     box.querySelector("#logoutBtn").addEventListener("click", async () => {
       await Auth.logout();
       renderNavAuth(null);
       if (typeof loadProfile === "function") loadProfile();
-      showToast("已退出登录");
+      showToast(I18n.t("chat.logoutOk"));
     });
     refreshNavCoins();
     // 通知公告栏：管理员已登录
     window.dispatchEvent(new CustomEvent("auth-user", { detail: user }));
   } else {
     box.innerHTML = `
-      <a class="nav-search-link" href="/search/">搜索用户</a>
-      <button class="btn btn-solid btn-small" id="openAuthBtn">登录</button>
+      ${langBtn}
+      <a class="nav-search-link" href="/search/">${I18n.t("nav.searchUser")}</a>
+      <button class="btn btn-solid btn-small" id="openAuthBtn">${I18n.t("nav.login")}</button>
     `;
     box.querySelector("#openAuthBtn").addEventListener("click", openAuthModal);
     window.dispatchEvent(new CustomEvent("auth-user", { detail: null }));
   }
+  box.querySelector("#navLangBtn")?.addEventListener("click", () => {
+    I18n.setLang(I18n.getLang() === "zh" ? "en" : "zh");
+    renderNavAuth(_cachedNavUser);
+  });
 }
 
 /* 导航栏金币数与 VIP 皇冠（静默失败，不影响其他功能）*/
@@ -167,7 +176,51 @@ window.addEventListener("vip-changed", () => refreshNavCoins());
   setInterval(() => beat(true), 120_000); // 120 秒一次，服务端新鲜窗口 270 秒
 })();
 
-/* ---------- 登录 / 注册弹窗 ---------- */
+/* ---------- 登录 / 注册弹窗 ----------
+ * 若页面未内置 #authModal（子页面常见），动态注入一份标准弹窗，
+ * 保证所有加载 main.js 的页面都能登录。 */
+(function ensureAuthModal() {
+  if (document.getElementById("authModal")) return;
+  const html = `
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" data-i18n="common.close" data-i18n-attr="aria-label" aria-label="关闭">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
+      </div>
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
+      </form>
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  if (window.I18n && window.I18n.applyTo) {
+    try { window.I18n.applyTo(document.getElementById("authModal")); } catch (e) {}
+  }
+})();
+
 const authModal = document.getElementById("authModal");
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
@@ -297,15 +350,15 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") closeAuthMod
 loginForm?.addEventListener("submit", async e => {
   e.preventDefault();
   const data = new FormData(loginForm);
-  setMsg(loginForm, "登录中…");
+  setMsg(loginForm, I18n.t("auth.loggingIn"));
   const res = await Auth.login(data.get("username"), data.get("password"));
   if (res.ok) {
     closeAuthModal();
     renderNavAuth(res.username);
     if (typeof loadProfile === "function") loadProfile();
-    showToast(`欢迎回来，${res.username}`);
+    showToast(I18n.t("auth.welcomeBack", { n: res.username }));
   } else {
-    setMsg(loginForm, res.error || "登录失败", "err");
+    setMsg(loginForm, res.error || I18n.t("auth.loginFailed"), "err");
   }
 });
 
@@ -313,24 +366,24 @@ registerForm?.addEventListener("submit", async e => {
   e.preventDefault();
   const data = new FormData(registerForm);
   if (data.get("password") !== data.get("password2")) {
-    setMsg(registerForm, "两次输入的密码不一致", "err");
+    setMsg(registerForm, I18n.t("auth.passwordMismatch"), "err");
     return;
   }
-  setMsg(registerForm, "创建中…");
+  setMsg(registerForm, I18n.t("auth.creating"));
   const res = await Auth.register(data.get("username"), data.get("password"));
   if (res.ok) {
     closeAuthModal();
     renderNavAuth(res.username);
     if (typeof loadProfile === "function") loadProfile();
-    showToast(`注册成功，欢迎 ${res.username}`);
+    showToast(I18n.t("auth.welcomeRegister", { n: res.username }));
   } else {
-    setMsg(registerForm, res.error || "注册失败", "err");
+    setMsg(registerForm, res.error || I18n.t("auth.registerFailed"), "err");
   }
 });
 
 renderNavAuth();
 
-/* ---------- 彩蛋：连续点击版权 10 次跳转 114514.xrst.uk ---------- */
+/* ---------- 彩蛋：连续点击版权 10 次进入尹桁页面 ---------- */
 (function () {
   const footerCopy = document.getElementById("footerCopy");
   if (footerCopy) {
@@ -342,10 +395,7 @@ renderNavAuth();
     copyClickTimer = setTimeout(() => copyClickCount = 0, 1500);
     if (copyClickCount >= 10) {
       copyClickCount = 0;
-      showToast("🥚 彩蛋解锁，正在传送…");
-      setTimeout(() => { window.location.href = "https://114514.xrst.uk"; }, 700);
-    } else if (copyClickCount >= 7) {
-      showToast(`再点 ${10 - copyClickCount} 次…`, 1000);
+      window.location.href = "/yinheng/";
     }
   });
   }
@@ -415,11 +465,39 @@ renderNavAuth();
   const works = document.getElementById("works");
   const toggle = document.getElementById("worksToggle");
   if (!works || !toggle) return;
+  const cardsEl = works.querySelector(".cards");
+
+  function label(open) {
+    if (window.I18n) return I18n.t(open ? "home.collapseWorks" : "home.expandWorks");
+    return open ? "收起好玩的 ▴" : "展开好玩的 ▾";
+  }
 
   function setOpen(open) {
     works.classList.toggle("works-open", open);
-    toggle.textContent = open ? "收起 ▴" : "展开好玩的 ▾";
+    toggle.textContent = label(open);
     toggle.setAttribute("aria-expanded", String(open));
+  }
+
+  /* 折叠几何：让折叠条上沿对齐「第二行卡片」顶部——
+     第一行完整清晰露出，渐变遮罩从第二行才开始 */
+  function measureFold() {
+    if (!cardsEl) return;
+    const cardEls = Array.prototype.filter.call(cardsEl.children,
+      c => c.classList && c.classList.contains("card"));
+    if (cardEls.length < 2) return;
+    const base = cardsEl.getBoundingClientRect().top;
+    const tops = cardEls.map(c => Math.round(c.getBoundingClientRect().top - base));
+    const firstTop = tops[0];
+    let row2Top = 0;
+    for (const t of tops) {
+      if (t > firstTop + 4) { row2Top = t; break; }
+    }
+    if (!row2Top) return;
+    const gap = parseFloat(getComputedStyle(cardsEl).rowGap) || 10;
+    const foldTop = Math.max(0, row2Top - gap / 2);
+    const PEEK = 78; // 第二行卡片在渐变区下露出的高度
+    works.style.setProperty("--works-fold-top", foldTop + "px");
+    works.style.setProperty("--works-peek", foldTop + PEEK + "px");
   }
 
   toggle.addEventListener("click", () => {
@@ -427,6 +505,18 @@ renderNavAuth();
     setOpen(open);
     // 收起时滚回板块标题，避免页面突然缩短把人甩走
     if (!open) works.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  let raf = 0;
+  const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measureFold); };
+  window.addEventListener("resize", schedule);
+  window.addEventListener("load", schedule);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+  measureFold();
+  setTimeout(measureFold, 400);
+  setTimeout(measureFold, 1200);
+  window.addEventListener("lang-changed", () => {
+    toggle.textContent = label(works.classList.contains("works-open"));
   });
 
   // 带 #works 锚点进来时自动展开

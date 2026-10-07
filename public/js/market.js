@@ -183,16 +183,16 @@
     mineListEl.innerHTML = mine.length ? mine.map(l => cardHtml(l, "mine")).join("") : "";
 
     const list = filter === "all" ? open : open.filter(l => l.type === filter);
-    hallTitleEl.textContent = `集市大厅（${open.length} 帖在架）`;
+    hallTitleEl.textContent = I18n.t("market.hallCount", { n: open.length });
     boardEl.innerHTML = list.length
       ? list.map(l => cardHtml(l, "hall")).join("")
-      : '<p class="mk-loading">这里还空空如也，来发第一帖吧～</p>';
+      : `<p class="mk-loading">${I18n.t("market.emptyHall")}</p>`;
   }
 
   async function loadAll(silent) {
     const r = await api("/api/market?t=" + Date.now());
     if (!r.ok) {
-      if (!silent) boardEl.innerHTML = '<p class="mk-loading">集市加载失败，稍后再试。</p>';
+      if (!silent) boardEl.innerHTML = `<p class="mk-loading">${I18n.t("market.loadFail")}</p>`;
       return;
     }
     me = r.data.me;
@@ -215,22 +215,23 @@
     if (act === "chat") { openChat(l); return; }
 
     if (act === "cancel") {
-      if (!window.confirm("确定下架这帖吗？下架后不可恢复。")) return;
+      if (!window.confirm(I18n.t("market.confirmCancel"))) return;
     } else if (act === "take") {
+      const owner = esc(l.owner), item = esc(l.item);
       const tip = l.type === "barter"
-        ? `确定与 @${esc(l.owner)} 交换吗？你的物品换 TA 的「${esc(l.item)}」，具体聊天里谈。`
+        ? I18n.t("market.takeBarter", { owner, item })
         : l.type === "buy"
           ? (l.price === 0
-              ? `确定把「${esc(l.item)}」送给 @${esc(l.owner)} 吗？对方点「完成交易」后金币到账。`
-              : `确定成交吗？对方将把 ${l.price} 金币打入担保，你点「完成交易」后金币到账、「${esc(l.item)}」交给对方。`)
+              ? I18n.t("market.takeBuyFree", { item, owner })
+              : I18n.t("market.takeBuy", { price: l.price, item }))
           : (l.price === 0
-              ? `确定免费认领「${esc(l.item)}」吗？`
-              : `确定买下「${esc(l.item)}」吗？${l.price} 金币先打入担保，确认「完成交易」后金币才打给卖家；7 天没完成自动退款。`);
+              ? I18n.t("market.takeSellFree", { item })
+              : I18n.t("market.takeSell", { item, price: l.price }));
       if (!window.confirm(tip)) return;
     } else if (act === "complete") {
       const tip = l.type === "barter"
-        ? "完成后帖子和聊天记录永久删除，确定吗？（物品在游戏内交割）"
-        : "完成后金币立刻结算给卖家，帖子和聊天记录永久删除，确定吗？";
+        ? I18n.t("market.completeBarter")
+        : I18n.t("market.completeOther");
       if (!window.confirm(tip)) return;
     }
 
@@ -240,19 +241,19 @@
     if (r.ok) {
       window.dispatchEvent(new CustomEvent("coins-changed"));
       if (act === "take") {
-        showToast("拍下成功，临时聊天已开启！");
+        showToast(I18n.t("market.takeOk"));
         await loadAll(true);
         const fresh = mine.find(x => x.id === id);
         if (fresh) openChat(fresh);
       } else if (act === "complete") {
-        showToast("交易完成，金币已结算");
+        showToast(I18n.t("market.completeOk"));
         closeChat(true);
       } else if (act === "cancel") {
-        showToast("帖子已下架");
+        showToast(I18n.t("market.cancelOk"));
       }
       await loadAll(true);
     } else {
-      showToast(r.data.error || "操作失败");
+      showToast(r.data.error || I18n.t("market.operFail"));
       await loadAll(true);
     }
   }
@@ -264,15 +265,15 @@
       b.classList.toggle("is-on", b.dataset.type === postTypeVal));
     const t = postTypeVal;
     if (t === "sell") {
-      itemWrap.firstChild.textContent = "物品";
+      itemWrap.firstChild.textContent = I18n.t("market.itemLabel");
       priceWrap.hidden = false;
-      priceHint.textContent = "0 = 免费送";
+      priceHint.textContent = I18n.t("market.priceHint");
     } else if (t === "buy") {
-      itemWrap.firstChild.textContent = "物品";
+      itemWrap.firstChild.textContent = I18n.t("market.itemLabel");
       priceWrap.hidden = false;
-      priceHint.textContent = "你愿意出多少金币收购";
+      priceHint.textContent = I18n.t("market.priceHintBuy");
     } else {
-      itemWrap.firstChild.textContent = "物品";
+      itemWrap.firstChild.textContent = I18n.t("market.itemLabel");
       priceWrap.hidden = true;
     }
   }
@@ -287,7 +288,7 @@
   postBtn?.addEventListener("click", () => {
     if (!me) { openAuthModal(); return; }
     if (slots.used >= slots.max) {
-      showToast(`栏位已满（${slots.max} 个），先完成或下架旧帖`);
+      showToast(I18n.t("market.slotsFull", { n: slots.max }));
       return;
     }
     postForm.reset();
@@ -316,7 +317,7 @@
       bindCodeBox.hidden = false;
       bindMsg.textContent = "";
     } else {
-      bindMsg.textContent = r.data.error || "生成失败，再试一次";
+      bindMsg.textContent = r.data.error || I18n.t("market.bindFail");
     }
   });
 
@@ -325,7 +326,7 @@
     if (!me) { XRST.closeMask(postModal); openAuthModal(); return; }
     const fd = new FormData(postForm);
     const item = String(fd.get("item") || "").trim();
-    if (!item) { showToast("请填写物品名称"); return; }
+    if (!item) { showToast(I18n.t("market.itemRequired")); return; }
     const payload = {
       action: "post",
       type: postTypeVal,
@@ -339,10 +340,10 @@
     btn.disabled = false;
     if (r.ok) {
       XRST.closeMask(postModal);
-      showToast("发布成功，帖子已上架");
+      showToast(I18n.t("market.postOk"));
       await loadAll(true);
     } else {
-      showToast(r.data.error || "发布失败");
+      showToast(r.data.error || I18n.t("market.postFail"));
     }
   });
 
@@ -370,15 +371,15 @@
     chatTitleEl.textContent = `${meta.tag} · ${cardTitle(l)}`;
     const other = me === l.owner ? l.taker : l.owner;
     const priceTxt = l.type === "barter"
-      ? `以物易物`
-      : `担保 ${l.price.toLocaleString("zh-CN")} 🪙`;
-    chatMetaEl.textContent = `对方 @${other} · ${priceTxt} · ${remainText(l.expireAt)}`;
+      ? I18n.t("market.barter")
+      : I18n.t("market.escrow", { n: l.price.toLocaleString("zh-CN") });
+    chatMetaEl.textContent = I18n.t("market.chatMeta", { other, price: priceTxt, remain: remainText(l.expireAt) });
   }
 
   async function openChat(l) {
     chatLid = l.id;
     renderChatHead(l);
-    chatMsgsEl.innerHTML = '<p class="mk-loading">聊天记录加载中…</p>';
+    chatMsgsEl.innerHTML = `<p class="mk-loading">${I18n.t("market.chatLoading")}</p>`;
     chatSeen = 0;
     XRST.openMask(chatModal);
     await pullChat(true);
@@ -399,7 +400,7 @@
     const r = await api(`/api/market/chat?lid=${encodeURIComponent(chatLid)}&t=${Date.now()}`);
     if (!r.ok) {
       if (r.status === 404) {
-        showToast("交易已结束，临时聊天已关闭");
+        showToast(I18n.t("market.tradeEnded"));
         closeChat(true);
       }
       return;
@@ -429,7 +430,7 @@
       body: JSON.stringify({ text }),
     });
     if (!r.ok) {
-      showToast(r.data.error || "发送失败");
+      showToast(r.data.error || I18n.t("market.sendFail"));
       chatTextEl.value = text;
       if (r.status === 404) closeChat(true);
       return;

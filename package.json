@@ -1,0 +1,10 @@
+{
+  "name": "xrstukweb",
+  "version": "1.0.0",
+  "private": true,
+  "description": "XRST.Uk Cloudflare Worker",
+  "type": "module",
+  "dependencies": {
+    "workers-rcon": "1.0.5"
+  }
+}

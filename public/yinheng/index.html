@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>尹桁的大帅脸</title>
+<meta name="description" content="尹桁的大帅脸" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='19' font-size='19'%3E%F0%9F%98%8E%3C/text%3E%3C/svg%3E">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; padding:32px 18px;
+    background:
+      radial-gradient(700px 420px at 50% -8%, rgba(255,205,90,.22), transparent 70%),
+      radial-gradient(560px 420px at 50% 118%, rgba(255,120,60,.14), transparent 70%),
+      linear-gradient(170deg,#10131c 0%,#0b0e16 60%,#0d0a12 100%);
+    color:#f4e9d4;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    overflow-x:hidden;
+  }
+  .crown { font-size:clamp(40px,9vw,72px); line-height:1; animation:bob 2.4s ease-in-out infinite; filter:drop-shadow(0 6px 18px rgba(255,190,70,.45)); }
+  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-4deg);} 50%{transform:translateY(-10px) rotate(4deg);} }
+  h1 {
+    font-size:clamp(34px,9vw,76px);
+    font-weight:900; letter-spacing:.06em; text-align:center; line-height:1.15;
+    background:linear-gradient(180deg,#ffe9ad 0%,#ffc94e 45%,#e8891f 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 4px 22px rgba(255,170,50,.35));
+    animation:shine 3s ease-in-out infinite;
+  }
+  @keyframes shine { 0%,100%{filter:drop-shadow(0 4px 18px rgba(255,170,50,.3));} 50%{filter:drop-shadow(0 4px 30px rgba(255,200,80,.6));} }
+  .stage {
+    position:relative;
+    padding:10px;
+    border-radius:20px;
+    background:linear-gradient(150deg,rgba(255,210,120,.35),rgba(255,255,255,.06) 40%,rgba(255,210,120,.2));
+    box-shadow:0 24px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(255,215,130,.25) inset;
+    animation:glow 3s ease-in-out infinite;
+  }
+  @keyframes glow { 0%,100%{box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,215,130,.25) inset,0 0 36px rgba(255,180,60,.12);} 50%{box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,215,130,.4) inset,0 0 70px rgba(255,180,60,.28);} }
+  .stage img {
+    display:block;
+    width:min(78vw,380px);
+    height:auto;
+    border-radius:12px;
+    /* 原图本就朦胧，保持质感，不做平滑处理 */
+  }
+  .sub { font-size:14px; color:#b7a98a; letter-spacing:.25em; text-align:center; }
+  .back {
+    margin-top:4px;
+    font-size:13.5px; color:#c9b98f; text-decoration:none;
+    border:1px solid rgba(255,210,130,.35); border-radius:999px;
+    padding:9px 22px; transition:all .2s;
+  }
+  .back:hover { color:#1a1408; background:#ffd166; border-color:#ffd166; transform:translateY(-2px); }
+</style>
+</head>
+<body>
+  <div class="crown">👑</div>
+  <h1>尹桁的大帅脸</h1>
+  <div class="stage">
+    <img src="yhddl.png" alt="尹桁的大帅脸" />
+  </div>
+  <p class="sub">全 站 唯 一 指 定 帅 哥</p>
+  <a class="back" href="/">← 离开瞻仰现场</a>
+</body>
+</html>

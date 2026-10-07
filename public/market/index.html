@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>二手交易 · XRST.Uk</title>
+  <title data-i18n="market.pageTitle">二手交易 · XRST.Uk</title>
   <meta name="description" content="MC 服务器物品自由交易：卖装备、收材料、以物易物，网站金币担保交易，拍下自动开 7 天临时聊天。" />
   <link rel="stylesheet" href="../css/style.css?v=26" />
 </head>
@@ -13,51 +13,51 @@
     <div class="nav-inner">
       <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
       <nav class="nav-links">
-        <a href="/#about">关于</a>
-        <a href="/#works">好玩的</a>
-        <a href="/market/">二手交易</a>
-        <a href="/#rewards">签到</a>
-        <a href="/chat/">聊天室</a>
-        <a href="/#contact">联系</a>
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
       </nav>
       <div class="nav-auth" id="navAuth"></div>
     </div>
   </header>
 
   <main class="mk-main">
-    <p class="wb-eyebrow">集市</p>
-    <h1 class="wb-title">🛍️ 二手交易</h1>
-    <p class="wb-sub">MC 服务器内物品自由交易：卖装备、收材料、以物易物。拍下后自动开一个临时聊天：谈拢就点「完成交易」，金币担保结算；7 天没完成聊天自动销毁、金币退回买家。</p>
+    <p class="wb-eyebrow" data-i18n="market.eyebrow">集市</p>
+    <h1 class="wb-title" data-i18n="market.title">🛍️ 二手交易</h1>
+    <p class="wb-sub" data-i18n="market.sub">MC 服务器内物品自由交易：卖装备、收材料、以物易物。拍下后自动开一个临时聊天：谈拢就点「完成交易」，金币担保结算；7 天没完成聊天自动销毁、金币退回买家。</p>
 
     <div class="mk-toolbar">
-      <button type="button" class="btn btn-solid" id="mkPostBtn">＋ 发布新帖</button>
-      <button type="button" class="btn btn-ghost" id="mcBindBtn">🎮 绑定 MC</button>
+      <button type="button" class="btn btn-solid" id="mkPostBtn" data-i18n="market.postBtn">＋ 发布新帖</button>
+      <button type="button" class="btn btn-ghost" id="mcBindBtn" data-i18n="market.bindMc">🎮 绑定 MC</button>
       <span class="mk-slots" id="mkSlots"></span>
       <div class="mk-filters" id="mkFilters">
-        <button type="button" class="mk-filter is-on" data-type="all">全部</button>
-        <button type="button" class="mk-filter" data-type="sell">出售</button>
-        <button type="button" class="mk-filter" data-type="buy">收购</button>
-        <button type="button" class="mk-filter" data-type="barter">以物易物</button>
+        <button type="button" class="mk-filter is-on" data-type="all" data-i18n="market.filterAll">全部</button>
+        <button type="button" class="mk-filter" data-type="sell" data-i18n="market.filterSell">出售</button>
+        <button type="button" class="mk-filter" data-type="buy" data-i18n="market.filterBuy">收购</button>
+        <button type="button" class="mk-filter" data-type="barter" data-i18n="market.filterBarter">以物易物</button>
       </div>
     </div>
 
     <!-- 进行中的交易：临时聊天常驻入口（拍下后出现）-->
     <section class="mk-chats" id="mkChats" hidden>
-      <h2 class="mk-sec-title">💬 进行中的交易 <span class="mk-sec-sub">临时聊天只保留 200 条，完成或 7 天后永久删除</span></h2>
+      <h2 class="mk-sec-title"><span data-i18n="market.activeTrades">💬 进行中的交易</span> <span class="mk-sec-sub" data-i18n="market.activeTradesSub">临时聊天只保留 200 条，完成或 7 天后永久删除</span></h2>
       <div class="mk-chat-list" id="mkChatList"></div>
     </section>
 
     <!-- 我的帖子 -->
     <section class="mk-mine" id="mkMine" hidden>
-      <h2 class="mk-sec-title">📌 我的帖子</h2>
+      <h2 class="mk-sec-title" data-i18n="market.myPosts">📌 我的帖子</h2>
       <div class="mk-grid" id="mkMineList"></div>
     </section>
 
     <!-- 大厅 -->
     <section class="mk-hall">
-      <h2 class="mk-sec-title" id="mkHallTitle">集市大厅</h2>
+      <h2 class="mk-sec-title" id="mkHallTitle" data-i18n="market.hall">集市大厅</h2>
       <div class="mk-grid" id="mkBoard">
-        <p class="mk-loading">集市加载中…</p>
+        <p class="mk-loading" data-i18n="market.loading">集市加载中…</p>
       </div>
     </section>
   </main>
@@ -65,26 +65,26 @@
   <!-- 发布新帖 -->
   <div class="modal-mask" id="postModal" hidden>
     <div class="modal mk-post-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="postClose" aria-label="关闭">×</button>
-      <h2 class="mk-post-title">发布交易帖</h2>
+      <button class="modal-close" id="postClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <h2 class="mk-post-title" data-i18n="market.postTitle">发布交易帖</h2>
       <form id="postForm" class="modal-form" autocomplete="off">
         <div class="mk-type-switch" id="postType">
-          <button type="button" class="mk-type-btn is-on" data-type="sell">🛒 我要卖</button>
-          <button type="button" class="mk-type-btn" data-type="buy">🔎 我要收</button>
-          <button type="button" class="mk-type-btn" data-type="barter">🔄 以物易物</button>
+          <button type="button" class="mk-type-btn is-on" data-type="sell" data-i18n="market.typeSell">🛒 我要卖</button>
+          <button type="button" class="mk-type-btn" data-type="buy" data-i18n="market.typeBuy">🔎 我要收</button>
+          <button type="button" class="mk-type-btn" data-type="barter" data-i18n="market.typeBarter">🔄 以物易物</button>
         </div>
-        <label id="itemWrap">物品
-          <input type="text" name="item" id="itemInput" maxlength="40" placeholder="比如：钻石剑、末影珍珠、鞘翅……" required />
+        <label id="itemWrap" data-i18n="market.itemLabel">物品
+          <input type="text" name="item" id="itemInput" maxlength="40" data-i18n="market.itemPlaceholder" data-i18n-attr="placeholder" placeholder="比如：钻石剑、末影珍珠、鞘翅……" required />
         </label>
-        <label>备注
-          <textarea name="desc" rows="3" maxlength="300" placeholder="补充说明……（可选，最多 300 字）"></textarea>
+        <label data-i18n="market.descLabel">备注
+          <textarea name="desc" rows="3" maxlength="300" data-i18n="market.descPlaceholder" data-i18n-attr="placeholder" placeholder="补充说明……（可选，最多 300 字）"></textarea>
         </label>
-        <label id="priceWrap">定价（金币，0～999999）
+        <label id="priceWrap" data-i18n="market.priceLabel">定价（金币，0～999999）
           <input type="number" name="price" min="0" max="999999" step="1" value="0" />
-          <span class="mk-price-hint" id="priceHint">0 = 免费送</span>
+          <span class="mk-price-hint" id="priceHint" data-i18n="market.priceHint">0 = 免费送</span>
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">发布</button>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="market.publish">发布</button>
       </form>
     </div>
   </div>
@@ -92,18 +92,18 @@
   <!-- 临时聊天 -->
   <div class="modal-mask" id="chatModal" hidden>
     <div class="modal mk-chat-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="chatClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="chatClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
       <div class="mk-chat-head">
         <div class="mk-chat-head-main">
-          <h2 id="chatTitle">交易聊天</h2>
+          <h2 id="chatTitle" data-i18n="market.chatTitle">交易聊天</h2>
           <p id="chatMeta"></p>
         </div>
-        <button type="button" class="btn btn-small btn-complete" id="chatComplete">✅ 完成交易</button>
+        <button type="button" class="btn btn-small btn-complete" id="chatComplete" data-i18n="market.complete">✅ 完成交易</button>
       </div>
       <div class="mk-chat-msgs" id="chatMsgs"></div>
       <form class="mk-chat-input" id="chatForm">
-        <input type="text" id="chatText" maxlength="500" placeholder="和对方商量交易细节……" autocomplete="off" />
-        <button type="submit" class="btn btn-solid">发送</button>
+        <input type="text" id="chatText" maxlength="500" data-i18n="market.chatPlaceholder" data-i18n-attr="placeholder" placeholder="和对方商量交易细节……" autocomplete="off" />
+        <button type="submit" class="btn btn-solid" data-i18n="market.send">发送</button>
       </form>
     </div>
   </div>
@@ -111,15 +111,15 @@
   <!-- MC 绑定码 -->
   <div class="modal-mask" id="bindModal" hidden>
     <div class="modal mk-post-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="bindClose" aria-label="关闭">×</button>
-      <h2 class="mk-post-title">绑定 MC 账号</h2>
+      <button class="modal-close" id="bindClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <h2 class="mk-post-title" data-i18n="market.bindTitle">绑定 MC 账号</h2>
       <div class="mk-bind-body" id="bindBody">
-        <p class="mk-bind-tip">点下面按钮生成一个 6 位绑定码（10 分钟内有效），然后在游戏里输入：</p>
-        <p class="mk-bind-cmd">/buybind <b>绑定码</b></p>
-        <button type="button" class="btn btn-solid btn-block" id="bindGenBtn">生成绑定码</button>
+        <p class="mk-bind-tip" data-i18n="market.bindTip1">点下面按钮生成一个 6 位绑定码（10 分钟内有效），然后在游戏里输入：</p>
+        <p class="mk-bind-cmd" data-i18n="market.bindCmd">/buybind <b>绑定码</b></p>
+        <button type="button" class="btn btn-solid btn-block" id="bindGenBtn" data-i18n="market.bindGen">生成绑定码</button>
         <div class="mk-bind-code" id="bindCodeBox" hidden>
           <span class="mk-bind-num" id="bindCode"></span>
-          <p class="mk-bind-tip">快去游戏里输入吧，过期就重新生成一个～</p>
+          <p class="mk-bind-tip" data-i18n="market.bindTip2">快去游戏里输入吧，过期就重新生成一个～</p>
         </div>
         <p class="form-msg" data-msg></p>
       </div>
@@ -129,44 +129,45 @@
   <!-- 登录 / 注册弹窗 -->
   <div class="modal-mask" id="authModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="authClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
       <div class="modal-tabs">
-        <button class="tab active" data-tab="login">登录</button>
-        <button class="tab" data-tab="register">注册</button>
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
       </div>
 
       <form id="loginForm" class="modal-form" autocomplete="on">
-        <label>用户名 / XRSTUID
-            <input type="text" name="username" required minlength="2" maxlength="20" placeholder="用户名或 XRSTUID" />
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+            <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">登录</button>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
       </form>
 
       <form id="registerForm" class="modal-form" hidden autocomplete="off">
-        <label>用户名
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
-        <label>确认密码
-          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
-        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
       </form>
     </div>
   </div>
 
   <div class="toast-box" id="toastBox"></div>
 
+  <script src="/js/i18n.js?v=6"></script>
   <script src="../js/auth.js?v=5"></script>
-  <script src="../js/main.js?v=12"></script>
+  <script src="../js/main.js?v=18"></script>
   <script src="../js/market.js?v=6"></script>
 </body>
 </html>

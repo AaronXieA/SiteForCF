@@ -16,25 +16,25 @@ function escapeHtml(s) {
 
 function renderResults(results) {
   if (!results.length) {
-    usList.innerHTML = '<li class="us-empty">没找到这个用户——可能不存在，也可能对方关闭了「允许被搜索」。</li>';
+    usList.innerHTML = `<li class="us-empty">${I18n.t("search.notFoundDetail")}</li>`;
     return;
   }
   usList.innerHTML = results.map(r => `
     <li class="us-item">
       <a class="us-link" href="/profile/?u=${encodeURIComponent(r.username)}">
-        <span class="us-avatar-slot">${window.XRST_AVATARS.withFrame(r.avatar ?? 0, /^f[1-5]$/.test(r.frame || "") ? r.frame : null, "xrst-avatar-44")}</span>
+        <span class="us-avatar-slot">${window.XRST_AVATARS.withFrame(r.avatar ?? 0, /^(?:f[1-8]|fv1)$/.test(r.frame || "") ? r.frame : null, "xrst-avatar-44")}</span>
         <span class="us-info">
-          <span class="us-name">${escapeHtml(r.username)}</span>
-          <span class="us-uid">XRSTUID：${r.uid ? escapeHtml(r.uid) : "—"}</span>
+          <span class="us-name">${escapeHtml(r.username)}${r.vip ? '<span class="vip-badge us-vip" title="VIP 会员">👑</span>' : ""}</span>
+          <span class="us-uid">${I18n.t("search.uidLabel")}${r.uid ? escapeHtml(r.uid) : "—"}</span>
         </span>
-        <span class="us-go">查看主页 →</span>
+        <span class="us-go">${I18n.t("search.viewProfile")}</span>
       </a>
     </li>
   `).join("");
 }
 
 async function doSearch(q) {
-  usList.innerHTML = '<li class="us-empty">搜索中…</li>';
+  usList.innerHTML = `<li class="us-empty">${I18n.t("search.loading")}</li>`;
   try {
     const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&t=${Date.now()}`, {
       credentials: "same-origin",
@@ -43,7 +43,7 @@ async function doSearch(q) {
     const data = await res.json().catch(() => ({ results: [] }));
     renderResults(data.results || []);
   } catch {
-    usList.innerHTML = '<li class="us-empty">搜索失败，请检查网络。</li>';
+    usList.innerHTML = `<li class="us-empty">${I18n.t("search.failed")}</li>`;
   }
 }
 
@@ -51,7 +51,7 @@ usForm.addEventListener("submit", e => {
   e.preventDefault();
   const q = usInput.value.trim();
   if (!q) {
-    showToast("先输入用户名或 XRSTUID");
+    showToast(I18n.t("search.noInputFull"));
     return;
   }
   doSearch(q);

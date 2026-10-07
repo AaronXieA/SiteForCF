@@ -1,0 +1,11 @@
+# 复制为 .dev.vars 并填写（.dev.vars 已被 .gitignore 忽略，不会提交）
+# 本地 wrangler dev 使用；线上还需要用 wrangler secret put 设置同名变量
+
+# Minecraft 服务器 RCON（server.properties 里 enable-rcon=true）
+RCON_HOST=mc.example.com
+RCON_PORT=25575
+RCON_PASSWORD=改成强密码
+
+# 游戏内 Fabric mod 上报聊天时用的共享密钥，需与服务器 config/xrst-bridge.properties 的 secret 一致
+# 建议用随机长字符串，例如 openssl rand -hex 24
+MC_INGEST_SECRET=改成随机长字符串

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="vote.pageTitle">站队投票 · XRST.Uk</title>
+  <meta name="description" content="一些吵了很多年还没有结论的问题——一个账号、一个 IP 只能投一票，想换边得先取消。" />
+  <link rel="stylesheet" href="../css/style.css?v=24" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="vt-main">
+    <p class="wb-eyebrow" data-i18n="vote.eyebrow">社区</p>
+    <h1 class="wb-title" data-i18n="vote.title">⚔️ 站队投票</h1>
+    <p class="wb-sub" data-i18n="vote.sub">一些吵了很多年还没有结论的问题。一个账号、一个 IP 只有一票；想换边？先取消当前投票，再选另一边。</p>
+
+    <div class="vt-list" id="vtList">
+      <p class="vt-loading" data-i18n="common.loading">投票加载中…</p>
+    </div>
+    <p class="vt-foot" id="vtFoot" hidden></p>
+  </main>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
+      </div>
+
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+            <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
+      </form>
+
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="/js/i18n.js?v=6"></script>
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/main.js?v=18"></script>
+  <script src="../js/vote.js?v=1"></script>
+</body>
+</html>

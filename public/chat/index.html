@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>在线聊天室 · XRST.Uk</title>
-  <meta name="description" content="XRST.Uk 公共聊天室——注册后即可发言，保留最近 150 条消息。" />
-  <link rel="stylesheet" href="../css/style.css?v=8" />
+  <title data-i18n="chat.pageTitle">聊天室 · 网页 × Minecraft 互通 · XRST.Uk</title>
+  <meta name="description" content="XRST.Uk 聊天室——网页与 Minecraft 服务器双向互通，注册后即可发言，保留最近 100 条消息。" />
+  <link rel="stylesheet" href="../css/style.css?v=24" />
 </head>
 <body>
 
@@ -13,28 +13,31 @@
     <div class="nav-inner">
       <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
       <nav class="nav-links">
-        <a href="/#about">关于</a>
-        <a href="/#works">好玩的</a>
-        <a href="/#rewards">签到</a>
-        <a href="/#contact">联系</a>
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
       </nav>
       <div class="nav-auth" id="navAuth"></div>
     </div>
   </header>
 
   <main class="chat-main">
-    <p class="wb-eyebrow">一些小东西 · 公共聊天室</p>
-    <h1 class="wb-title">在线聊天室</h1>
-    <p class="wb-sub">大家都在这里闲聊——注册后即可发言，只保留最近 150 条消息。</p>
+    <p class="wb-eyebrow" data-i18n="chat.eyebrow">一些小东西 · 网页 × Minecraft 互通</p>
+    <h1 class="wb-title" data-i18n="chat.title">聊天室</h1>
+    <p class="wb-sub" data-i18n="chat.subtitle">这里和 Minecraft 服务器双向互通——网页发的消息游戏里能看到，游戏里的聊天也会实时出现在这里。注册后即可发言，只保留最近 100 条。</p>
 
     <section class="chat-box">
       <div class="chat-head">
-        <span class="chat-online">💬 公共频道</span>
-        <span class="chat-count" id="chatCount">0 条消息</span>
+        <span class="chat-online" data-i18n="chat.publicChannel">💬 公共频道</span>
+        <span class="chat-mc-online" id="chatMcOnline" data-i18n="chat.mcOnlineTitle" data-i18n-attr="title" title="Minecraft 服务器当前在线人数">🎮 游戏在线 …</span>
+        <span class="chat-count" id="chatCount" data-i18n="chat.msgCount" data-i18n-args='{"n":0}'>0 条消息</span>
       </div>
 
       <div class="chat-list" id="chatList">
-        <p class="chat-tip">正在加载消息…</p>
+        <p class="chat-tip" data-i18n="common.loading">正在加载消息…</p>
       </div>
 
       <!-- 登录后可见 -->
@@ -45,67 +48,142 @@
           maxlength="500"
           rows="3"
           placeholder="说点什么吧……（Enter 发送，Shift + Enter 换行，最多 500 字）"
+          data-i18n-attr="placeholder"
+          data-i18n="chat.placeholder"
         ></textarea>
         <div class="chat-composer-bar">
           <span class="pf-counter"><b id="chatCharCount">0</b> / 500</span>
-          <button class="btn btn-solid btn-small" id="chatSendBtn" type="button">发送</button>
+          <button class="btn btn-solid btn-small" id="chatSendBtn" type="button" data-i18n="chat.send">发送</button>
         </div>
       </div>
 
       <!-- 未登录提示 -->
       <div class="chat-guest" id="chatGuest">
-        <span>登录后即可加入聊天</span>
-        <button class="btn btn-solid btn-small" id="chatLoginBtn" type="button">去登录</button>
+        <span data-i18n="chat.loginToChat">登录后即可加入聊天</span>
+        <button class="btn btn-solid btn-small" id="chatLoginBtn" type="button" data-i18n="chat.goLogin">去登录</button>
       </div>
     </section>
 
+    <!-- MC 死亡榜 -->
+    <section class="deathboard" id="deathBoard" data-i18n="deathboard.title" data-i18n-attr="aria-label" aria-label="MC 死亡榜">
+      <div class="deathboard-head">
+        <h2 class="deathboard-title" data-i18n="deathboard.title">💀 MC 死亡榜</h2>
+        <span class="deathboard-sub" id="deathBoardSub" data-i18n="deathboard.subtitle">谁是服里最会送的人</span>
+      </div>
+      <ol class="deathboard-list" id="deathBoardList">
+        <li class="deathboard-empty" data-i18n="deathboard.empty">还没有人死过，真和平啊</li>
+      </ol>
+    </section>
+
+    <!-- 实现原理 -->
+    <details class="chat-howto">
+      <summary data-i18n="chat.howto.title">🔧 实现原理</summary>
+
+      <div class="howto-body">
+        <!-- 架构图 -->
+        <div class="flow-diagram">
+          <div class="flow-node">
+            <span class="flow-emoji">🌐</span>
+            <span class="flow-name" data-i18n="chat.howto.nodeWeb">网页浏览器</span>
+            <span class="flow-desc" data-i18n="chat.howto.web">WebSocket 长连接<br />断线自动重连补消息</span>
+          </div>
+          <div class="flow-link">
+            <span class="flow-arrow">⇄</span>
+            <span class="flow-label" data-i18n="chat.howto.labelMsg">实时消息</span>
+          </div>
+          <div class="flow-node flow-node-cloud">
+            <span class="flow-emoji">☁️</span>
+            <span class="flow-name" data-i18n="chat.howto.nodeCloud">Cloudflare</span>
+            <span class="flow-desc" data-i18n="chat.howto.cloud">Worker 收发<br />Durable Object + SQLite<br />只留最近 100 条</span>
+          </div>
+          <div class="flow-link">
+            <span class="flow-arrow">⇄</span>
+            <span class="flow-label" data-i18n="chat.howto.labelHttp">HTTP + 共享密钥</span>
+          </div>
+          <div class="flow-node">
+            <span class="flow-emoji">🎮</span>
+            <span class="flow-name" data-i18n="chat.howto.nodeMc">MC 服务器</span>
+            <span class="flow-desc" data-i18n="chat.howto.mc">Fabric 模组常驻<br />不影响游戏本身</span>
+          </div>
+        </div>
+
+        <!-- 双向链路 -->
+        <div class="flow-paths">
+          <div class="flow-path">
+            <h4 data-i18n="chat.howto.gameToWeb">🎮 → 🌐 游戏聊天上云</h4>
+            <p data-i18n="chat.howto.gameToWebDesc">模组监听到游戏内聊天、玩家死亡、加入和退出后，用异步 <code>POST /api/mc/ingest</code> 上报（<code>X-MC-Secret</code> 共享密钥鉴权），Worker 写入 DO，再通过 WebSocket 即时广播给所有网页；死亡次数同时累加进死亡榜。</p>
+          </div>
+          <div class="flow-path">
+            <h4 data-i18n="chat.howto.webToGame">🌐 → 🎮 网页消息进游戏</h4>
+            <p data-i18n="chat.howto.webToGameDesc">面板服没有公网 RCON 端口，所以由模组定时轮询 <code>GET /api/mc/poll?after=时间戳</code> 拉走网页新消息，在游戏里用 <code>tellraw</code> 显示成 <span class="tag-mc">[网页]</span> 消息。</p>
+          </div>
+        </div>
+
+        <!-- 技术要点 -->
+        <ul class="howto-points">
+          <li data-i18n="chat.howto.p1">网页端发言需要登录，游客只能看；消息长度前后端都做校验</li>
+          <li data-i18n="chat.howto.p2">模组所有请求都是异步的，不阻塞游戏主线程；Worker 挂了游戏内聊天照常进行</li>
+          <li data-i18n="chat.howto.p3">上报的游戏用户名按正版规则校验（3–16 位字母数字下划线）</li>
+          <li data-i18n="chat.howto.p4">网页标签切到后台时不发心跳、不轮询，省流量省电</li>
+        </ul>
+
+        <p class="howto-repo">
+          <span data-i18n="chat.howto.repo">🔗 游戏端 Fabric 模组开源在</span>
+          <a href="https://github.com/AaronXieA/XRWebMC_Bridge" target="_blank" rel="noopener noreferrer">
+            github.com/AaronXieA/XRWebMC_Bridge
+          </a>
+        </p>
+      </div>
+    </details>
+
     <div class="dc-foot wb-backfoot">
-      <a class="dc-back" href="/#works">← 回到好玩的</a>
+      <a class="dc-back" href="/#works" data-i18n="dc.back">← 回到好玩的</a>
     </div>
   </main>
 
   <!-- 登录 / 注册弹窗 -->
   <div class="modal-mask" id="authModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="authClose" data-i18n="common.close" data-i18n-attr="aria-label" aria-label="关闭">×</button>
       <div class="modal-tabs">
-        <button class="tab active" data-tab="login">登录</button>
-        <button class="tab" data-tab="register">注册</button>
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
       </div>
 
       <form id="loginForm" class="modal-form" autocomplete="on">
-        <label>用户名 / XRSTUID
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="用户名或 XRSTUID" />
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">登录</button>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
       </form>
 
       <form id="registerForm" class="modal-form" hidden autocomplete="off">
-        <label>用户名
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
-        <label>确认密码
-          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
-        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
       </form>
     </div>
   </div>
 
   <div class="toast-box" id="toastBox"></div>
 
+  <script src="/js/i18n.js?v=6"></script>
   <script src="../js/auth.js?v=5"></script>
   <script src="../js/avatars.js?v=2"></script>
-  <script src="../js/main.js?v=8"></script>
-  <script src="../js/chat.js?v=4"></script>
+  <script src="../js/main.js?v=18"></script>
+  <script src="../js/chat.js?v=10"></script>
 </body>
 </html>

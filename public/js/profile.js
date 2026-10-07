@@ -76,7 +76,7 @@ function renderAvatarGrid(selected) {
   currentAvatar = window.XRST_AVATARS.normalize(selected);
   avatarGrid.innerHTML = window.XRST_AVATARS.LIST.map((a, i) =>
     `<button type="button" class="pf-avatar-option${i === currentAvatar ? " selected" : ""}" data-avatar="${i}"
-             aria-label="头像 ${i + 1}">${window.XRST_AVATARS.html(i)}</button>`
+             aria-label="${I18n.t("profile.avatarN", { n: i + 1 })}">${window.XRST_AVATARS.html(i)}</button>`
   ).join("");
 }
 
@@ -98,15 +98,15 @@ avatarGrid?.addEventListener("click", async e => {
       renderAvatarGrid(id);
       setAvatar(ownAvatar, id, "xrst-avatar-84", currentFrame);
       setAvatar(avatarEl, id, "xrst-avatar-44", currentFrame);
-      showToast("头像已更新");
+      showToast(I18n.t("profile.avatarUpdated"));
     } else if (res.status === 401) {
-      showToast("请先登录");
+      showToast(I18n.t("auth.pleaseLogin"));
       if (typeof openAuthModal === "function") openAuthModal();
     } else {
-      showToast(data.error || "头像设置失败");
+      showToast(data.error || I18n.t("profile.avatarSetFail"));
     }
   } catch {
-    showToast("网络异常，头像设置失败");
+    showToast(I18n.t("profile.avatarNetworkFail"));
   }
 });
 
@@ -141,10 +141,19 @@ async function loadProfile() {
   const isOwn = !!me && me.toLowerCase() === data.username.toLowerCase();
   currentUsername = data.username;
 
-  currentFrame = /^f[1-5]$/.test(data.frame || "") ? data.frame : null;
+  currentFrame = /^(?:f[1-8]|fv1)$/.test(data.frame || "") ? data.frame : null;
   setAvatar(avatarEl, data.avatar ?? 0, "xrst-avatar-44", currentFrame);
   nameEl.textContent = data.username;
-  roleEl.textContent = (isOwn ? "我的个人主页" : `${data.username} 的主页`) + (data.uid ? ` · XRSTUID：${data.uid}` : "");
+  let oldCrown = nameEl.parentElement?.querySelector(".pf-vip-crown");
+  if (oldCrown) oldCrown.remove();
+  if (data.vip) {
+    const crown = document.createElement("span");
+    crown.className = "vip-badge pf-vip-crown";
+    crown.title = I18n.t("profile.vipBadge");
+    crown.textContent = "👑";
+    nameEl.insertAdjacentElement("afterend", crown);
+  }
+  roleEl.textContent = (isOwn ? I18n.t("profile.myHome") : I18n.t("profile.userHome", { name: data.username })) + (data.uid ? I18n.t("profile.uidLabel") + data.uid : "") + (data.vip ? " · 👑 VIP" : "");
   show("profile");
 
   if (isOwn) {
@@ -156,7 +165,7 @@ async function loadProfile() {
     renderAvatarGrid(data.avatar ?? 0);
 
     /* XRSTUID */
-    pfUid.textContent = data.uid || "生成中…";
+    pfUid.textContent = data.uid || I18n.t("profile.generating");
 
     /* 允许被搜索 */
     searchableToggle.checked = data.searchable !== false;
@@ -164,7 +173,7 @@ async function loadProfile() {
     /* 简介 */
     bioInput.value = data.text || "";
     bioCount.textContent = [...bioInput.value].length;
-    bioSaved.textContent = data.updatedAt ? `上次保存于 ${fmtTime(data.updatedAt)}` : "还没有保存过";
+    bioSaved.textContent = data.updatedAt ? I18n.t("profile.lastSaved", { t: fmtTime(data.updatedAt) }) : I18n.t("profile.neverSaved");
     updateShareLink(data.username);
   } else {
     ownPanel.hidden = true;
@@ -194,7 +203,7 @@ copyUidBtn?.addEventListener("click", async () => {
     try { document.execCommand("copy"); } catch {}
     ta.remove();
   }
-  showToast("XRSTUID 已复制");
+  showToast(I18n.t("profile.uidCopied"));
 });
 
 /* ---------------- 允许被搜索开关 ---------------- */
@@ -211,26 +220,24 @@ searchableToggle?.addEventListener("change", async () => {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
-      showToast(enabled ? "已开启：别人可以搜到你了" : "已关闭：你不会再出现在搜索结果里");
+      showToast(enabled ? I18n.t("profile.searchOn") : I18n.t("profile.searchOff"));
     } else {
       searchableToggle.checked = !enabled;
-      showToast(data.error || "设置失败");
+      showToast(data.error || I18n.t("profile.setFail"));
     }
   } catch {
     searchableToggle.checked = !enabled;
-    showToast("网络异常，设置失败");
+    showToast(I18n.t("profile.setNetworkFail"));
   }
 });
 
 /* ---------------- 通用弹窗开关 ---------------- */
 
 function openModal(modal) {
-  modal.hidden = false;
-  document.body.style.overflow = "hidden";
+  XRST.openMask(modal);
 }
 function closeModal(modal) {
-  modal.hidden = true;
-  document.body.style.overflow = "";
+  XRST.closeMask(modal);
 }
 function bindModal(modal, closeBtn) {
   closeBtn?.addEventListener("click", () => closeModal(modal));
@@ -258,16 +265,16 @@ renameForm?.addEventListener("submit", async e => {
   e.preventDefault();
   const newName = renameInput.value.trim();
   if (!newName) {
-    renameMsg.textContent = "先输入新用户名";
+    renameMsg.textContent = I18n.t("profile.renameEmpty");
     return;
   }
   if (newName === currentUsername) {
-    renameMsg.textContent = "新用户名和当前一样";
+    renameMsg.textContent = I18n.t("profile.renameSame");
     return;
   }
   renameMsg.textContent = "";
   renameBtn.disabled = true;
-  renameBtn.textContent = "修改中…";
+  renameBtn.textContent = I18n.t("profile.renaming");
   try {
     const res = await fetch("/api/rename?t=" + Date.now(), {
       method: "POST",
@@ -278,7 +285,7 @@ renameForm?.addEventListener("submit", async e => {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
-      showToast(`用户名已改为「${data.username}」`);
+      showToast(I18n.t("profile.renamed", { name: data.username }));
       closeModal(renameModal);
       currentUsername = data.username;
       // 刷新导航与本页显示
@@ -287,13 +294,13 @@ renameForm?.addEventListener("submit", async e => {
       updateShareLink(data.username);
       history.replaceState(null, "", `/profile/?u=${encodeURIComponent(data.username)}`);
     } else {
-      renameMsg.textContent = data.error || "修改失败";
+      renameMsg.textContent = data.error || I18n.t("profile.renameFail");
     }
   } catch {
-    renameMsg.textContent = "网络异常，修改失败";
+    renameMsg.textContent = I18n.t("profile.renameNetworkFail");
   } finally {
     renameBtn.disabled = false;
-    renameBtn.textContent = "确认修改";
+    renameBtn.textContent = I18n.t("profile.renameConfirm");
   }
 });
 
@@ -311,16 +318,16 @@ pwForm?.addEventListener("submit", async e => {
   const oldP = oldPw.value;
   const newP = newPw.value;
   if (newP.length < 6) {
-    pwMsg.textContent = "新密码至少 6 位";
+    pwMsg.textContent = I18n.t("profile.pwTooShort");
     return;
   }
   if (newP !== newPw2.value) {
-    pwMsg.textContent = "两次输入的新密码不一致";
+    pwMsg.textContent = I18n.t("profile.pwMismatch");
     return;
   }
   pwMsg.textContent = "";
   pwSaveBtn.disabled = true;
-  pwSaveBtn.textContent = "提交中…";
+  pwSaveBtn.textContent = I18n.t("profile.pwSubmitting");
   try {
     const res = await fetch("/api/password?t=" + Date.now(), {
       method: "POST",
@@ -331,17 +338,17 @@ pwForm?.addEventListener("submit", async e => {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
-      showToast("密码已更新");
+      showToast(I18n.t("profile.pwUpdated"));
       closeModal(pwModal);
       pwForm.reset();
     } else {
-      pwMsg.textContent = data.error || "修改失败";
+      pwMsg.textContent = data.error || I18n.t("profile.pwFail");
     }
   } catch {
-    pwMsg.textContent = "网络异常，修改失败";
+    pwMsg.textContent = I18n.t("profile.pwNetworkFail");
   } finally {
     pwSaveBtn.disabled = false;
-    pwSaveBtn.textContent = "确认修改密码";
+    pwSaveBtn.textContent = I18n.t("profile.pwConfirm");
   }
 });
 
@@ -354,11 +361,11 @@ bioInput?.addEventListener("input", () => {
 bioSaveBtn?.addEventListener("click", async () => {
   const text = bioInput.value;
   if ([...text].length > 1000) {
-    showToast("简介不能超过 1000 字");
+    showToast(I18n.t("profile.introLimit"));
     return;
   }
   bioSaveBtn.disabled = true;
-  bioSaveBtn.textContent = "保存中…";
+  bioSaveBtn.textContent = I18n.t("profile.bioSaving");
   try {
     const res = await fetch("/api/profile", {
       method: "PUT",
@@ -369,16 +376,16 @@ bioSaveBtn?.addEventListener("click", async () => {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
-      bioSaved.textContent = `已保存 · ${fmtTime(data.updatedAt)}`;
-      showToast("简介已保存到云端");
+      bioSaved.textContent = I18n.t("profile.bioSavedAt", { t: fmtTime(data.updatedAt) });
+      showToast(I18n.t("profile.bioSaved"));
     } else {
-      showToast(data.error || "保存失败");
+      showToast(data.error || I18n.t("profile.bioSaveFail"));
     }
   } catch {
-    showToast("网络异常，保存失败");
+    showToast(I18n.t("profile.bioNetworkFail"));
   } finally {
     bioSaveBtn.disabled = false;
-    bioSaveBtn.textContent = "保存简介";
+    bioSaveBtn.textContent = I18n.t("profile.saveBio");
   }
 });
 
@@ -397,7 +404,71 @@ document.getElementById("copyShareBtn")?.addEventListener("click", async () => {
     try { document.execCommand("copy"); } catch {}
     ta.remove();
   }
-  showToast("公开主页链接已复制");
+  showToast(I18n.t("profile.linkCopied"));
+});
+
+/* ---------------- 金币账单 ---------------- */
+const billOpenBtn = document.getElementById("billOpenBtn");
+const billModal = document.getElementById("billModal");
+const billClose = document.getElementById("billClose");
+const billList = document.getElementById("billList");
+const billBalance = document.getElementById("billBalance");
+const billRefresh = document.getElementById("billRefresh");
+
+const BILL_ICONS = {
+  checkin: "🌞", lottery: "🎟️", lottery_prize: "🎉", vip: "👑", shop: "🛍️",
+  market_take: "🤝", market_sold: "💰", market_refund: "↩️",
+  split_ante: "🎮", split_refund: "↩️", split_settle: "🎲",
+  ascend: "🪐", playtime: "🎮", game_bonus: "🎉", admin: "🛠️",
+};
+
+async function loadBill() {
+  billList.innerHTML = '<div class="bill-empty">' + I18n.t("profile.billLoading") + "</div>";
+  try {
+    const [meRes, logRes] = await Promise.all([
+      fetch("/api/me", { credentials: "same-origin", cache: "no-store" }),
+      fetch("/api/me/coinlog?t=" + Date.now(), { credentials: "same-origin", cache: "no-store" }),
+    ]);
+    if (meRes.ok) {
+      const me = await meRes.json();
+      billBalance.textContent = (me.coins || 0).toLocaleString("zh-CN");
+    }
+    const d = await logRes.json().catch(() => ({}));
+    if (!logRes.ok || !d.ok) {
+      billList.innerHTML = '<div class="bill-empty">' + escapeHtml(d.error || I18n.t("profile.billLoadFail")) + "</div>";
+      return;
+    }
+    if (!d.log.length) {
+      billList.innerHTML = '<div class="bill-empty">' + I18n.t("profile.billEmpty") + "</div>";
+      return;
+    }
+    billList.innerHTML = d.log.map(e => {
+      const ico = BILL_ICONS[e.type] || "🪙";
+      const typeName = I18n.t("profile.billType." + (e.type in BILL_ICONS ? e.type : "fallback"));
+      const positive = e.delta > 0;
+      const deltaText = (positive ? "+" : "−") + Math.abs(e.delta || 0).toLocaleString("zh-CN");
+      return `<div class="bill-item">
+        <span class="bill-ico">${ico}</span>
+        <div class="bill-main">
+          <div class="bill-memo">${escapeHtml(e.memo || typeName)}</div>
+          <div class="bill-time">${fmtTime(e.ts)}</div>
+        </div>
+        <div>
+          <div class="bill-delta ${positive ? "in" : "out"}">${deltaText}</div>
+          <div class="bill-bal">${I18n.t("profile.billRemaining", { n: (e.balance || 0).toLocaleString("zh-CN") })}</div>
+        </div>
+      </div>`;
+    }).join("");
+  } catch {
+    billList.innerHTML = '<div class="bill-empty">' + I18n.t("profile.billNetworkFail") + "</div>";
+  }
+}
+
+billOpenBtn?.addEventListener("click", () => { openModal(billModal); loadBill(); });
+billRefresh?.addEventListener("click", loadBill);
+bindModal(billModal, billClose);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && billModal && !billModal.hidden) closeModal(billModal);
 });
 
 loadProfile();

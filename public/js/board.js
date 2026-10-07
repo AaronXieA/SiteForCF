@@ -33,9 +33,9 @@ function renderBoard(text, editor, updatedAt) {
   currentText = text || "";
   if (currentText.trim()) {
     boardBody.innerHTML = `<div class="announce-text">${escapeHtml(currentText).replace(/\n/g, "<br>")}</div>`;
-    boardTime.textContent = `${editor ? `最后由 ${editor} 编辑` : ""}${updatedAt ? ` · ${fmtTime(updatedAt)}` : ""}`;
+    boardTime.textContent = `${editor ? I18n.t("board.lastEditedBy", { u: editor }) : ""}${updatedAt ? ` · ${fmtTime(updatedAt)}` : ""}`;
   } else {
-    boardBody.innerHTML = '<p class="announce-empty">画板空空如也，来写下第一笔吧。</p>';
+    boardBody.innerHTML = `<p class="announce-empty">${I18n.t("board.empty")}</p>`;
     boardTime.textContent = "";
   }
 }
@@ -49,7 +49,7 @@ async function loadBoard() {
     const data = await res.json();
     renderBoard(data.text, data.editor, data.updatedAt);
   } catch {
-    boardBody.innerHTML = '<p class="announce-empty">画板加载失败，刷新试试。</p>';
+    boardBody.innerHTML = `<p class="announce-empty">${I18n.t("board.loadFail")}</p>`;
   }
 }
 
@@ -79,12 +79,12 @@ boardInput?.addEventListener("input", () => {
 boardSaveBtn?.addEventListener("click", async () => {
   const text = boardInput.value;
   if ([...text].length > MAX_CHARS) {
-    showToast(`画板内容不能超过 ${MAX_CHARS} 字`);
+    showToast(I18n.t("board.maxChars", { n: MAX_CHARS }));
     return;
   }
 
   boardSaveBtn.disabled = true;
-  boardSaveBtn.textContent = "保存中…";
+  boardSaveBtn.textContent = I18n.t("board.saving");
 
   try {
     // 用 POST + 时间戳防 CDN 缓存
@@ -102,16 +102,16 @@ boardSaveBtn?.addEventListener("click", async () => {
       boardEditor.hidden = true;
       boardBody.hidden = false;
       boardEditBtn.hidden = false;
-      showToast("画板已更新 🎨");
+      showToast(I18n.t("board.updated"));
     } else {
-      showToast(data.error || `保存失败 (${res.status})`);
+      showToast(data.error || I18n.t("board.saveFailedStatus", { status: res.status }));
       if (res.status === 401 && typeof openAuthModal === "function") openAuthModal();
     }
   } catch {
-    showToast("网络异常，保存失败");
+    showToast(I18n.t("board.networkError"));
   } finally {
     boardSaveBtn.disabled = false;
-    boardSaveBtn.textContent = "保存画板";
+    boardSaveBtn.textContent = I18n.t("board.saveBoardBtn");
   }
 });
 

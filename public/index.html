@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>XRST.Uk · 个人主页</title>
+  <title data-i18n="home.title">XRST.Uk · 个人主页</title>
   <meta name="description" content="XRST.Uk 的个人主页 —— 关于我、一些小东西与我的 Minecraft 服务器。" />
-  <link rel="stylesheet" href="css/style.css?v=29" />
+  <link rel="stylesheet" href="css/style.css?v=30" />
 </head>
 <body>
 
@@ -14,12 +14,12 @@
     <div class="nav-inner">
       <a class="logo" href="#top">XRST<span class="logo-dot">.Uk</span></a>
       <nav class="nav-links">
-        <a href="#about">关于</a>
-        <a href="#works">好玩的</a>
-        <a href="/market/">二手交易</a>
-        <a href="#rewards">签到</a>
-        <a href="/chat/">聊天室</a>
-        <a href="#contact">联系</a>
+        <a href="#about" data-i18n="nav.about">关于</a>
+        <a href="#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="#contact" data-i18n="nav.contact">联系</a>
       </nav>
       <div class="nav-auth" id="navAuth">
         <!-- 登录状态由 main.js 渲染 -->
@@ -30,8 +30,9 @@
   <!-- Hero -->
   <section class="hero" id="top">
     <div class="hero-inner">
-      <p class="hero-eyebrow">你好，欢迎来到</p>
+      <p class="hero-eyebrow" data-i18n="home.heroGreeting">你好，欢迎来到</p>
       <h1 class="hero-title">XRST<span class="accent">.Uk</span></h1>
+  <script src="/js/i18n.js?v=6"></script>
       <script>
         /* 愚人节彩蛋：4 月 1 日（按访客本地时区）改名一天 */
         (function () {
@@ -39,21 +40,18 @@
           if (d.getMonth() === 3 && d.getDate() === 1) {
             var eb = document.querySelector(".hero-eyebrow");
             var t = document.querySelector(".hero-title");
-            if (eb) eb.textContent = "愚人节快乐！";
-            if (t) t.innerHTML = 'X染色体<span class="accent">.Uk</span>';
+            if (eb) eb.textContent = I18n.t("home.foolsEyebrow");
+            if (t) t.innerHTML = I18n.t("home.foolsTitleHtml");
           }
         })();
       </script>
-      <p class="hero-sub">
-        玩技术、开服务器、折腾一切有趣的东西。<br />
-        这里是我的角落。
-      </p>
+      <p class="hero-sub" data-i18n="home.heroSub">玩技术、开服务器、折腾一切有趣的东西。<br />这里是我的角落。</p>
       <div class="hero-actions">
-        <a class="btn btn-solid" href="#works">看看好玩的</a>
-        <a class="btn btn-ghost" href="#contact">联系我</a>
+        <a class="btn btn-solid" href="#works" data-i18n="home.seeWorks">看看好玩的</a>
+        <a class="btn btn-ghost" href="#contact" data-i18n="home.contactMe">联系我</a>
       </div>
     </div>
-    <div class="hero-hint">向下滚动 ↓</div>
+    <div class="hero-hint" data-i18n="home.scrollHint">向下滚动 ↓</div>
   </section>
 
   <!-- 公告栏 -->
@@ -62,12 +60,12 @@
       <div class="announce-board">
         <div class="announce-head">
           <span class="announce-icon">📢</span>
-          <h2 class="announce-title">公告栏</h2>
+          <h2 class="announce-title" data-i18n="home.announce">公告栏</h2>
           <span class="announce-time" id="announceTime"></span>
-          <button class="btn btn-ghost btn-small announce-edit-btn" id="announceEditBtn" type="button" hidden>编辑公告</button>
+          <button class="btn btn-ghost btn-small announce-edit-btn" id="announceEditBtn" type="button" hidden data-i18n="announce.edit">编辑公告</button>
         </div>
         <div class="announce-body" id="announceBody">
-          <p class="announce-loading">加载中…</p>
+          <p class="announce-loading" data-i18n="common.loading">加载中…</p>
         </div>
         <!-- 编辑面板（仅管理员可见） -->
         <div class="announce-editor" id="announceEditor" hidden>
@@ -76,12 +74,13 @@
             class="pf-textarea announce-textarea"
             maxlength="2000"
             rows="6"
-            placeholder="写点公告吧，比如服务器活动、更新通知、游戏玩法 tips……（最多 2000 字）"
+            data-i18n="announce.placeholder"
+            data-i18n-attr="placeholder" placeholder="写点公告吧，比如服务器活动、更新通知、游戏玩法 tips……（最多 2000 字）"
           ></textarea>
           <div class="announce-editor-bar">
             <span class="pf-counter"><b id="announceCount">0</b> / 2000</span>
-            <button class="btn btn-solid btn-small" id="announceSaveBtn" type="button">保存公告</button>
-            <button class="btn btn-ghost btn-small" id="announceCancelBtn" type="button">取消</button>
+            <button class="btn btn-solid btn-small" id="announceSaveBtn" type="button" data-i18n="announce.save">保存公告</button>
+            <button class="btn btn-ghost btn-small" id="announceCancelBtn" type="button" data-i18n="announce.cancel">取消</button>
           </div>
         </div>
       </div>
@@ -91,15 +90,13 @@
   <!-- 关于 -->
   <section class="section" id="about">
     <div class="section-inner">
-      <h2 class="section-title">关于我</h2>
+      <h2 class="section-title" data-i18n="home.aboutTitle">关于我</h2>
       <div class="about-grid">
-        <p class="about-text">
-          一名普通的 MC 玩家，平时喜欢玩弄 AI（bushi），有个服务器，大家都来玩吧 awa
-        </p>
+        <p class="about-text" data-i18n="home.aboutText">一名普通的 MC 玩家，平时喜欢玩弄 AI（bushi），有个服务器，大家都来玩吧 awa</p>
         <ul class="about-list">
-          <li><span class="k">常驻平台</span><span class="v">Minecraft Java 26.2 · Fabric</span></li>
-          <li><span class="k">正在折腾</span><span class="v">服务器运维 / 模组整合</span></li>
-          <li><span class="k">风格</span><span class="v">Not Lost, Just Exploring.</span></li>
+          <li><span class="k" data-i18n="home.aboutPlatformK">常驻平台</span><span class="v">Minecraft Java 26.2 · Fabric</span></li>
+          <li><span class="k" data-i18n="home.aboutDoingK">正在折腾</span><span class="v" data-i18n="home.aboutDoingV">服务器运维 / 模组整合</span></li>
+          <li><span class="k" data-i18n="home.aboutStyleK">风格</span><span class="v">Not Lost, Just Exploring.</span></li>
         </ul>
       </div>
     </div>
@@ -108,232 +105,180 @@
   <!-- 一些小东西 -->
   <section class="section section-alt" id="works">
     <div class="section-inner">
-      <h2 class="section-title">一些小东西</h2>
+      <h2 class="section-title" data-i18n="home.worksTitle">一些小东西</h2>
       <div class="cards-wrap">
       <div class="cards">
 
         <!-- 二手交易（置顶强调） -->
         <article class="card card-pin">
-          <div class="card-tag">社区 · 金币集市</div>
-          <h3 class="card-title">二手交易</h3>
-          <p class="card-desc">
-            游戏内物品集市：卖装备、出材料、收想要的道具，或者以物易物。金币担保交易，拍下自动开 7 天临时聊天。
-          </p>
+          <div class="card-tag" data-i18n="home.marketTag">社区 · 金币集市</div>
+          <h3 class="card-title" data-i18n="home.marketTitle">二手交易</h3>
+          <p class="card-desc" data-i18n="home.marketDesc">游戏内物品集市：卖装备、出材料、收想要的道具，或者以物易物。金币担保交易，拍下自动开 7 天临时聊天。</p>
           <div class="card-meta">
-            <span class="pill">出售 / 收购 / 交换</span>
-            <span class="pill">金币担保</span>
-            <span class="pill">临时聊天</span>
+            <span class="pill" data-i18n="home.marketPill1">出售 / 收购 / 交换</span>
+            <span class="pill" data-i18n="home.marketPill2">金币担保</span>
+            <span class="pill" data-i18n="home.marketPill3">临时聊天</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/market/">
-            逛逛集市 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/market/" data-i18n="home.marketBtn">逛逛集市 →</a>
         </article>
 
         <!-- MC 服务器 -->
         <article class="card">
-          <div class="card-tag">Minecraft 服务器</div>
-          <h3 class="card-title">ABC 服务器</h3>
-          <p class="card-desc">
-            双服齐开：生存服死亡不掉落（轻松养老）、SMP 死亡掉落（硬核原味），1.21.6 – 26.2 可进；服务器地址在 QQ 群公告。
-          </p>
+          <div class="card-tag" data-i18n="home.mcServerTag">Minecraft 服务器</div>
+          <h3 class="card-title" data-i18n="home.mcServerTitle">ABC 服务器</h3>
+          <p class="card-desc" data-i18n="home.mcServerDesc">双服齐开：生存服死亡不掉落（轻松养老）、SMP 死亡掉落（硬核原味），1.21.6 – 26.2 可进；服务器地址在 QQ 群公告。</p>
 
           <div class="card-meta">
-            <span class="pill pill-live"><i class="dot"></i>玩家众多 · 活跃</span>
-            <span class="pill">双服齐开</span>
+            <span class="pill pill-live"><i class="dot"></i><span data-i18n="home.mcServerPill1">玩家众多 · 活跃</span></span>
+            <span class="pill" data-i18n="home.mcServerPill2">双服齐开</span>
             <span class="pill">Fabric</span>
             <span class="pill">26.2</span>
           </div>
           <div class="card-actions">
-            <a class="btn btn-solid card-btn" href="/server/">
-              查看服务器详情 →
-            </a>
+            <a class="btn btn-solid card-btn" href="/server/" data-i18n="home.serverBtn">查看服务器详情 →</a>
           </div>
         </article>
 
         <!-- 服务器种子地图 -->
         <article class="card">
-          <div class="card-tag">Minecraft 服务器</div>
-          <h3 class="card-title">服务器种子地图</h3>
-          <p class="card-desc">
-            服务器种子 918332695799929542 的 Chunkbase 工具箱：群系、史莱姆区块、要塞、村庄……一键跳转，种子自动填好。
-          </p>
+          <div class="card-tag" data-i18n="home.mcServerTag">Minecraft 服务器</div>
+          <h3 class="card-title" data-i18n="home.seedMapTitle">服务器种子地图</h3>
+          <p class="card-desc" data-i18n="home.seedMapDesc">服务器种子 918332695799929542 的 Chunkbase 工具箱：群系、史莱姆区块、要塞、村庄……一键跳转，种子自动填好。</p>
           <div class="card-meta">
             <span class="pill">Chunkbase</span>
-            <span class="pill">11 个工具</span>
-            <span class="pill">种子自动填充</span>
+            <span class="pill" data-i18n="home.seedMapPill1">11 个工具</span>
+            <span class="pill" data-i18n="home.seedMapPill2">种子自动填充</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/map/">
-            打开地图 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/map/" data-i18n="home.mapBtn">打开地图 →</a>
         </article>
 
         <!-- 浏览器里的浏览器 -->
         <article class="card">
-          <div class="card-tag">网页实验</div>
-          <h3 class="card-title">浏览器里的浏览器……？</h3>
-          <p class="card-desc">
-            本页内直接访问任意网址；登录后可存 15 个云端书签。
-          </p>
+          <div class="card-tag" data-i18n="home.bibTag">网页实验</div>
+          <h3 class="card-title" data-i18n="home.bibTitle">浏览器里的浏览器……？</h3>
+          <p class="card-desc" data-i18n="home.bibDesc">本页内直接访问任意网址；登录后可存 15 个云端书签。</p>
           <div class="card-meta">
             <span class="pill">iframe</span>
-            <span class="pill">云端书签</span>
+            <span class="pill" data-i18n="home.bibPill1">云端书签</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/browser/">
-            进去试试 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/browser/" data-i18n="home.bibBtn">进去试试 →</a>
         </article>
 
         <!-- 共享画板 -->
         <article class="card">
-          <div class="card-tag">共享实验</div>
-          <h3 class="card-title">共享画板</h3>
-          <p class="card-desc">
-            文字画板 + 256×256 像素画板，所有人共写共画，注册即可参与。
-          </p>
+          <div class="card-tag" data-i18n="home.boardTag">共享实验</div>
+          <h3 class="card-title" data-i18n="home.boardTitle">共享画板</h3>
+          <p class="card-desc" data-i18n="home.boardDesc">文字画板 + 256×256 像素画板，所有人共写共画，注册即可参与。</p>
           <div class="card-meta">
-            <span class="pill">文字 + 像素</span>
-            <span class="pill">20 色</span>
+            <span class="pill" data-i18n="home.boardPill1">文字 + 像素</span>
+            <span class="pill" data-i18n="home.boardPill2">20 色</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/board/">
-            去画两笔 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/board/" data-i18n="home.boardBtn">去画两笔 →</a>
         </article>
 
         <!-- 生命游戏 -->
         <article class="card">
-          <div class="card-tag">模拟玩具</div>
-          <h3 class="card-title">生命游戏</h3>
-          <p class="card-desc">
-            康威生命游戏模拟器：选画布大小、单步、播放调速、无限倒退，还能双指平移观察自己养的细胞文明。
-          </p>
+          <div class="card-tag" data-i18n="home.lifeTag">模拟玩具</div>
+          <h3 class="card-title" data-i18n="home.lifeTitle">生命游戏</h3>
+          <p class="card-desc" data-i18n="home.lifeDesc">康威生命游戏模拟器：选画布大小、单步、播放调速、无限倒退，还能双指平移观察自己养的细胞文明。</p>
           <div class="card-meta">
             <span class="pill">B3/S23</span>
-            <span class="pill">步进/倒退</span>
-            <span class="pill">手机友好</span>
+            <span class="pill" data-i18n="home.lifePill1">步进/倒退</span>
+            <span class="pill" data-i18n="home.lifePill2">手机友好</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/life/">
-            养一缸细胞 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/life/" data-i18n="home.lifeBtn">养一缸细胞 →</a>
         </article>
 
         <!-- 聊天室（网页 × MC 互通） -->
         <article class="card">
-          <div class="card-tag">网页 × MC 互通</div>
-          <h3 class="card-title">聊天室</h3>
-          <p class="card-desc">
-            与 Minecraft 服务器双向互通，实时刷新；注册即可发言。
-          </p>
+          <div class="card-tag" data-i18n="home.chatTag">网页 × MC 互通</div>
+          <h3 class="card-title" data-i18n="home.chatTitle">聊天室</h3>
+          <p class="card-desc" data-i18n="home.chatDesc">与 Minecraft 服务器双向互通，实时刷新；注册即可发言。</p>
           <div class="card-meta">
-            <span class="pill">双向互通</span>
-            <span class="pill">保留 100 条</span>
+            <span class="pill" data-i18n="home.chatPill1">双向互通</span>
+            <span class="pill" data-i18n="home.chatPill2">保留 100 条</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/chat/">
-            进去聊聊 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/chat/" data-i18n="home.chatBtn">进去聊聊 →</a>
         </article>
 
         <!-- wkw 游戏中心 -->
         <article class="card">
-          <div class="card-tag">wkw 出品</div>
-          <h3 class="card-title">wkw 游戏中心</h3>
-          <p class="card-desc">
-            wkw 贡献的小游戏合集，摸鱼时点开玩两把。目前有消消乐，更多陆续上线。
-          </p>
+          <div class="card-tag" data-i18n="home.gamesTag">wkw 出品</div>
+          <h3 class="card-title" data-i18n="home.gamesTitle">wkw 游戏中心</h3>
+          <p class="card-desc" data-i18n="home.gamesDesc">wkw 贡献的小游戏合集，摸鱼时点开玩两把。目前有消消乐，更多陆续上线。</p>
           <div class="coin-tips">
-            <span class="coin-tips-title">🪙 玩游戏赚金币</span><br />
-            每玩 30 秒 <b>+5 金币</b>（日封顶 1000）；西瓜隐藏球 <b>+20～260</b>、四棋会赢 AI <b>+8～60</b>；每日签到 <b>+10～40</b>
+            <span class="coin-tips-title" data-i18n="home.gamesCoinTitle">🪙 玩游戏赚金币</span><br />
+            <span data-i18n="home.gamesCoinTips">每玩 30 秒 <b>+5 金币</b>（日封顶 1000）；西瓜隐藏球 <b>+20～260</b>、四棋会赢 AI <b>+8～60</b>；每日签到 <b>+10～40</b></span>
           </div>
           <div class="card-meta">
-            <span class="pill">小游戏合集</span>
-            <span class="pill">持续更新</span>
+            <span class="pill" data-i18n="home.gamesPill1">小游戏合集</span>
+            <span class="pill" data-i18n="home.gamesPill2">持续更新</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/games/">
-            进去逛逛 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/games/" data-i18n="home.gamesBtn">进去逛逛 →</a>
         </article>
 
         <!-- 偷还是分 -->
         <article class="card">
-          <div class="card-tag">金币博弈 · 在线对战</div>
-          <h3 class="card-title">偷还是分？</h3>
-          <p class="card-desc">
-            各押 1～10 金币进奖池，十轮心理战：平分分钱、背刺独吞、黑吃黑。赢的人拿走奖池 120%。
-          </p>
+          <div class="card-tag" data-i18n="home.splitTag">金币博弈 · 在线对战</div>
+          <h3 class="card-title" data-i18n="home.splitTitle">偷还是分？</h3>
+          <p class="card-desc" data-i18n="home.splitDesc">各押 1～10 金币进奖池，十轮心理战：平分分钱、背刺独吞、黑吃黑。赢的人拿走奖池 120%。</p>
           <div class="card-meta">
-            <span class="pill">在线匹配</span>
-            <span class="pill">心理博弈</span>
-            <span class="pill">10 轮定胜负</span>
+            <span class="pill" data-i18n="home.splitPill1">在线匹配</span>
+            <span class="pill" data-i18n="home.splitPill2">心理博弈</span>
+            <span class="pill" data-i18n="home.splitPill3">10 轮定胜负</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/split/">
-            来偷一把 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/split/" data-i18n="home.splitBtn">来偷一把 →</a>
         </article>
 
         <!-- 站队投票 -->
         <article class="card">
-          <div class="card-tag">社区</div>
-          <h3 class="card-title">站队投票</h3>
-          <p class="card-desc">
-            一些吵了很多年还没结论的问题：甜豆腐脑还是咸豆腐脑？菠萝能不能上披萨？一个账号、一个 IP 只有一票。
-          </p>
+          <div class="card-tag" data-i18n="home.voteTag">社区</div>
+          <h3 class="card-title" data-i18n="home.voteTitle">站队投票</h3>
+          <p class="card-desc" data-i18n="home.voteDesc">一些吵了很多年还没结论的问题：甜豆腐脑还是咸豆腐脑？菠萝能不能上披萨？一个账号、一个 IP 只有一票。</p>
           <div class="card-meta">
-            <span class="pill">二选一</span>
-            <span class="pill">实时对抗条</span>
+            <span class="pill" data-i18n="home.votePill1">二选一</span>
+            <span class="pill" data-i18n="home.votePill2">实时对抗条</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/vote/">
-            去站个队 →
-          </a>
+          <a class="btn btn-solid card-btn" href="/vote/" data-i18n="home.voteBtn">去站个队 →</a>
         </article>
 
         <!-- mcjs 链接 -->
         <article class="card">
-          <div class="card-tag">友情链接</div>
-          <h3 class="card-title">MCJS 链接</h3>
-          <p class="card-desc">
-            和 Minecraft / JS 相关的站点。
-          </p>
+          <div class="card-tag" data-i18n="home.linksTag">友情链接</div>
+          <h3 class="card-title" data-i18n="home.mcjsTitle">MCJS 链接</h3>
+          <p class="card-desc" data-i18n="home.linksDesc">和 Minecraft / JS 相关的站点。</p>
           <div class="card-meta">
-            <span class="pill">外部链接</span>
+            <span class="pill" data-i18n="home.linksPill1">外部链接</span>
             <span class="pill">mcjs.link</span>
           </div>
-          <a class="btn btn-solid card-btn" href="https://mcjs.link" target="_blank" rel="noopener noreferrer">
-            前往 mcjs.link ↗
-          </a>
+          <a class="btn btn-solid card-btn" href="https://mcjs.link" target="_blank" rel="noopener noreferrer" data-i18n="home.mcjsBtn">前往 mcjs.link ↗</a>
         </article>
 
         <!-- 垃圾文件下载 -->
         <article class="card">
-          <div class="card-tag">整活</div>
-          <h3 class="card-title">垃圾文件下载</h3>
-          <p class="card-desc">
-            一键下载一个 100MB 的垃圾文件 Trash.zip，纯净零字节。测网速、占硬盘、整朋友必备。
-          </p>
+          <div class="card-tag" data-i18n="home.funTag">整活</div>
+          <h3 class="card-title" data-i18n="home.trashTitle">垃圾文件下载</h3>
+          <p class="card-desc" data-i18n="home.funTrashDesc">一键下载一个 100MB 的垃圾文件 Trash.zip，纯净零字节。测网速、占硬盘、整朋友必备。</p>
           <div class="card-meta">
             <span class="pill">100MB</span>
-            <span class="pill">纯垃圾</span>
-            <span class="pill">支持断点续传</span>
+            <span class="pill" data-i18n="home.funTrashPill1">纯垃圾</span>
+            <span class="pill" data-i18n="home.funTrashPill2">支持断点续传</span>
           </div>
-          <a class="btn btn-solid card-btn" href="/Trash.zip" download="Trash.zip">
-            下载 Trash.zip（100MB）
-          </a>
+          <a class="btn btn-solid card-btn" href="/Trash.zip" download="Trash.zip" data-i18n="home.trashBtn">下载 Trash.zip（100MB）</a>
         </article>
 
         <!-- 不要点击 -->
         <article class="card card-danger">
-          <div class="card-tag">神秘入口</div>
-          <h3 class="card-title">不要点击这个按钮</h3>
-          <p class="card-desc">
-            真的，别点。好奇心是会害死猫的。
-          </p>
-          <a class="btn btn-outline-danger card-btn" href="/dontclickit/">
-            不要点击这个按钮
-          </a>
-          <a class="card-sub-link" href="/dontclickit/classic/">🏺 想怀旧？进入怀旧版</a>
+          <div class="card-tag" data-i18n="home.funMysteryTag">神秘入口</div>
+          <h3 class="card-title" data-i18n="home.dontclickTitle">不要点击这个按钮</h3>
+          <p class="card-desc" data-i18n="home.funMysteryDesc">真的，别点。好奇心是会害死猫的。</p>
+          <a class="btn btn-outline-danger card-btn" href="/dontclickit/" data-i18n="home.dontclickBtn">不要点击这个按钮</a>
+          <a class="card-sub-link" href="/dontclickit/classic/" data-i18n="home.funMysteryClassic">🏺 想怀旧？进入怀旧版</a>
         </article>
 
       </div>
       <div class="works-fold" id="worksFold">
-        <button type="button" class="works-toggle" id="worksToggle" aria-expanded="false">展开好玩的 ▾</button>
+        <button type="button" class="works-toggle" id="worksToggle" aria-expanded="false" data-i18n="home.expandWorks">展开好玩的 ▾</button>
       </div>
       </div>
     </div>
@@ -342,7 +287,7 @@
   <!-- 每日签到 + 谁在看 -->
   <section class="section" id="rewards">
     <div class="section-inner">
-      <h2 class="section-title">每日签到</h2>
+      <h2 class="section-title" data-i18n="home.rewardsTitle">每日签到</h2>
       <div class="rewards-grid rewards-single">
 
         <div class="reward-card reward-combined">
@@ -351,19 +296,19 @@
             <div class="reward-head">
               <span class="reward-icon">🗓️</span>
               <div>
-                <h3 class="reward-title">签到领金币</h3>
-                <p class="reward-sub" id="checkinSub">登录后签到领金币</p>
+                <h3 class="reward-title" data-i18n="rewards.checkinTitle">签到领金币</h3>
+                <p class="reward-sub" id="checkinSub" data-i18n="rewards.checkinSub">登录后签到领金币</p>
               </div>
             </div>
             <div class="reward-body">
               <div class="coin-line">
                 <span class="coin-big">🪙 <b id="checkinCoins">0</b></span>
-                <span class="streak-line" id="checkinStreak">连续签到 0 天</span>
+                <span class="streak-line" id="checkinStreak" data-i18n="rewards.streak" data-i18n-args='{"n":"0"}'>连续签到 0 天</span>
               </div>
-              <button class="btn btn-solid btn-small" id="checkinBtn" type="button">登录后签到</button>
+              <button class="btn btn-solid btn-small" id="checkinBtn" type="button" data-i18n="rewards.checkinBtnLogin">登录后签到</button>
             </div>
-            <p class="reward-tip" id="checkinTip">每日 10 金币，连签每天 +5，第 7 天起 40 金币封顶</p>
-            <button class="shop-entry" id="openShopBtn" type="button">🛍️ 兑换商店：头像框 · 聊天气泡 →</button>
+            <p class="reward-tip" id="checkinTip" data-i18n="rewards.tip">每日 10 金币，连签每天 +5，第 7 天起 40 金币封顶</p>
+            <button class="shop-entry" id="openShopBtn" type="button" data-i18n="rewards.shopEntry">🛍️ 兑换商店：头像框 · 聊天气泡 →</button>
           </div>
 
           <!-- 谁在看（同一张卡片内）-->
@@ -372,12 +317,12 @@
             <div class="reward-head">
               <span class="reward-icon">👀</span>
               <div>
-                <h3 class="reward-title">谁在看我的网站？</h3>
-                <p class="reward-sub">最近 2 分钟内的访客</p>
+                <h3 class="reward-title" data-i18n="rewards.onlineTitle">谁在看我的网站？</h3>
+                <p class="reward-sub" data-i18n="rewards.onlineSub">最近 2 分钟内的访客</p>
               </div>
             </div>
             <div class="online-body" id="onlineBody">
-              <p class="online-loading">统计中…</p>
+              <p class="online-loading" data-i18n="rewards.onlineLoading">统计中…</p>
             </div>
           </div>
         </div>
@@ -389,27 +334,28 @@
   <!-- 金币抽奖（签到板块下面） -->
   <section class="section section-alt" id="lottery">
     <div class="section-inner">
-      <h2 class="section-title">金币抽奖</h2>
+      <h2 class="section-title" data-i18n="lottery.sectionTitle">金币抽奖</h2>
       <div class="lot-wrap">
 
         <div class="lot-card">
           <div class="lot-head">
             <span class="lot-logo">🎰</span>
             <div class="lot-head-text">
-              <h3 class="lot-title">幸运抽奖</h3>
-              <p class="lot-sub">100 金币抽一次，试试手气？</p>
+              <h3 class="lot-title" data-i18n="lottery.title">幸运抽奖</h3>
+              <p class="lot-sub" data-i18n="lottery.sub">100 金币抽一次，试试手气？</p>
             </div>
             <span class="lot-balance">🪙 <b id="lotCoins">0</b></span>
           </div>
 
-          <div class="lot-pool" id="lotPool"><!-- lottery.js 渲染普通奖池 + 隐藏大奖位 --></div>
+          <!-- lottery.js 渲染普通奖池 + 隐藏大奖位 -->
+          <div class="lot-pool" id="lotPool"></div>
 
-          <button class="btn btn-vip lot-draw-btn" id="lotDrawBtn" type="button">🎲 花 100 金币抽一次</button>
+          <button class="btn btn-vip lot-draw-btn" id="lotDrawBtn" type="button" data-i18n="lottery.drawBtn">🎲 花 100 金币抽一次</button>
 
           <div class="lot-tips">
-            <p>💰 <b>金币怎么来？</b>每天<a href="#rewards">签到</a>能领 10～40 金币，也可以去<a href="/games/">游戏中心</a>玩小游戏赚金币。</p>
-            <p>🎁 抽中的<b>游戏内物品</b>会自动存进右边「我的奖品」，加 QQ 群 <b>545397370</b> 找腐竹，凭兑换码领取。</p>
-            <p>👑 还有概率仅 <b>0.5%</b> 的隐藏大奖：12 个月网站 VIP、25 个钻石块！</p>
+            <p data-i18n="lottery.tip1">💰 <b>金币怎么来？</b>每天<a href="#rewards">签到</a>能领 10～40 金币，也可以去<a href="/games/">游戏中心</a>玩小游戏赚金币。</p>
+            <p data-i18n="lottery.tip2">🎁 抽中的<b>游戏内物品</b>会自动存进右边「我的奖品」，加 QQ 群 <b>545397370</b> 找腐竹，凭兑换码领取。</p>
+            <p data-i18n="lottery.tip3">👑 还有概率仅 <b>0.5%</b> 的隐藏大奖：12 个月网站 VIP、25 个钻石块！</p>
           </div>
         </div>
 
@@ -417,12 +363,12 @@
           <div class="lot-head">
             <span class="lot-logo">🎁</span>
             <div class="lot-head-text">
-              <h3 class="lot-title">我的奖品</h3>
-              <p class="lot-sub">游戏内物品凭 6 位兑换码到 QQ 群找腐竹兑换</p>
+              <h3 class="lot-title" data-i18n="lottery.prizesTitle">我的奖品</h3>
+              <p class="lot-sub" data-i18n="lottery.prizesSub">游戏内物品凭 6 位兑换码到 QQ 群找腐竹兑换</p>
             </div>
           </div>
           <div class="lot-prizes" id="lotPrizes">
-            <p class="lot-empty">登录后查看中奖记录</p>
+            <p class="lot-empty" data-i18n="lottery.prizesEmpty">登录后查看中奖记录</p>
           </div>
         </div>
 
@@ -433,7 +379,7 @@
   <!-- 抽奖结果弹窗 -->
   <div class="modal-mask" id="lotModal" hidden>
     <div class="modal lot-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="lotClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="lotClose" data-i18n="common.close" data-i18n-attr="aria-label" aria-label="关闭">×</button>
       <div class="lot-result" id="lotResult">
         <div class="lot-reel" id="lotReel">🎲</div>
         <div class="lot-result-text" id="lotResultText">
@@ -441,8 +387,8 @@
           <div class="lot-result-hint"></div>
         </div>
         <div class="lot-result-actions" id="lotResultActions" hidden>
-          <button class="btn btn-solid" id="lotAgain" type="button">再抽一次 · 100 🪙</button>
-          <button class="btn btn-ghost" id="lotOk" type="button">收下</button>
+          <button class="btn btn-solid" id="lotAgain" type="button" data-i18n="lottery.again">再抽一次 · 100 🪙</button>
+          <button class="btn btn-ghost" id="lotOk" type="button" data-i18n="lottery.claim">收下</button>
         </div>
       </div>
     </div>
@@ -451,25 +397,25 @@
   <!-- 兑换商店弹窗 -->
   <div class="modal-mask" id="shopModal" hidden>
     <div class="modal shop-modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="shopClose" aria-label="关闭">×</button>
-      <h2 class="shop-modal-title">🛍️ 兑换商店 <span class="shop-coins">🪙 <b id="shopCoins">0</b></span></h2>
+      <button class="modal-close" id="shopClose" data-i18n="common.close" data-i18n-attr="aria-label" aria-label="关闭">×</button>
+      <h2 class="shop-modal-title"><span data-i18n="shop.title">🛍️ 兑换商店</span> <span class="shop-coins">🪙 <b id="shopCoins">0</b></span></h2>
       <div class="board-tabs shop-tabs">
-        <button class="board-tab active" id="shopTabFrame" type="button">头像框</button>
-        <button class="board-tab" id="shopTabBubble" type="button">聊天气泡</button>
-        <button class="board-tab shop-tab-vip" id="shopTabVip" type="button">👑 VIP</button>
+        <button class="board-tab active" id="shopTabFrame" type="button" data-i18n="shop.tabFrame">头像框</button>
+        <button class="board-tab" id="shopTabBubble" type="button" data-i18n="shop.tabBubble">聊天气泡</button>
+        <button class="board-tab shop-tab-vip" id="shopTabVip" type="button" data-i18n="shop.tabVip">👑 VIP</button>
       </div>
       <div class="shop-grid" id="shopGrid"></div>
-      <p class="shop-note">金币通过每日签到和游戏获得；头像框会显示在头像上，气泡会用在聊天室你发的消息上。VIP 专属装扮仅会员期内可用，过期自动换回。</p>
+      <p class="shop-note" data-i18n="shop.note">金币通过每日签到和游戏获得；头像框会显示在头像上，气泡会用在聊天室你发的消息上。VIP 专属装扮仅会员期内可用，过期自动换回。</p>
     </div>
   </div>
 
   <!-- 玩家榜单 -->
   <section class="section section-alt" id="leaderboard">
     <div class="section-inner">
-      <h2 class="section-title">玩家榜单</h2>
-      <p class="lb-sub">🏆 金币榜 · DontClick 灵魂/点击榜，只统计开启公开展示的玩家</p>
+      <h2 class="section-title" data-i18n="lb.title">玩家榜单</h2>
+      <p class="lb-sub" data-i18n="lb.sub">🏆 金币榜 · DontClick 灵魂/点击榜，只统计开启公开展示的玩家</p>
       <div class="lb-wrap" id="lbWrap">
-        <p class="lb-loading">加载中…</p>
+        <p class="lb-loading" data-i18n="lb.loading">加载中…</p>
       </div>
     </div>
   </section>
@@ -477,8 +423,8 @@
   <!-- 联系 -->
   <section class="section" id="contact">
     <div class="section-inner contact-inner">
-      <h2 class="section-title">联系我</h2>
-      <p class="contact-text">想一起玩、聊聊技术，或者只是想打个招呼——都可以在这些地方找到我。</p>
+      <h2 class="section-title" data-i18n="contact.title">联系我</h2>
+      <p class="contact-text" data-i18n="contact.text">想一起玩、聊聊技术，或者只是想打个招呼——都可以在这些地方找到我。</p>
 
       <div class="contact-grid">
         <a class="contact-card" href="mailto:contactus@xrst.uk">
@@ -486,7 +432,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
           </span>
           <span class="contact-meta">
-            <span class="contact-label">邮箱</span>
+            <span class="contact-label" data-i18n="contact.email">邮箱</span>
             <span class="contact-handle">contactus@xrst.uk</span>
           </span>
         </a>
@@ -496,7 +442,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.36 9.36 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
           </span>
           <span class="contact-meta">
-            <span class="contact-label">GitHub</span>
+            <span class="contact-label" data-i18n="contact.github">GitHub</span>
             <span class="contact-handle">AaronXieA</span>
           </span>
           <span class="contact-go">↗</span>
@@ -507,24 +453,22 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.81 4.24 16.4 5.65h2.08c1.89 0 3.43 1.57 3.43 3.49v7.66c0 1.92-1.54 3.49-3.43 3.49H5.52C3.63 20.29 2.1 18.72 2.1 16.8V9.14c0-1.92 1.53-3.49 3.42-3.49h2.08L6.2 4.24a.74.74 0 0 1 1.06-1.04l2.69 2.45h4.1l2.7-2.45a.74.74 0 0 1 1.06 1.04ZM8.18 11.3a.92.92 0 0 0-.92.92v1.25c0 .51.41.93.92.93.51 0 .92-.42.92-.93v-1.25a.92.92 0 0 0-.92-.92Zm7.64 0a.92.92 0 0 0-.92.92v1.25c0 .51.41.93.92.93.51 0 .92-.42.92-.93v-1.25a.92.92 0 0 0-.92-.92Z"/></svg>
           </span>
           <span class="contact-meta">
-            <span class="contact-label">哔哩哔哩</span>
-            <span class="contact-handle">一只有理想的鸭</span>
+            <span class="contact-label" data-i18n="contact.bilibili">哔哩哔哩</span>
+            <span class="contact-handle" data-i18n="home.bilibiliHandle">一只有理想的鸭</span>
           </span>
           <span class="contact-go">↗</span>
         </a>
       </div>
 
-      <a class="btn btn-solid contact-server-btn" href="/server/">
-        加入 QQ 群查看 →
-      </a>
+      <a class="btn btn-solid contact-server-btn" href="/server/" data-i18n="contact.joinQQ">加入 QQ 群查看 →</a>
     </div>
   </section>
 
   <footer class="footer">
     <div class="footer-inner">
-      <span id="footerCopy" style="cursor:pointer;user-select:none;">© 2026 XRST.Uk</span>
+      <span id="footerCopy" style="user-select:none;" data-i18n="footer.copyYear">© 2026 XRST.Uk</span>
       <span class="footer-links">
-        <a href="/dontclickit/">不要点击</a>
+        <a href="/dontclickit/" data-i18n="footer.dontclick">不要点击</a>
       </span>
     </div>
   </footer>
@@ -532,36 +476,36 @@
   <!-- 登录 / 注册弹窗 -->
   <div class="modal-mask" id="authModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="authClose" data-i18n="common.close" data-i18n-attr="aria-label" aria-label="关闭">×</button>
       <div class="modal-tabs">
-        <button class="tab active" data-tab="login">登录</button>
-        <button class="tab" data-tab="register">注册</button>
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
       </div>
 
       <form id="loginForm" class="modal-form" autocomplete="on">
-        <label>用户名 / XRSTUID
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="用户名或 XRSTUID" />
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">登录</button>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
       </form>
 
       <form id="registerForm" class="modal-form" hidden autocomplete="off">
-        <label>用户名
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
-        <label>确认密码
-          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
-        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
       </form>
     </div>
   </div>
@@ -571,9 +515,9 @@
   <script src="js/auth.js?v=5"></script>
   <script src="js/avatars.js?v=2"></script>
   <script src="js/shop.js?v=2"></script>
-  <script src="js/main.js?v=16"></script>
+  <script src="js/main.js?v=18"></script>
   <script src="js/announce.js?v=4"></script>
-  <script src="js/rewards.js?v=4"></script>
-  <script src="js/lottery.js?v=1"></script>
+  <script src="js/rewards.js?v=5"></script>
+  <script src="js/lottery.js?v=2"></script>
 </body>
 </html>

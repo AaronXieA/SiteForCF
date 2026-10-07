@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="games.pageTitle">wkw 游戏中心 · XRST.Uk</title>
+  <meta name="description" content="wkw 游戏中心——wkw 贡献的网页小游戏合集，目前有消消乐，更多小游戏陆续上线。" />
+  <link rel="stylesheet" href="../css/style.css?v=25" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <main class="wb-main">
+    <p class="wb-eyebrow" data-i18n="games.eyebrow">一些小东西 · wkw 出品</p>
+    <h1 class="wb-title" data-i18n="games.title">wkw 游戏中心</h1>
+    <p class="wb-sub" data-i18n="games.sub">wkw 贡献的小游戏都在这里——摸鱼、等服务器、不想干活的时候，点开玩两把。</p>
+
+    <div class="coin-tips coin-tips-lg">
+      <span class="coin-tips-title" data-i18n="games.coinTitle">🪙 玩游戏赚金币（登录 xrst.uk 后生效）</span><br />
+      <span data-i18n="games.coinDesc">在线玩任意小游戏，每活跃 30 秒 <b>+5 金币</b>，每日封顶 <b>1000</b>（挂机会自动暂停）；<br />合成大西瓜合出<b>隐藏球</b>（白球 / 彩虹球 / 金球），每次额外 <b>+20～260 金币</b>；<br />四棋会人机对战<b>击败 AI</b>，按难度每次 <b>+8～60 金币</b>（新手 8 → 大师 60）；<br />水排序解谜<b>通关</b>得积分（简单 15 / 中等 20 / 困难 25），积分可与金币 <b>1:1 双向兑换</b>（每日各限 200）；<br />另外每日签到可领 <b>+10～40 金币</b>，金币可用于抽奖、VIP、二手交易。</span>
+    </div>
+
+    <div class="cards">
+
+      <!-- 消消乐 -->
+      <article class="card">
+        <div class="card-tag" data-i18n="games.webGame">网页小游戏</div>
+        <h3 class="card-title" data-i18n="games.match3Title">消消乐</h3>
+        <p class="card-desc" data-i18n="games.match3Desc">
+          连 4 出爆炸菱形、连 5 出彩虹球清屏，越到后面越难。——wkw 贡献
+        </p>
+        <div class="card-meta">
+          <span class="pill" data-i18n="games.pillMatch3">三消</span>
+          <span class="pill" data-i18n="games.pillSpecial">特殊方块</span>
+          <span class="pill" data-i18n="games.pillEndless">无限关卡</span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-solid card-btn" href="/match3/" data-i18n="games.match3Btn">
+            来消一局 →
+          </a>
+          <a class="btn btn-ghost card-btn" href="/match3/index.html" download="消消乐.html" data-i18n="games.downloadHtml">
+            下载 HTML
+          </a>
+        </div>
+      </article>
+
+      <!-- 斗地主 & 掼蛋 & 升级 -->
+      <article class="card">
+        <div class="card-tag" data-i18n="games.webGame">网页小游戏</div>
+        <h3 class="card-title" data-i18n="games.cardsTitle">斗地主 · 掼蛋 · 升级</h3>
+        <p class="card-desc" data-i18n="games.cardsDesc">
+          一个文件三种经典扑克：斗地主 1v2、掼蛋 4 人 2 队配炸弹级牌、升级双升亮主扣底，全是和电脑对战。——wkw 贡献
+        </p>
+        <div class="card-meta">
+          <span class="pill" data-i18n="games.pillDDZ">斗地主</span>
+          <span class="pill" data-i18n="games.pillGuandan">掼蛋</span>
+          <span class="pill" data-i18n="games.pillShengji">升级 / 双升</span>
+          <span class="pill" data-i18n="games.pillSolo">单机对战</span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-solid card-btn" href="/cards/" data-i18n="games.cardsBtn">
+            来摸两把 →
+          </a>
+          <a class="btn btn-ghost card-btn" href="/cards/index.html" download="掼蛋斗地主.html" data-i18n="games.downloadHtml">
+            下载 HTML
+          </a>
+        </div>
+      </article>
+
+      <!-- 合成大西瓜 -->
+      <article class="card">
+        <div class="card-tag" data-i18n="games.webGame">网页小游戏</div>
+        <h3 class="card-title" data-i18n="games.watermelonTitle">合成大西瓜 · 颜色进化版</h3>
+        <p class="card-desc" data-i18n="games.watermelonDesc">
+          拖动瞄准、点击投球，相同的球碰在一起就合成下一阶段，一路进化 12 阶。物理掉落很上头，小心球堆顶到线就结束。合出最后三个<b style="color:#f0c13a;">隐藏球</b>（白球 / 彩虹球 / 金球）能领 <b style="color:#f0c13a;">20～260 金币</b>，金球最稀有。——wkw 贡献
+        </p>
+        <div class="card-meta">
+          <span class="pill" data-i18n="games.pillPhysics">物理合成</span>
+          <span class="pill" data-i18n="games.pillEvolve">12 阶进化</span>
+          <span class="pill" data-i18n="games.pillGold">金球 +金币</span>
+          <span class="pill" data-i18n="games.pillChallenge">单局挑战</span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-solid card-btn" href="/watermelon/" data-i18n="games.watermelonBtn">
+            来合一个 →
+          </a>
+          <a class="btn btn-ghost card-btn" href="/watermelon/watermelon.zip" download="合成大西瓜.zip" data-i18n="games.downloadZip">
+            下载 ZIP
+          </a>
+        </div>
+      </article>
+
+      <!-- 四棋会 -->
+      <article class="card">
+        <div class="card-tag" data-i18n="games.webGame">网页小游戏</div>
+        <h3 class="card-title" data-i18n="games.fourchessTitle">四棋会</h3>
+        <p class="card-desc" data-i18n="games.fourchessDesc">
+          一个页面四种棋：国际象棋（王车易位/吃过路兵/升变）、中国象棋（蹩马腿/塞象眼/炮打隔山）、五子棋、围棋（数子决胜）。人机五档难度或双人本地对弈，赢 AI 可领 <b style="color:#f0c13a;">8～60 金币</b>。——wkw 贡献
+        </p>
+        <div class="card-meta">
+          <span class="pill" data-i18n="games.pillChess">国际象棋</span>
+          <span class="pill" data-i18n="games.pillXiangqi">中国象棋</span>
+          <span class="pill" data-i18n="games.pillGomoku">五子棋</span>
+          <span class="pill" data-i18n="games.pillGo">围棋</span>
+          <span class="pill" data-i18n="games.pillAI5">人机五档</span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-solid card-btn" href="/fourchess/" data-i18n="games.fourchessBtn">
+            来下一盘 →
+          </a>
+          <a class="btn btn-ghost card-btn" href="/fourchess/index.html" download="四棋会.html" data-i18n="games.downloadHtml">
+            下载 HTML
+          </a>
+        </div>
+      </article>
+
+      <!-- 水排序解谜 -->
+      <article class="card">
+        <div class="card-tag" data-i18n="games.webGame">网页小游戏</div>
+        <h3 class="card-title" data-i18n="games.sortTitle">水排序解谜</h3>
+        <p class="card-desc" data-i18n="games.sortDesc">
+          把同色水倒到一起，每管只留一种颜色。3D 玻璃试管 + 重力水流动画，三种难度。通关得积分，20 积分可解锁额外空管；积分还能和金币 <b style="color:#f0c13a;">1:1 双向兑换</b>。——wkw 贡献
+        </p>
+        <div class="card-meta">
+          <span class="pill" data-i18n="games.pillPour">倒水解谜</span>
+          <span class="pill" data-i18n="games.pillDiff3">三种难度</span>
+          <span class="pill" data-i18n="games.pillPoints">积分 ↔ 金币</span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-solid card-btn" href="/sort/" data-i18n="games.sortBtn">
+            来倒一杯 →
+          </a>
+          <a class="btn btn-ghost card-btn" href="/sort/index.html" download="水排序解谜.html" data-i18n="games.downloadHtml">
+            下载 HTML
+          </a>
+        </div>
+      </article>
+
+      <!-- 占位：更多游戏即将到来 -->
+      <article class="card" style="border-style:dashed;background:rgba(255,255,255,.55);color:var(--ink-3);">
+        <div class="card-tag" style="display:inline-block;padding:2px 8px;border:1px dashed var(--line);border-radius:8px;color:var(--ink-3);" data-i18n="games.soon">敬请期待</div>
+        <h3 class="card-title" style="color:var(--ink-3);" data-i18n="games.moreTitle">更多小游戏</h3>
+        <p class="card-desc" style="color:var(--ink-3);" data-i18n="games.soonDesc">
+          wkw 还在做，做好了就会摆到这里。
+        </p>
+      </article>
+
+    </div>
+  </main>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="/js/i18n.js?v=6"></script>
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/main.js?v=18"></script>
+</body>
+</html>

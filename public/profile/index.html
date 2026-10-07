@@ -3,9 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>个人主页 · XRST.Uk</title>
+  <title data-i18n="profile.pageTitle">个人主页 · XRST.Uk</title>
   <meta name="description" content="XRST.Uk 用户个人主页与简介。" />
-  <link rel="stylesheet" href="../css/style.css?v=6" />
+  <link rel="stylesheet" href="../css/style.css?v=24" />
+  <style>
+    .bill-modal{max-width:560px;}
+    .bill-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+    .bill-balance{font-size:26px;font-weight:900;}
+    .bill-balance small{font-size:13px;font-weight:600;color:#8a857c;margin-left:4px;}
+    .bill-list{max-height:52vh;overflow-y:auto;margin:0 -4px;padding:0 4px;}
+    .bill-item{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line,#eceae4);}
+    .bill-ico{font-size:20px;width:30px;text-align:center;flex:none;}
+    .bill-main{flex:1;min-width:0;}
+    .bill-memo{font-size:14px;font-weight:600;word-break:break-all;}
+    .bill-time{font-size:12px;color:#a09b91;margin-top:2px;}
+    .bill-delta{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+    .bill-delta.in{color:#1a7f37;}
+    .bill-delta.out{color:#c0392b;}
+    .bill-bal{font-size:11px;color:#a09b91;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;}
+    .bill-empty{text-align:center;color:#8a857c;padding:34px 0;font-size:14px;}
+  </style>
 </head>
 <body>
 
@@ -13,10 +30,12 @@
     <div class="nav-inner">
       <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
       <nav class="nav-links">
-        <a href="/#about">关于</a>
-        <a href="/#works">好玩的</a>
-        <a href="/#rewards">签到</a>
-        <a href="/server/">服务器</a>
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/server/" data-i18n="nav.server">服务器</a>
       </nav>
       <div class="nav-auth" id="navAuth"></div>
     </div>
@@ -26,15 +45,15 @@
 
     <!-- 未登录且未指定用户 -->
     <section class="pf-card pf-guest" id="guestView" hidden>
-      <h1 class="pf-title">登录后查看你的个人主页</h1>
-      <p class="pf-sub">写一段简介，保存到云端，还能把主页链接分享给朋友。</p>
-      <button class="btn btn-solid" id="guestLoginBtn" type="button">登录 / 注册</button>
+      <h1 class="pf-title" data-i18n="profile.guestTitle">登录后查看你的个人主页</h1>
+      <p class="pf-sub" data-i18n="profile.guestSub">写一段简介，保存到云端，还能把主页链接分享给朋友。</p>
+      <button class="btn btn-solid" id="guestLoginBtn" type="button" data-i18n="profile.guestLoginBtn">登录 / 注册</button>
     </section>
 
     <!-- 用户不存在 -->
     <section class="pf-card pf-guest" id="notFoundView" hidden>
-      <h1 class="pf-title">没有这个用户</h1>
-      <p class="pf-sub">检查一下链接，或者<a href="/profile/">去你自己的主页</a>。</p>
+      <h1 class="pf-title" data-i18n="profile.notFoundTitle">没有这个用户</h1>
+      <p class="pf-sub"><span data-i18n="profile.notFoundSub">检查一下链接，或者</span><a href="/profile/" data-i18n="profile.goOwnProfile">去你自己的主页</a>。</p>
     </section>
 
     <!-- 主页内容 -->
@@ -44,7 +63,7 @@
           <span id="pfAvatar"></span>
           <div class="pf-head-info">
             <h1 class="pf-name" id="pfName">—</h1>
-            <p class="pf-role" id="pfRole">个人主页</p>
+            <p class="pf-role" id="pfRole" data-i18n="profile.role">个人主页</p>
           </div>
         </div>
 
@@ -54,8 +73,8 @@
           <div class="pf-setting-col">
             <div class="pf-inline-form" style="align-items:center;">
               <span id="ownAvatar"></span>
-              <span class="pf-setting-title">头像</span>
-              <span class="pf-setting-desc" style="margin:0;">从下面 20 个内置头像里选一个</span>
+              <span class="pf-setting-title" data-i18n="profile.avatarTitle">头像</span>
+              <span class="pf-setting-desc" style="margin:0;" data-i18n="profile.avatarDesc">从下面 20 个内置头像里选一个</span>
             </div>
             <div id="avatarGrid" class="pf-avatar-grid"></div>
           </div>
@@ -63,18 +82,18 @@
           <!-- XRSTUID -->
           <div class="pf-setting-row">
             <div class="pf-setting-info">
-              <span class="pf-setting-title">XRSTUID</span>
-              <span class="pf-setting-desc">你的专属 12 位数字 ID，注册时随机生成，不可修改。</span>
+              <span class="pf-setting-title" data-i18n="profile.uidTitle">XRSTUID</span>
+              <span class="pf-setting-desc" data-i18n="profile.uidDesc">你的专属 12 位数字 ID，注册时随机生成，不可修改。</span>
             </div>
             <code class="pf-uid" id="pfUid">—</code>
-            <button class="text-btn" id="copyUidBtn" type="button">复制</button>
+            <button class="text-btn" id="copyUidBtn" type="button" data-i18n="profile.copy">复制</button>
           </div>
 
           <!-- 允许被搜索 -->
           <div class="pf-setting-row">
             <div class="pf-setting-info">
-              <span class="pf-setting-title">允许被搜索</span>
-              <span class="pf-setting-desc">关闭后，其他用户将无法在「搜索用户」中找到你。</span>
+              <span class="pf-setting-title" data-i18n="profile.searchableTitle">允许被搜索</span>
+              <span class="pf-setting-desc" data-i18n="profile.searchableDesc">关闭后，其他用户将无法在「搜索用户」中找到你。</span>
             </div>
             <label class="pf-switch">
               <input type="checkbox" id="searchableToggle" />
@@ -85,47 +104,57 @@
           <!-- 用户名 -->
           <div class="pf-setting-row">
             <div class="pf-setting-info">
-              <span class="pf-setting-title">用户名</span>
-              <span class="pf-setting-desc">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</span>
+              <span class="pf-setting-title" data-i18n="profile.usernameTitle">用户名</span>
+              <span class="pf-setting-desc" data-i18n="profile.usernameDesc">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</span>
             </div>
-            <button class="btn btn-ghost btn-small" id="renameOpenBtn" type="button">修改用户名</button>
+            <button class="btn btn-ghost btn-small" id="renameOpenBtn" type="button" data-i18n="profile.renameBtn">修改用户名</button>
           </div>
 
-          <label class="pf-label" for="bioInput">个人简介（云端保存，最多 1000 字）</label>
+          <label class="pf-label" for="bioInput" data-i18n="profile.bioLabel">个人简介（云端保存，最多 1000 字）</label>
           <textarea
             id="bioInput"
             class="pf-textarea"
             maxlength="1000"
             rows="9"
+            data-i18n="profile.bioPlaceholder" data-i18n-attr="placeholder"
             placeholder="介绍一下你自己吧……比如喜欢玩什么、在服务器里的 ID、怎么联系你。"
           ></textarea>
           <div class="pf-editor-bar">
             <span class="pf-counter"><b id="bioCount">0</b> / 1000</span>
             <span class="pf-saved" id="bioSaved"></span>
-            <button class="btn btn-solid" id="bioSaveBtn" type="button">保存简介</button>
+            <button class="btn btn-solid" id="bioSaveBtn" type="button" data-i18n="profile.saveBio">保存简介</button>
           </div>
 
           <!-- 修改密码入口 -->
           <div class="pf-setting-row">
             <div class="pf-setting-info">
-              <span class="pf-setting-title">登录密码</span>
-              <span class="pf-setting-desc">定期更换密码可以让账号更安全。</span>
+              <span class="pf-setting-title" data-i18n="profile.passwordTitle">登录密码</span>
+              <span class="pf-setting-desc" data-i18n="profile.passwordDesc">定期更换密码可以让账号更安全。</span>
             </div>
-            <button class="btn btn-ghost btn-small" id="pwOpenBtn" type="button">修改密码</button>
+            <button class="btn btn-ghost btn-small" id="pwOpenBtn" type="button" data-i18n="profile.changePassword">修改密码</button>
+          </div>
+
+          <!-- 金币账单入口 -->
+          <div class="pf-setting-row">
+            <div class="pf-setting-info">
+              <span class="pf-setting-title" data-i18n="profile.billTitle">金币账单</span>
+              <span class="pf-setting-desc" data-i18n="profile.billDesc">签到、抽奖、商店、二手交易、小游戏等所有金币收支记录，保留最近 100 条。</span>
+            </div>
+            <button class="btn btn-ghost btn-small" id="billOpenBtn" type="button" data-i18n="profile.viewBill">查看账单 🪙</button>
           </div>
 
           <div class="pf-share">
-            <span class="pf-share-label">你的公开主页链接：</span>
+            <span class="pf-share-label" data-i18n="profile.shareLabel">你的公开主页链接：</span>
             <code class="pf-share-link" id="shareLink">—</code>
-            <button class="text-btn" id="copyShareBtn" type="button">复制</button>
+            <button class="text-btn" id="copyShareBtn" type="button" data-i18n="profile.copy">复制</button>
           </div>
         </div>
 
         <!-- 别人的主页：只读 -->
         <div id="otherPanel" hidden>
           <div class="pf-bio" id="otherBio"></div>
-          <p class="pf-empty" id="otherEmpty" hidden>这个人还没有写简介。</p>
-          <a class="btn btn-ghost pf-back-btn" href="/search/">← 去搜索其他用户</a>
+          <p class="pf-empty" id="otherEmpty" hidden data-i18n="profile.otherEmpty">这个人还没有写简介。</p>
+          <a class="btn btn-ghost pf-back-btn" href="/search/" data-i18n="profile.searchOthers">← 去搜索其他用户</a>
         </div>
       </div>
     </section>
@@ -135,36 +164,36 @@
   <!-- 登录 / 注册弹窗 -->
   <div class="modal-mask" id="authModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="authClose" aria-label="关闭">×</button>
+      <button class="modal-close" id="authClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
       <div class="modal-tabs">
-        <button class="tab active" data-tab="login">登录</button>
-        <button class="tab" data-tab="register">注册</button>
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
       </div>
 
       <form id="loginForm" class="modal-form" autocomplete="on">
-        <label>用户名 / XRSTUID
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="用户名或 XRSTUID" />
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">登录</button>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
       </form>
 
       <form id="registerForm" class="modal-form" hidden autocomplete="off">
-        <label>用户名
-          <input type="text" name="username" required minlength="2" maxlength="20" placeholder="2-20 个字符" />
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
         </label>
-        <label>密码
-          <input type="password" name="password" required minlength="6" placeholder="至少 6 位" />
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
         </label>
-        <label>确认密码
-          <input type="password" name="password2" required minlength="6" placeholder="再输一遍" />
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
         </label>
         <p class="form-msg" data-msg></p>
-        <button type="submit" class="btn btn-solid btn-block">创建账号</button>
-        <p class="form-note">账号存储在云端，换设备也能登录。</p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
       </form>
     </div>
   </div>
@@ -172,15 +201,15 @@
   <!-- 修改用户名弹窗 -->
   <div class="modal-mask" id="renameModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="renameClose" aria-label="关闭">×</button>
-      <h3 class="modal-title">修改用户名</h3>
+      <button class="modal-close" id="renameClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <h3 class="modal-title" data-i18n="profile.renameTitle">修改用户名</h3>
       <form id="renameForm" class="modal-form" autocomplete="off">
-        <label>新用户名
-          <input type="text" id="renameInput" required minlength="2" maxlength="20" placeholder="2-20 位字母、数字、下划线或中文" />
+        <label data-i18n="profile.newUsername">新用户名
+          <input type="text" id="renameInput" required minlength="2" maxlength="20" data-i18n="profile.renamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 位字母、数字、下划线或中文" />
         </label>
-        <p class="form-note">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</p>
+        <p class="form-note" data-i18n="profile.usernameDesc">改名后简介、书签、头像和 XRSTUID 都会保留；其他设备需要重新登录。</p>
         <p class="form-msg err" id="renameMsg"></p>
-        <button type="submit" class="btn btn-solid btn-block" id="renameBtn">确认修改</button>
+        <button type="submit" class="btn btn-solid btn-block" id="renameBtn" data-i18n="profile.renameConfirm">确认修改</button>
       </form>
     </div>
   </div>
@@ -188,29 +217,45 @@
   <!-- 修改密码弹窗 -->
   <div class="modal-mask" id="pwModal" hidden>
     <div class="modal" role="dialog" aria-modal="true">
-      <button class="modal-close" id="pwClose" aria-label="关闭">×</button>
-      <h3 class="modal-title">修改密码</h3>
+      <button class="modal-close" id="pwClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <h3 class="modal-title" data-i18n="profile.pwTitle">修改密码</h3>
       <form id="pwForm" class="modal-form" autocomplete="off">
-        <label>当前密码
-          <input type="password" id="oldPw" required minlength="6" placeholder="输入当前密码" autocomplete="current-password" />
+        <label data-i18n="profile.currentPw">当前密码
+          <input type="password" id="oldPw" required minlength="6" data-i18n="profile.currentPwPlaceholder" data-i18n-attr="placeholder" placeholder="输入当前密码" autocomplete="current-password" />
         </label>
-        <label>新密码
-          <input type="password" id="newPw" required minlength="6" placeholder="至少 6 位" autocomplete="new-password" />
+        <label data-i18n="profile.newPw">新密码
+          <input type="password" id="newPw" required minlength="6" data-i18n="profile.newPwPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" autocomplete="new-password" />
         </label>
-        <label>确认新密码
-          <input type="password" id="newPw2" required minlength="6" placeholder="再输一遍新密码" autocomplete="new-password" />
+        <label data-i18n="profile.confirmNewPw">确认新密码
+          <input type="password" id="newPw2" required minlength="6" data-i18n="profile.confirmNewPwPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍新密码" autocomplete="new-password" />
         </label>
         <p class="form-msg err" id="pwMsg"></p>
-        <button type="submit" class="btn btn-solid btn-block" id="pwSaveBtn">确认修改密码</button>
+        <button type="submit" class="btn btn-solid btn-block" id="pwSaveBtn" data-i18n="profile.pwConfirm">确认修改密码</button>
       </form>
+    </div>
+  </div>
+
+  <!-- 金币账单 -->
+  <div class="modal-mask" id="billModal" hidden>
+    <div class="modal bill-modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="billClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <h3 class="modal-title" data-i18n="profile.billModalTitle">金币账单</h3>
+      <div class="bill-head">
+        <span class="bill-balance">🪙 <span id="billBalance">–</span><small data-i18n="profile.billBalance">当前余额</small></span>
+        <button class="text-btn" id="billRefresh" type="button" data-i18n="profile.refresh">刷新</button>
+      </div>
+      <div class="bill-list" id="billList">
+        <div class="bill-empty" data-i18n="profile.billLoading">加载中…</div>
+      </div>
     </div>
   </div>
 
   <div class="toast-box" id="toastBox"></div>
 
+  <script src="/js/i18n.js?v=6"></script>
   <script src="../js/auth.js?v=5"></script>
   <script src="../js/avatars.js?v=2"></script>
-  <script src="../js/main.js?v=8"></script>
-  <script src="../js/profile.js?v=6"></script>
+  <script src="../js/main.js?v=18"></script>
+  <script src="../js/profile.js?v=11"></script>
 </body>
 </html>

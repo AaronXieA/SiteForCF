@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="dc.classicPageTitle">不要点击这个按钮 · 怀旧版 · XRST.Uk</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="classic.css" />
+</head>
+<body class="dc-body">
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="/">XRST<span class="logo-dot">.Uk</span></a>
+      <nav class="nav-links">
+        <a href="/#about" data-i18n="nav.about">关于</a>
+        <a href="/#works" data-i18n="nav.works">好玩的</a>
+        <a href="/market/" data-i18n="nav.market">二手交易</a>
+        <a href="/#rewards" data-i18n="nav.rewards">签到</a>
+        <a href="/chat/" data-i18n="nav.chat">聊天室</a>
+        <a href="/#contact" data-i18n="nav.contact">联系</a>
+      </nav>
+      <div class="nav-auth" id="navAuth"></div>
+    </div>
+  </header>
+
+  <!-- 未登录提示条 -->
+  <div class="dc-login-tip" id="dcLoginTip" hidden>
+    <span data-i18n="dc.loginTip">你目前没有登录，如果更换浏览器可能会丢失进度。</span>
+    <button type="button" id="dcLoginTipBtn" data-i18n="dc.loginTipBtn">点击这里登录</button>
+  </div>
+
+  <main class="dc-game">
+
+    <!-- 左侧：按钮 + 统计 -->
+    <section class="dc-stage">
+      <p class="dc-eyebrow" data-i18n="dc.classicEyebrow">🏺 怀旧版 · 2026.09 快照</p>
+      <h1 class="dc-title" data-i18n="dc.titleBig">我警告过你的</h1>
+
+      <!-- 统计条 -->
+      <div class="dc-stats">
+        <div class="dc-stat">
+          <div class="dc-stat-label" data-i18n="dc.statCuriosity">好奇心</div>
+          <div class="dc-stat-value" id="curCount">0</div>
+        </div>
+        <div class="dc-stat">
+          <div class="dc-stat-label" data-i18n="dc.statPerClick">每次点击</div>
+          <div class="dc-stat-value" id="clickPower">1</div>
+        </div>
+        <div class="dc-stat">
+          <div class="dc-stat-label" data-i18n="dc.statCps">每秒好奇</div>
+          <div class="dc-stat-value" id="cps">0</div>
+        </div>
+        <div class="dc-stat dc-stat-souls" id="soulsBox" hidden>
+          <div class="dc-stat-label" data-i18n="dc.statSouls">反骨之魂</div>
+          <div class="dc-stat-value" id="souls">0</div>
+        </div>
+      </div>
+
+      <!-- 大按钮 + 粒子层 -->
+      <div class="dc-btn-wrap">
+        <div class="dc-particles" id="dcParticles"></div>
+        <button class="dc-button" id="dontClickBtn" data-i18n="dc.bigBtn">不要点击这个按钮</button>
+      </div>
+      <p class="dc-hint" id="dcHint" data-i18n="dc.hint">真的，手拿开。</p>
+
+      <!-- 随机事件 -->
+      <div class="dc-events" id="dcEvents" hidden>
+        <div class="dc-events-head">
+          <span class="dc-events-title" data-i18n="dc.eventsTitle">⚡ 随机事件</span>
+          <span class="dc-events-timer" id="evTimer">02:00</span>
+        </div>
+        <div class="dc-events-body">
+          <div class="dc-events-icon" id="evIcon">🎲</div>
+          <div class="dc-events-info">
+            <div class="dc-events-name" id="evName" data-i18n="dc.evName">任务名称</div>
+            <div class="dc-events-desc" id="evDesc" data-i18n="dc.evDesc">任务描述</div>
+            <div class="dc-events-progress">
+              <div class="dc-events-bar"><div class="dc-events-bar-fill" id="evBar"></div></div>
+              <span class="dc-events-count" id="evCount">0/0</span>
+            </div>
+            <div class="dc-events-reward" id="evReward" data-i18n="dc.evReward" data-i18n-args='{"n":"0"}'>奖励：+0 好奇</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-foot">
+        <a class="dc-back" href="/" data-i18n="dc.backHome">← 回到主页</a>
+        <a class="dc-back" href="/dontclickit/" data-i18n="dc.classicNewLink">前往新版 →</a>
+        <button class="dc-ach-btn" id="achBtn" type="button"><span data-i18n="dc.achBtn">🏅 成就</span> <span id="achCount">0/34</span></button>
+        <button class="dc-reset" id="resetBtn" type="button" data-i18n="dc.reset">重置进度</button>
+        <button class="pcl-btn" id="pclBtn" type="button" data-i18n="dc.pcl">千万别点</button>
+        <button class="dc-prestige" id="prestigeBtn" type="button" hidden data-i18n="dc.prestige">重生</button>
+      </div>
+    </section>
+
+    <!-- 右侧：商店 -->
+    <aside class="dc-shop">
+      <h2 class="dc-shop-title" data-i18n="dc.shopTitle">好奇商店 <span style="font-size:12px;color:#a78bfa;font-weight:400" data-i18n="dc.classicShopBadge">🏺 怀旧版</span></h2>
+      <p class="dc-shop-sub" data-i18n="dc.shopSub">用好奇心让自己更停不下来</p>
+
+      <div class="dc-shop-section">
+        <h3 class="dc-shop-h3" data-i18n="dc.clickUpgrade">点击升级</h3>
+        <div class="dc-upgrades" id="dcUpgrades"></div>
+      </div>
+
+      <div class="dc-shop-section">
+        <h3 class="dc-shop-h3" data-i18n="dc.autoProd">自动产出</h3>
+        <div class="dc-buildings" id="dcBuildings"></div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- 金色好奇饼干（随机刷新，点击给大奖） -->
+  <button class="dc-golden" id="dcGolden" type="button" hidden></button>
+
+  <!-- 重置确认弹窗 -->
+  <div class="confirm-mask" id="resetConfirm" hidden>
+    <div class="confirm-modal" role="dialog" aria-modal="true">
+      <h2 class="confirm-title" data-i18n="dc.resetTitle">确定要重置吗？</h2>
+      <p class="confirm-text" data-i18n="dc.resetText">好奇心、建筑、升级、成就全部清零，无法恢复。</p>
+      <div class="confirm-btns">
+        <button class="cf-btn" id="resetCancel" type="button" data-i18n="dc.resetCancel">取消</button>
+        <button class="cf-btn cf-btn-danger" id="resetOk" type="button" data-i18n="dc.resetOk">确定重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重生确认弹窗 -->
+  <div class="confirm-mask" id="prestigeConfirm" hidden>
+    <div class="confirm-modal" role="dialog" aria-modal="true">
+      <h2 class="confirm-title" data-i18n="dc.prestigeTitle">准备重生了吗？</h2>
+      <p class="confirm-text" id="prestigeText"></p>
+      <div class="confirm-btns">
+        <button class="cf-btn" id="prestigeCancel" type="button" data-i18n="dc.prestigeCancel">再想想</button>
+        <button class="cf-btn cf-btn-danger" id="prestigeOk" type="button" data-i18n="dc.prestigeOk">重生</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 114 次 -->
+  <div class="milestone-mask" id="milestone114" hidden>
+    <div class="milestone-modal milestone-red" role="dialog" aria-modal="true">
+      <h2 class="milestone-title" data-i18n="dc.ms114Title">你知道你在做什么吗？？？</h2>
+      <div class="milestone-btns">
+        <button class="ms-btn" type="button" data-close114 data-i18n="dc.ms114Btn">知道</button>
+        <button class="ms-btn" type="button" data-close114 data-i18n="dc.ms114Btn">知道</button>
+        <button class="ms-btn" type="button" data-close114 data-i18n="dc.ms114Btn">知道</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1000 次 -->
+  <div class="milestone-mask" id="milestone1000" hidden>
+    <div class="milestone-modal milestone-win" role="dialog" aria-modal="true">
+      <h2 class="milestone-title milestone-title-dark" data-i18n="dc.ms1000Title">……好吧，你赢了</h2>
+      <p class="milestone-sub" data-i18n="dc.ms1000Sub">一千次。是我输了。</p>
+      <button class="ms-btn ms-btn-solid" type="button" data-close1000 data-i18n="dc.ms1000Btn">承让承让</button>
+    </div>
+  </div>
+
+  <!-- PCL 彩蛋 -->
+  <div class="pcl-mask" id="pclWarn" hidden>
+    <div class="pcl-modal" role="dialog" aria-modal="true">
+      <div class="pcl-modal-body">
+        <h2 class="pcl-title" data-i18n="dc.pclTitle">最后的警告</h2>
+        <p class="pcl-text" data-i18n="dc.pclText">
+          本网站不会受理由于点击此按钮触发的任何 bug。<br />
+          这是最后的警告，确定继续？
+        </p>
+        <div class="pcl-btns">
+          <button class="pcl-btn pcl-confirm" type="button" data-pclgo data-i18n="dc.pclBtn">确定</button>
+          <button class="pcl-btn pcl-confirm" type="button" data-pclgo data-i18n="dc.pclBtn">确定</button>
+          <button class="pcl-btn pcl-confirm" type="button" data-pclgo data-i18n="dc.pclBtn">确定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成就列表 -->
+  <div class="confirm-mask" id="achModal" hidden>
+    <div class="confirm-modal ach-modal" role="dialog" aria-modal="true">
+      <h2 class="confirm-title" data-i18n="dc.achTitle">🏅 成就</h2>
+      <p class="confirm-text" id="achProgress"></p>
+      <div class="ach-grid" id="achGrid"></div>
+      <div class="confirm-btns">
+        <button class="cf-btn" id="achClose" type="button" data-i18n="dc.achClose">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录 / 注册 -->
+  <div class="modal-mask" id="authModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="authClose" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label">×</button>
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+        <button class="tab" data-tab="register" data-i18n="auth.registerTab">注册</button>
+      </div>
+      <form id="loginForm" class="modal-form" autocomplete="on">
+        <label data-i18n="auth.usernameLabel">用户名 / XRSTUID
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.usernamePlaceholder" data-i18n-attr="placeholder" placeholder="用户名或 XRSTUID" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.loginBtn">登录</button>
+      </form>
+      <form id="registerForm" class="modal-form" hidden autocomplete="off">
+        <label data-i18n="auth.usernameLabel">用户名
+          <input type="text" name="username" required minlength="2" maxlength="20" data-i18n="auth.registerUsernamePlaceholder" data-i18n-attr="placeholder" placeholder="2-20 个字符" />
+        </label>
+        <label data-i18n="auth.passwordLabel">密码
+          <input type="password" name="password" required minlength="6" data-i18n="auth.passwordPlaceholder" data-i18n-attr="placeholder" placeholder="至少 6 位" />
+        </label>
+        <label data-i18n="auth.confirmPasswordLabel">确认密码
+          <input type="password" name="password2" required minlength="6" data-i18n="auth.confirmPasswordPlaceholder" data-i18n-attr="placeholder" placeholder="再输一遍" />
+        </label>
+        <p class="form-msg" data-msg></p>
+        <button type="submit" class="btn btn-solid btn-block" data-i18n="auth.registerBtn">创建账号</button>
+        <p class="form-note" data-i18n="auth.formNote">账号存储在云端，换设备也能登录。</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- 进入怀旧版提示 -->
+  <div class="confirm-mask" id="classicNotice" hidden>
+    <div class="confirm-modal" role="dialog" aria-modal="true">
+      <h2 class="confirm-title" data-i18n="dc.classicNoticeTitle">🏺 怀旧版提示</h2>
+      <p class="confirm-text" data-i18n="dc.classicNoticeText">
+        这是怀旧版，本站不对怀旧版的 bug 和公平性问题进行修复。<br />
+        想体验最新内容，可前往新版。
+      </p>
+      <div class="confirm-btns">
+        <a class="cf-btn cf-btn-ghost" href="/dontclickit/" data-i18n="dc.classicNewLink">前往新版</a>
+        <button class="cf-btn cf-btn-danger" id="classicNoticeOk" type="button" data-i18n="dc.classicNoticeOk">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script src="/js/i18n.js?v=6"></script>
+  <script src="../../js/auth.js"></script>
+  <script src="../../js/main.js?v=18"></script>
+  <script src="classic.js"></script>
+</body>
+</html>

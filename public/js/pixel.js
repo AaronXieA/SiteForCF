@@ -8,8 +8,8 @@
   const N = 256;
   const TOTAL = N * N;
   const POLL_MS = 5000;
-  const FLUSH_MS = 500;
-  const BATCH = 2500; // 服务端单次上限 3000，留余量
+  const FLUSH_MS = 1200;   // 停笔 1.2 秒后合并保存，避免每笔一次 KV 写
+  const BATCH = 7000; // 服务端单次上限 8000，留余量
   const ZOOM_LEVELS = [1, 2, 3, 4, 6, 8];
 
   // 20 色调色板（索引 1-20）
@@ -213,13 +213,18 @@
     if (!drawing) return;
     drawing = false;
     lastCell = null;
-    flushNow();
+    scheduleFlush(); // 停笔后合并保存，不再每笔写 KV
   }
 
   canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
   canvas.addEventListener("pointercancel", onUp);
+  // 离开/切后台前把未落盘的笔触保存掉（keepalive 保证请求不被杀）
+  window.addEventListener("pagehide", () => { if (pending.length) flushNow(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && pending.length) flushNow();
+  });
 
   /* ---------- 缩放 / 平移 ---------- */
   // inner 在 scrollBox 中靠 margin:auto 居中；内容超出时偏移为 0
@@ -306,7 +311,8 @@
   function syncPanUI() {
     scrollBox.classList.toggle("pan", panning());
     panModeBtn.classList.toggle("active", panning());
-    panModeBtn.textContent = panning() ? "✋ 拖动" : "✏️ 画笔";
+    panModeBtn.textContent = panning() ? I18n.t("board.pan") : I18n.t("board.brush");
+    panModeBtn.title = I18n.t("board.panHint");
   }
   panModeBtn.addEventListener("click", () => {
     panMode = !panMode;
@@ -350,19 +356,20 @@
         body: JSON.stringify({ pixels: batch }),
         credentials: "same-origin",
         cache: "no-store",
+        keepalive: true,
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         if (typeof data.v === "number") remoteV = Math.max(remoteV, data.v);
-        statusEl.textContent = "已保存 ✓";
+        statusEl.textContent = I18n.t("board.saved");
         if (pending.length) scheduleFlush();
       } else if (res.status === 401) {
         pending = batch.concat(pending); // 未同步成功，放回队列
         showLoginMask();
-        showToast("请先登录后再画");
+        showToast(I18n.t("board.pixelLoginToDraw"));
       } else {
         pending = batch.concat(pending);
-        statusEl.textContent = "保存失败，将重试…";
+        statusEl.textContent = I18n.t("board.saveRetry");
         scheduleFlush();
       }
     } catch {
@@ -393,19 +400,25 @@
   window.addEventListener("auth-user", e => {
     me = e.detail;
     showLoginMask();
-    if (me) statusEl.textContent = "选个颜色开始画吧";
+    if (me) statusEl.textContent = I18n.t("board.pixelPickColor");
   });
   loginBtn?.addEventListener("click", () => {
     if (typeof openAuthModal === "function") openAuthModal();
   });
 
   /* ---------- tab 切换 ---------- */
+  function playPanelEnter(panel) {
+    panel.classList.remove("board-panel-enter");
+    void panel.offsetWidth; // 重启动画
+    panel.classList.add("board-panel-enter");
+  }
   function switchTab(name, writeHash) {
     const isPixel = name === "pixel";
     tabBtnText.classList.toggle("active", !isPixel);
     tabBtnPixel.classList.toggle("active", isPixel);
     panelText.hidden = isPixel;
     panelPixel.hidden = !isPixel;
+    playPanelEnter(isPixel ? panelPixel : panelText);
     if (writeHash !== false) {
       history.replaceState(null, "", "#" + (isPixel ? "pixel" : "text"));
     }
@@ -428,11 +441,13 @@
     me = await Auth.currentUser();
     showLoginMask();
     await pullRemote();
-    statusEl.textContent = me ? "选个颜色开始画吧" : "登录后可以一起画";
-    pollTimer = setInterval(pullRemote, POLL_MS);
+    statusEl.textContent = me ? I18n.t("board.pixelPickColor") : I18n.t("board.pixelLoginHint2");
+    pollTimer = setInterval(() => { if (!document.hidden) pullRemote(); }, POLL_MS);
   }
 
   /* ---------- 启动 ---------- */
   buildPalette();
   switchTab(location.hash === "#pixel" ? "pixel" : "text", false);
+  // 语言切换后同步抓手按钮文案（文本由本 JS 管理，静态 data-i18n 不覆盖）
+  window.addEventListener("lang-changed", syncPanUI);
 })();

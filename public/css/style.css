@@ -599,28 +599,36 @@ a.nav-user:hover strong { color: var(--accent); }
 .card-danger .card-title { color: var(--danger); }
 
 /* ============ 一些小东西：默认折叠（露出第一行）+ 紧凑模式 ============ */
+/* 整个板块抬一层：高于 Hero 弹入动画的层叠上下文 */
+#works { position: relative; z-index: 2; }
 .cards-wrap { position: relative; }
 #works .cards {
-  max-height: 196px;
+  max-height: var(--works-peek, 262px);
   overflow: hidden;
   transition: max-height .45s ease;
 }
 #works.works-open .cards { max-height: 3000px; }
 
-/* 折叠条：贴在卡片底部，下半截渐变到板块底色 */
+/* 折叠条：上沿由 JS 对齐第二行卡片，渐变从第二行开始；
+   z-index 高于卡片 hover（.card:hover 为 4），粘滞 hover 也挡不住按钮 */
 .works-fold {
   position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 96px;
+  left: 0; right: 0;
+  top: var(--works-fold-top, 196px);
+  bottom: 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 4px;
-  background: linear-gradient(to bottom, rgba(242,242,240,0), var(--bg-alt) 72%);
+  padding-bottom: 10px;
+  background: linear-gradient(to bottom, rgba(242,242,240,0) 0%, rgba(242,242,240,.85) 58%, var(--bg-alt) 78%);
+  z-index: 5;
   pointer-events: none;
 }
 .works-toggle {
   pointer-events: auto;
+  position: relative;
+  z-index: 6;
+  touch-action: manipulation;
   background: #fff;
   border: 1px solid var(--line);
   padding: 8px 20px;

@@ -294,6 +294,11 @@ export default {
       return stub.fetch(request);
     }
 
+    // 回声洞投稿页（PCL.Mac XE）
+    if (pathname === "/hsd" || pathname === "/hsd/") {
+      return handleHsdPage(request, env);
+    }
+
     if (pathname.startsWith("/api/")) {
       try {
         const resp = await handleApi(request, env, pathname);
@@ -1903,6 +1908,52 @@ async function handleApi(request, env, pathname) {
     return doPost(stub, `/match/${action}`, { ...reqBody, u: me });
   }
 
+  // === 回声洞 (PCL.Mac XE) ===
+  if (pathname === "/api/cave" && method === "GET") {
+    const msgs = await getCaveMessages(env);
+    return json({ code: 0, msg: "success", data: msgs });
+  }
+  if (pathname === "/api/cave/submit" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ code: 401, msg: "请先登录", data: null }, 401);
+    const body = await request.json().catch(() => ({}));
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    if (!text) return json({ code: 400, msg: "消息不能为空", data: null }, 400);
+    if (text.length > 500) return json({ code: 400, msg: "消息不能超过 500 字", data: null }, 400);
+    await submitCaveMessage(env, text, me);
+    return json({ code: 0, msg: "success", data: null });
+  }
+  if (pathname === "/api/cave/pending" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me || me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
+      return json({ code: 403, msg: "没有管理员权限", data: null }, 403);
+    }
+    const pending = await getCavePending(env);
+    return json({ code: 0, msg: "success", data: pending });
+  }
+  if (pathname === "/api/cave/adopt" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me || me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
+      return json({ code: 403, msg: "没有管理员权限", data: null }, 403);
+    }
+    const body = await request.json().catch(() => ({}));
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    if (!text) return json({ code: 400, msg: "消息不能为空", data: null }, 400);
+    await adoptCaveMessage(env, text);
+    return json({ code: 0, msg: "success", data: null });
+  }
+  if (pathname === "/api/cave/reject" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me || me.toLowerCase() !== ADMIN_USER.toLowerCase()) {
+      return json({ code: 403, msg: "没有管理员权限", data: null }, 403);
+    }
+    const body = await request.json().catch(() => ({}));
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    if (!text) return json({ code: 400, msg: "消息不能为空", data: null }, 400);
+    await rejectCaveMessage(env, text);
+    return json({ code: 0, msg: "success", data: null });
+  }
+
   return json({ ok: false, error: "Not found" }, 404);
 }
 
@@ -2193,4 +2244,152 @@ function clearCookie() {
 
 function authHeaders(cookie) {
   return { "Set-Cookie": cookie };
+}
+
+// === 回声洞 Helper (PCL.Mac XE) ===
+async function getCaveMessages(env) {
+  try {
+    const raw = await env.AUTH_KV.get("cave:messages");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+async function getCavePending(env) {
+  try {
+    const raw = await env.AUTH_KV.get("cave:pending");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+async function submitCaveMessage(env, text, user) {
+  const pending = await getCavePending(env);
+  pending.push({ text, user, ts: Date.now() });
+  await env.AUTH_KV.put("cave:pending", JSON.stringify(pending.slice(0, 200)));
+}
+async function adoptCaveMessage(env, text) {
+  const messages = await getCaveMessages(env);
+  if (!messages.includes(text)) {
+    messages.push(text);
+    await env.AUTH_KV.put("cave:messages", JSON.stringify(messages.slice(-500)));
+  }
+  const pending = await getCavePending(env);
+  await env.AUTH_KV.put("cave:pending", JSON.stringify(pending.filter(p => p.text !== text)));
+}
+async function rejectCaveMessage(env, text) {
+  const pending = await getCavePending(env);
+  await env.AUTH_KV.put("cave:pending", JSON.stringify(pending.filter(p => p.text !== text)));
+}
+function handleHsdPage(request, env) {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回声洞投稿 - XRST.Uk</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#0f172a; color:#e2e8f0; min-height:100vh; padding:40px 20px; }
+  .container { max-width:640px; margin:0 auto; }
+  h1 { font-size:26px; margin-bottom:6px; }
+  .subtitle { color:#94a3b8; margin-bottom:24px; font-size:14px; }
+  .card { background:#1e293b; border-radius:14px; padding:22px; margin-bottom:18px; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .user { font-weight:600; margin-bottom:12px; color:#93c5fd; }
+  textarea { width:100%; min-height:110px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; padding:12px; font-size:15px; resize:vertical; }
+  textarea:focus { outline:none; border-color:#3b82f6; }
+  .hint { color:#94a3b8; font-size:12px; margin-top:6px; }
+  .btn { padding:10px 18px; border:none; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-primary { background:#3b82f6; color:#fff; width:100%; margin-top:14px; padding:12px; font-size:15px; }
+  .btn-primary:hover { background:#2563eb; }
+  .btn-adopt { background:#22c55e; color:#052e16; margin-right:8px; }
+  .btn-reject { background:#ef4444; color:#fff; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .msg { margin-top:10px; font-size:14px; text-align:center; }
+  .msg.ok { color:#4ade80; }
+  .msg.err { color:#f87171; }
+  .login-tip { text-align:center; color:#94a3b8; }
+  .login-tip a { color:#3b82f6; }
+  .pending-item { padding:12px; border:1px solid #334155; border-radius:10px; margin-bottom:10px; background:#0f172a; }
+  .pending-item .text { margin-bottom:8px; white-space:pre-wrap; word-break:break-word; }
+  .pending-item .meta { color:#64748b; font-size:12px; margin-bottom:10px; }
+  .admin-title { font-size:18px; font-weight:600; margin:6px 0 12px; }
+  .empty { color:#64748b; font-size:14px; text-align:center; padding:12px; }
+  .home { display:inline-block; margin-top:10px; color:#64748b; font-size:13px; text-decoration:none; }
+  .home:hover { color:#94a3b8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>回声洞投稿</h1>
+  <p class="subtitle">写一条有趣的话，被采纳后会出现在 PCL.Mac XE 启动器的回声洞里～</p>
+  <div class="card" id="submitCard" style="display:none">
+    <div class="user" id="userName"></div>
+    <textarea id="msg" placeholder="在这里输入你想投稿的内容……"></textarea>
+    <p class="hint">最多 500 字，投稿后需管理员审核才会显示。</p>
+    <button class="btn btn-primary" id="submitBtn" onclick="submit()">提交投稿</button>
+    <div id="status" class="msg"></div>
+  </div>
+  <div class="card login-tip" id="loginBox" style="display:none">
+    <p>请先 <a href="/">登录网站</a> 后再来投稿。</p>
+  </div>
+  <div id="adminBox" style="display:none">
+    <div class="admin-title">待审核投稿</div>
+    <div id="pendingList"></div>
+  </div>
+  <a class="home" href="/">← 返回首页</a>
+</div>
+<script>
+let isAdmin=false;
+async function init(){
+  const r=await fetch('/api/me',{credentials:'same-origin'});
+  const d=r.ok?await r.json():null;
+  const name=d&&d.username?d.username:null;
+  if(name){
+    document.getElementById('loginBox').style.display='none';
+    document.getElementById('submitCard').style.display='block';
+    document.getElementById('userName').textContent=name;
+    if(name.toLowerCase()==='aaronxie'){isAdmin=true;loadPending();}
+  }else{
+    document.getElementById('loginBox').style.display='block';
+  }
+}
+async function submit(){
+  const btn=document.getElementById('submitBtn'),st=document.getElementById('status');
+  const text=document.getElementById('msg').value.trim();
+  if(!text){st.className='msg err';st.textContent='内容不能为空';return;}
+  btn.disabled=true;st.className='msg';st.textContent='提交中……';
+  try{
+    const r=await fetch('/api/cave/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),credentials:'same-origin'});
+    const d=await r.json();
+    if(d.code===0){st.className='msg ok';st.textContent='投稿成功，等待审核～';document.getElementById('msg').value='';if(isAdmin)loadPending();}
+    else{st.className='msg err';st.textContent='投稿失败：'+(d.msg||'未知错误');}
+  }catch(e){st.className='msg err';st.textContent='网络错误';}
+  btn.disabled=false;
+}
+async function loadPending(){
+  if(!isAdmin)return;
+  document.getElementById('adminBox').style.display='block';
+  const r=await fetch('/api/cave/pending',{credentials:'same-origin'});
+  const d=r.ok?await r.json():null;
+  const list=d&&d.data?d.data:[];
+  const box=document.getElementById('pendingList');
+  if(!list.length){box.innerHTML='<div class="empty">暂无待审核的投稿</div>';return;}
+  box.innerHTML=list.map(p=>{
+    const t=new Date(p.ts).toLocaleString('zh-CN');
+    return '<div class="pending-item"><div class="text">'+esc(p.text)+'</div><div class="meta">'+esc(p.user)+' · '+t+'</div><button class="btn btn-adopt" onclick="review(1,this)">采纳</button><button class="btn btn-reject" onclick="review(0,this)">拒绝</button></div>';
+  }).join('');
+}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+async function review(adopt,btn){
+  const text=btn.parentElement.querySelector('.text').textContent;
+  btn.disabled=true;
+  try{
+    await fetch(adopt?'/api/cave/adopt':'/api/cave/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),credentials:'same-origin'});
+  }catch(e){}
+  loadPending();
+}
+init();
+</script>
+</body>
+</html>`;
+  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Strict-Transport-Security": HSTS_VALUE } });
 }

@@ -327,6 +327,12 @@ export default {
       return handleTrashDownload(request);
     }
 
+    // 启动器更新包镜像：反向代理 GitHub Release（避免国内直连 GitHub 慢，
+    // 也不依赖静态资产——Cloudflare Git 集成部署时未入库的文件会被清掉）
+    if (request.method === "GET" && /^\/downloads\/PCL\.Mac-[^/]+\.zip$/.test(pathname)) {
+      return handleLauncherDownload(request, env, pathname.split("/").pop());
+    }
+
     // 其余路径交给静态资源（/、/dontclickit/、css/js 等）
     const assetResponse = await env.ASSETS.fetch(request);
     // 给 HTML / JS / CSS 加 no-store 头，防止浏览器或 CDN 缓存旧版本
@@ -438,6 +444,37 @@ function handleTrashDownload(request) {
       headers: trashHeaders({ "Content-Length": String(TRASH_SIZE) }),
     }
   );
+}
+
+// 启动器更新包镜像：按 KV(launcher:update) 中记录的 GitHub 地址服务端回源并流式转发。
+// 仅允许下载清单里登记过的文件名，避免变成开放代理；Range 头透传以支持断点续传。
+async function handleLauncherDownload(request, env, filename) {
+  let info = null;
+  try {
+    const raw = await env.AUTH_KV.get("launcher:update");
+    info = raw ? JSON.parse(raw) : null;
+  } catch { info = null; }
+  const upstream = info && info.latestVersion && info.latestVersion.downloads && info.latestVersion.downloads.github;
+  if (typeof upstream !== "string" || !upstream.endsWith("/" + filename)) {
+    return new Response("Not Found", { status: 404, headers: { "Strict-Transport-Security": HSTS_VALUE } });
+  }
+  const fetchOptions = { redirect: "follow" };
+  const range = request.headers.get("Range");
+  if (range) fetchOptions.headers = { Range: range };
+  const upstreamResp = await fetch(upstream, fetchOptions).catch(() => null);
+  if (!upstreamResp || upstreamResp.status >= 400) {
+    return new Response("Bad Gateway", { status: 502, headers: { "Strict-Transport-Security": HSTS_VALUE } });
+  }
+  const headers = new Headers(upstreamResp.headers);
+  headers.set("Content-Type", "application/zip");
+  headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+  headers.set("Cache-Control", "public, max-age=3600");
+  headers.set("Strict-Transport-Security", HSTS_VALUE);
+  return new Response(upstreamResp.body, {
+    status: upstreamResp.status,
+    statusText: upstreamResp.statusText,
+    headers,
+  });
 }
 
 async function handleApi(request, env, pathname) {

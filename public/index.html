@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="home.title">XRST.Uk · 个人主页</title>
   <meta name="description" content="XRST.Uk 的个人主页 —— 关于我、一些小东西与我的 Minecraft 服务器。" />
-  <link rel="stylesheet" href="css/style.css?v=30" />
+  <link rel="stylesheet" href="css/style.css?v=33" />
 </head>
 <body>
 
@@ -32,7 +32,7 @@
     <div class="hero-inner">
       <p class="hero-eyebrow" data-i18n="home.heroGreeting">你好，欢迎来到</p>
       <h1 class="hero-title">XRST<span class="accent">.Uk</span></h1>
-  <script src="/js/i18n.js?v=6"></script>
+  <script src="/js/i18n.js?v=7"></script>
       <script>
         /* 愚人节彩蛋：4 月 1 日（按访客本地时区）改名一天 */
         (function () {
@@ -97,6 +97,12 @@
           <li><span class="k" data-i18n="home.aboutPlatformK">常驻平台</span><span class="v">Minecraft Java 26.2 · Fabric</span></li>
           <li><span class="k" data-i18n="home.aboutDoingK">正在折腾</span><span class="v" data-i18n="home.aboutDoingV">服务器运维 / 模组整合</span></li>
           <li><span class="k" data-i18n="home.aboutStyleK">风格</span><span class="v">Not Lost, Just Exploring.</span></li>
+          <li>
+            <span class="k" data-i18n="home.aboutSponsorK">赞助我</span>
+            <span class="v">
+              <a class="sponsor-link" href="https://afdian.com/a/aaronxie" target="_blank" rel="noopener noreferrer">爱发电 · aaronxie <span aria-hidden="true">↗</span></a>
+            </span>
+          </li>
         </ul>
       </div>
     </div>
@@ -284,6 +290,37 @@
     </div>
   </section>
 
+  <!-- PCL.Mac XE 项目 -->
+  <section class="section" id="pcl">
+    <div class="section-inner">
+      <h2 class="section-title" data-i18n="pcl.title">PCL.Mac XE</h2>
+      <div class="pcl-wrap">
+        <p class="about-text" data-i18n="pcl.desc">适用于 macOS 的非官方 Minecraft 启动器，基于风花（Cylorine Studio）的 PCL.Mac.Refactor 二次开发，原作为龙腾猫跃的 Plain Craft Launcher，使用 SwiftUI 构建。这个分支新增了以下功能：</p>
+        <div class="card-meta pcl-feats">
+          <span class="pill" data-i18n="pcl.feat1">🔄 一键更新模组（Modrinth 批量升级）</span>
+          <span class="pill" data-i18n="pcl.feat2">🧑‍🎨 披风与皮肤更换</span>
+          <span class="pill" data-i18n="pcl.feat3">🕳️ 回声洞（数据源 xrst.uk）</span>
+          <span class="pill" data-i18n="pcl.feat4">⬆️ 应用内自动更新</span>
+          <span class="pill" data-i18n="pcl.meta">macOS 12.0+ · Apple Silicon · SwiftUI</span>
+        </div>
+        <div class="pcl-actions">
+          <a class="btn btn-solid" href="https://github.com/AaronXieA/PCL.Mac-XE/releases/latest" target="_blank" rel="noopener noreferrer" data-i18n="pcl.dlBtn">⬇️ 下载最新版</a>
+          <a class="btn btn-ghost" href="https://github.com/AaronXieA/PCL.Mac-XE" target="_blank" rel="noopener noreferrer" data-i18n="pcl.githubBtn">⭐ GitHub 仓库</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 回声洞投稿 -->
+  <section class="section section-alt" id="cave">
+    <div class="section-inner cave-inner">
+      <h2 class="section-title" data-i18n="cave.title">回声洞</h2>
+      <p class="about-text cave-desc" data-i18n="cave.desc">启动器主页的小彩蛋，会滚动展示大家投稿的趣味短句。写一条有趣的话投过来，审核通过后就会被所有 PCL.Mac XE 用户看到。</p>
+      <a class="btn btn-solid cave-btn" href="/hsd/" data-i18n="cave.btn">🕳️ 去投稿</a>
+      <p class="cave-note" data-i18n="cave.note">登录 XRST.Uk 账号即可投稿 · 最多 500 字 · 管理员审核后展示</p>
+    </div>
+  </section>
+
   <!-- 每日签到 + 谁在看 -->
   <section class="section" id="rewards">
     <div class="section-inner">
@@ -347,7 +384,7 @@
             <span class="lot-balance">🪙 <b id="lotCoins">0</b></span>
           </div>
 
-          <!-- lottery.js 渲染普通奖池 + 隐藏大奖位 -->
+          <!-- lottery.js 渲染奖池 -->
           <div class="lot-pool" id="lotPool"></div>
 
           <button class="btn btn-vip lot-draw-btn" id="lotDrawBtn" type="button" data-i18n="lottery.drawBtn">🎲 花 100 金币抽一次</button>
@@ -355,7 +392,6 @@
           <div class="lot-tips">
             <p data-i18n="lottery.tip1">💰 <b>金币怎么来？</b>每天<a href="#rewards">签到</a>能领 10～40 金币，也可以去<a href="/games/">游戏中心</a>玩小游戏赚金币。</p>
             <p data-i18n="lottery.tip2">🎁 抽中的<b>游戏内物品</b>会自动存进右边「我的奖品」，加 QQ 群 <b>545397370</b> 找腐竹，凭兑换码领取。</p>
-            <p data-i18n="lottery.tip3">👑 还有概率仅 <b>0.5%</b> 的隐藏大奖：12 个月网站 VIP、25 个钻石块！</p>
           </div>
         </div>
 
@@ -518,6 +554,6 @@
   <script src="js/main.js?v=18"></script>
   <script src="js/announce.js?v=4"></script>
   <script src="js/rewards.js?v=5"></script>
-  <script src="js/lottery.js?v=2"></script>
+  <script src="js/lottery.js?v=3"></script>
 </body>
 </html>

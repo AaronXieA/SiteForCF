@@ -92,7 +92,7 @@ async function renderNavAuth(knownUser) {
       ${langBtn}
       <a class="nav-shop-link" href="/#rewards" title="${I18n.t("nav.coinsTip")}">🪙<b id="navCoins">–</b></a>
       <a class="nav-search-link" href="/search/">${I18n.t("nav.searchUser")}</a>
-      ${user === "AaronXie" ? `<a class="nav-search-link" href="/admin/coins" title="${I18n.t("nav.coinManageTip")}">${I18n.t("nav.coinManage")}</a>` : ""}
+      ${user === "AaronXie" ? `<a class="nav-search-link" href="/admin/" title="${I18n.t("nav.coinManageTip")}">${I18n.t("nav.coinManage")}</a>` : ""}
       <a class="nav-user" href="/profile/" title="${I18n.t("nav.profileTip")}">${I18n.t("nav.hello")}<strong></strong><span class="vip-badge nav-vip" id="navVip" title="${I18n.t("nav.vip")}" hidden>👑</span></a>
       <button class="btn btn-ghost btn-small" id="logoutBtn">${I18n.t("nav.logout")}</button>
     `;
@@ -307,41 +307,6 @@ document.querySelectorAll(".board-tabs").forEach(tabs => {
     }).observe(mask, { attributes: true, attributeFilter: ["hidden"] });
   }
 });
-
-/* 滚动入场：给首页卡片 / 各页标题等打标记，进入视口时淡入上移 */
-(function revealOnScroll() {
-  const groups = [
-    ".hero-eyebrow", ".hero-title", ".hero-sub", ".hero-actions",
-    ".section-title",
-    ".card",
-    ".about-list li",
-    ".wb-eyebrow", ".wb-title", ".wb-sub",
-    ".announce-board", ".chat-box", ".pixel-board",
-  ];
-  const els = [];
-  groups.forEach(sel => document.querySelectorAll(sel).forEach(el => {
-    if (el.hasAttribute("data-reveal")) return;
-    el.setAttribute("data-reveal", "");
-    // 同一父容器内依次入场（最多 5 级延迟）
-    const idx = Array.prototype.indexOf.call(el.parentElement.children, el);
-    const delay = Math.min(idx, 5) * 70;
-    if (delay) el.style.transitionDelay = delay + "ms";
-    els.push(el);
-  }));
-  if (!("IntersectionObserver" in window)) {
-    els.forEach(el => el.classList.add("in-view"));
-    return;
-  }
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(en => {
-      if (en.isIntersecting) {
-        en.target.classList.add("in-view");
-        io.unobserve(en.target);
-      }
-    });
-  }, { threshold: .1, rootMargin: "0px 0px -6% 0px" });
-  els.forEach(el => io.observe(el));
-})();
 
 document.getElementById("authClose")?.addEventListener("click", closeAuthModal);
 authModal?.addEventListener("click", e => { if (e.target === authModal) closeAuthModal(); });

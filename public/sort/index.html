@@ -206,7 +206,6 @@
   .modal .again{background:linear-gradient(160deg,#3ec3f0,#0d9bd6);}
   .modal .change{background:linear-gradient(160deg,#93b8cd,#6f96ae);}
 
-  /* —— AI 代打按钮（付费功能：100 积分/局） —— */
   .ai-fab{position:fixed;right:16px;bottom:16px;width:66px;height:66px;border-radius:50%;overflow:hidden;
     background:linear-gradient(135deg,#7c3aed,#a855f7 45%,#6d28d9);color:#fff;font-weight:700;
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;z-index:60;
@@ -221,7 +220,6 @@
   .ai-fab:hover{transform:translateY(-2px);}
   .ai-fab.on{background:linear-gradient(135deg,#8b5cf6,#c084fc 45%,#7c3aed);}
   .ai-fab.on::before{background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);}
-
   /* —— AI 代打确认框 —— */
   .ai-confirm{position:fixed;inset:0;background:rgba(8,50,70,.4);display:none;align-items:center;justify-content:center;z-index:82;padding:20px;}
   .ai-confirm.show{display:flex;}
@@ -271,6 +269,16 @@
   .ex-a1{background:linear-gradient(160deg,#ffc14d,#f0a013);}
   .ex-a2{background:linear-gradient(160deg,#3ec3f0,#0d9bd6);}
   .ex-close{width:100%;border:none;border-radius:12px;padding:11px 0;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#fff;background:linear-gradient(160deg,#93b8cd,#6f96ae);}
+  .ex-amt{display:none;margin-top:12px;padding:14px;border:1px solid var(--glass-brd);border-radius:13px;background:#f2f9ff;}
+  .ex-amt.show{display:block;}
+  .ex-amt-tip{font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;}
+  .ex-amt-in input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:11px;font-size:16px;text-align:center;font-family:inherit;outline:none;}
+  .ex-amt-in input:focus{border-color:#0d9bd6;box-shadow:0 0 0 3px rgba(13,155,214,.15);}
+  .ex-amt-actions{display:flex;gap:8px;margin-top:10px;}
+  .ex-amt-actions button{flex:1;border:none;border-radius:11px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#fff;transition:transform .12s;}
+  .ex-amt-actions button:hover{transform:translateY(-1px);}
+  .ex-amt-ok{background:linear-gradient(160deg,#ffc14d,#f0a013);}
+  .ex-amt-cancel{background:linear-gradient(160deg,#93b8cd,#6f96ae);}
 
   @media (max-width:520px){
     .card{padding:16px 14px 20px;border-radius:22px;}
@@ -283,7 +291,6 @@
 </style>
 </head>
 <body>
-<div data-i18n="game.noI18n" style="background:#fff8e6;color:#92610a;border:1px solid #f3dfa2;border-radius:10px;padding:10px 14px;margin:12px auto;max-width:720px;font-size:14px;font-weight:700;text-align:center;">⚠️ 本小游戏由 wkw 制作，暂无英文版。</div>
 <div class="stage">
   <div class="card">
     <div class="topbar">
@@ -355,18 +362,25 @@
 <div class="ex-overlay" id="exOv">
   <div class="ex-modal">
     <h3>积分兑换中心</h3>
-    <p class="ex-tip">游戏积分与网站金币双向兑换（1:1），每日各限 200</p>
+    <p class="ex-tip">游戏积分与 xrst.uk 主站「服务器金币」双向兑换（1:1，每日各限 200）</p>
     <div class="ex-row"><span class="ex-lab">游戏积分</span><b class="ex-val" id="exGame">0</b></div>
-    <div class="ex-row"><span class="ex-lab">网站金币</span><b class="ex-val" id="exCoins">0</b></div>
+    <div class="ex-row"><span class="ex-lab">服务器金币</span><b class="ex-val" id="exOut">0</b></div>
     <div class="ex-actions">
-      <button class="ex-a1" id="exIn">积分 → 金币</button>
-      <button class="ex-a2" id="exOut2">金币 → 积分</button>
+      <button class="ex-a1" id="exIn">游戏 → 服务器金币</button>
+      <button class="ex-a2" id="exOut2">服务器金币 → 游戏</button>
+    </div>
+    <div class="ex-amt" id="exAmt">
+      <p class="ex-amt-tip" id="exAmtTip"></p>
+      <div class="ex-amt-in"><input id="exAmtIn" type="number" min="1" step="1" placeholder="输入要兑换的数量" autocomplete="off"></div>
+      <div class="ex-amt-actions">
+        <button class="ex-amt-ok" id="exAmtOk">确定兑换</button>
+        <button class="ex-amt-cancel" id="exAmtCancel">取消</button>
+      </div>
     </div>
     <button class="ex-close" id="exClose">关闭</button>
   </div>
 </div>
 
-  <script src="/js/i18n.js?v=6"></script>
 <script>
 (function(){
   "use strict";
@@ -391,8 +405,8 @@
   var overlayEl=document.getElementById('overlay');
   var winScoreEl=document.getElementById('winScore');
 
-  /* —— 游戏积分（localStorage 持久化）+ 网站金币互通 —— */
-  var points=0;
+  /* —— 游戏积分（localStorage 持久化）+ xrst.uk 主站「服务器金币」（走接口） —— */
+  var points=0, serverCoins=0, loggedIn=false;
   try{ points=parseInt(localStorage.getItem('ws_points'),10)||0; }catch(e){}
   var pointsEl=document.getElementById('points');
   var toastEl=null;
@@ -411,44 +425,61 @@
     points-=20; refreshPoints();
     state.locked--;
     state.tubes.push([]);
-    /* 已购买的空管属于本局：同步进初始快照，点“重开”不会把它吞掉 */
-    state.initTubes=state.tubes.map(clone);
     render();
   }
-  /* 兑换中心：游戏积分 ↔ 网站金币（1:1，每日各限 200） */
-  var exOv=document.getElementById('exOv'), exGame=document.getElementById('exGame'), exCoins=document.getElementById('exCoins');
-  var _userCoins=null;
-  function loadUserCoins(){
-    fetch('/api/me').then(r=>r.json()).then(d=>{
-      _userCoins=(d&&d.username)?(d.coins||0):0;
-      if(exCoins)exCoins.textContent=_userCoins;
-    }).catch(function(){ if(exCoins)exCoins.textContent='—'; });
+  /* 兑换中心：游戏积分 ↔ xrst.uk 主站「服务器金币」（1:1，服务端日限 200） */
+  var exOv=document.getElementById('exOv'), exGame=document.getElementById('exGame'), exOut=document.getElementById('exOut');
+  function refreshEx(){ if(exGame)exGame.textContent=points; if(exOut)exOut.textContent=serverCoins; }
+  /* 从主站拉取当前「服务器金币」余额与登录态 */
+  function loadCoins(){
+    fetch('/api/me?t='+Date.now(),{credentials:'same-origin',cache:'no-store'})
+      .then(function(r){ return r.ok?r.json():null; })
+      .then(function(d){ if(d){ loggedIn=true; serverCoins=Number(d.coins)||0; } else { loggedIn=false; serverCoins=0; } })
+      .catch(function(){ loggedIn=false; serverCoins=0; })
+      .then(function(){ refreshEx(); });
   }
-  function refreshEx(){ if(exGame)exGame.textContent=points; if(exCoins&&_userCoins!==null)exCoins.textContent=_userCoins; }
-  document.getElementById('exBtn').addEventListener('click',function(){ refreshEx(); loadUserCoins(); exOv.classList.add('show'); });
+  document.getElementById('exBtn').addEventListener('click',function(){ loadCoins(); exOv.classList.add('show'); });
   if(exOv){
     exOv.addEventListener('click',function(e){ if(e.target===exOv)exOv.classList.remove('show'); });
     document.getElementById('exClose').addEventListener('click',function(){exOv.classList.remove('show');});
-    /* 积分 → 金币 */
-    document.getElementById('exIn').addEventListener('click',function(){
-      if(points<=0){ showToast('游戏积分不足'); return; }
-      fetch('/api/game/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dir:'toCoins',amount:points})})
-      .then(r=>r.json()).then(d=>{
-        if(d.ok){ showToast('已兑换 '+d.amount+' 金币（余额 '+d.balance+'）'); points=0; refreshPoints(); loadUserCoins(); refreshEx(); }
-        else showToast(d.error||'兑换失败');
-      }).catch(function(){ showToast('网络错误'); });
+    var exAmt=document.getElementById('exAmt'), exAmtIn=document.getElementById('exAmtIn'), exAmtTip=document.getElementById('exAmtTip');
+    var exDir=0; // 1:游戏 → 服务器金币 2:服务器金币 → 游戏
+    function openExAmt(dir){
+      exDir=dir;
+      exAmtTip.textContent= dir===1
+        ? ('输入要兑换的积分数（当前游戏积分 '+points+'）')
+        : ('输入要兑换的服务器金币数（当前 '+serverCoins+'）');
+      exAmtIn.value=''; exAmt.classList.add('show'); exAmtIn.focus();
+    }
+    function closeExAmt(){ exAmt.classList.remove('show'); exAmtIn.value=''; }
+    document.getElementById('exAmtCancel').addEventListener('click',closeExAmt);
+    var exOk=document.getElementById('exAmtOk');
+    exOk.addEventListener('click',function(){
+      var n=parseInt(exAmtIn.value,10);
+      if(!n||n<=0){ showToast('请输入有效数量'); return; }
+      if(!loggedIn){ showToast('请先登录 xrst.uk 主站再兑换'); return; }
+      if(exDir===1 && n>points){ showToast('游戏积分不足'); return; }
+      if(exDir===2 && n>serverCoins){ showToast('服务器金币不足'); return; }
+      if(exDir!==1 && exDir!==2){ return; }
+      exOk.disabled=true;
+      fetch('/api/game/exchange',{
+        method:'POST', credentials:'same-origin', cache:'no-store',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ dir: exDir===1 ? 'toCoins' : 'toPoints', amount: n })
+      }).then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return { ok:r.ok, d:d }; }); })
+      .then(function(res){
+        exOk.disabled=false;
+        if(!res.ok||!res.d||!res.d.ok){ showToast((res.d&&res.d.error)||'兑换失败'); return; }
+        serverCoins=Number(res.d.balance)||0;
+        if(exDir===1){ points-=n; showToast('已兑换 '+n+' 积分到服务器金币'); }
+        else { points+=n; showToast('已兑换 '+n+' 服务器金币为游戏积分'); }
+        refreshPoints(); refreshEx(); closeExAmt();
+      }).catch(function(){ exOk.disabled=false; showToast('网络异常，请重试'); });
     });
-    /* 金币 → 积分 */
-    document.getElementById('exOut2').addEventListener('click',function(){
-      if(_userCoins===null||_userCoins<=0){ showToast('网站金币不足'); return; }
-      fetch('/api/game/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dir:'toPoints',amount:_userCoins})})
-      .then(r=>r.json()).then(d=>{
-        if(d.ok){ points+=d.amount; refreshPoints(); showToast('已兑换 '+d.amount+' 积分（余额 '+d.balance+'）'); loadUserCoins(); refreshEx(); }
-        else showToast(d.error||'兑换失败');
-      }).catch(function(){ showToast('网络错误'); });
-    });
+    document.getElementById('exIn').addEventListener('click',function(){ openExAmt(1); });
+    document.getElementById('exOut2').addEventListener('click',function(){ openExAmt(2); });
   }
-  refreshPoints(); refreshEx();
+  refreshPoints(); refreshEx(); loadCoins();
 
   function clone(t){return t.slice();}
   function isComplete(t){return t.length===CAP && t.every(function(x){return x===t[0];});}
@@ -897,12 +928,10 @@
     winScoreEl.textContent=state.moves+' 步完成';
     var add={easy:15,medium:20,hard:25}[state.level]||0;
     points+=add; refreshPoints();
-    showToast('通关 +'+add+' 积分');
     overlayEl.classList.add('show');
   }
   function closeWin(){overlayEl.classList.remove('show');}
 
-  /* ---------- AI 自动代打（付费：100 积分/局，仅通关当前一局） ---------- */
   var aiFab=document.getElementById('aiFab');
   var aiRunning=false;
   var aiOv=document.getElementById('aiOv');
@@ -1001,6 +1030,7 @@
   document.getElementById('aiNo').addEventListener('click',function(){aiOv.classList.remove('show');});
   aiOv.addEventListener('click',function(e){ if(e.target===aiOv)aiOv.classList.remove('show'); });
 
+
   function start(level){
     closeWin();
     animToken++;
@@ -1056,6 +1086,5 @@
   start('easy');
 })();
 </script>
-<script src="/js/playtime.js?v=4" data-game="sort"></script>
 </body>
 </html>

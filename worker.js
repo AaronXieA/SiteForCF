@@ -139,22 +139,31 @@ function marketView(l) {
     desc: l.desc || "",
     price: l.price | 0, status: l.status, taker: l.taker || null,
     buyer: l.buyer || null, seller: l.seller || null, held: l.held | 0,
+    buyerOk: !!l.buyerOk, sellerOk: !!l.sellerOk, doneAt: l.doneAt || null,
     createdAt: l.createdAt, takenAt: l.takenAt || null, expireAt: l.expireAt || null,
   };
 }
 
-/* 懒结算过期交易：退款给买家、帖子重新开放、删聊天。返回是否改过索引（写盘失败静默跳过）*/
+/* 懒结算：过期 taken 交易退款重开；已完成交易 24 小时后清理。返回是否改过列表 */
 async function settleExpiredMarket(env, list, now = Date.now()) {
   let changed = false;
-  for (const l of list) {
-    if (l.status !== "taken" || !l.expireAt || l.expireAt > now) continue;
-    try {
-      if (l.held > 0 && l.buyer) await adjustUserCoins(env, l.buyer, l.held, false, { type: "market_refund", memo: "交易超时未完成，担保金币退回" });
-      try { await env.AUTH_KV.delete(marketChatKey(l.id)); } catch { /* 聊天键可能已被 KV 过期清掉 */ }
-      l.status = "open"; l.taker = null; l.buyer = null; l.seller = null;
-      l.held = 0; l.takenAt = null; l.expireAt = null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const l = list[i];
+    if (l.status === "taken" && l.expireAt && l.expireAt <= now) {
+      try {
+        if (l.held > 0 && l.buyer) await adjustUserCoins(env, l.buyer, l.held, false, { type: "market_refund", memo: "交易超时未完成，担保金币退回" });
+        try { await env.AUTH_KV.delete(marketChatKey(l.id)); } catch { /* 聊天键可能已被 KV 过期清掉 */ }
+        l.status = "open"; l.taker = null; l.buyer = null; l.seller = null;
+        l.held = 0; l.buyerOk = false; l.sellerOk = false;
+        l.takenAt = null; l.expireAt = null;
+        changed = true;
+      } catch { /* 写失败：本次仍按旧状态展示，下次请求再试 */ }
+    }
+    if (l.status === "done" && l.doneAt && (now - l.doneAt) > 86400000) {
+      try { await env.AUTH_KV.delete(marketChatKey(l.id)); } catch { /* 可能已过期 */ }
+      list.splice(i, 1);
       changed = true;
-    } catch { /* 写失败：本次仍按旧状态展示，下次请求再试 */ }
+    }
   }
   return changed;
 }
@@ -217,7 +226,7 @@ async function marketChatAccess(env, lid, meLower) {
     try { await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list)); } catch { /* 写失败照旧展示 */ }
   }
   const listing = list.find(l => l.id === lid);
-  if (!listing || listing.status !== "taken") {
+  if (!listing || (listing.status !== "taken" && listing.status !== "done")) {
     return { err: json({ ok: false, error: "交易不存在或已结束" }, 404) };
   }
   if (meLower !== listing.owner && meLower !== listing.taker) {
@@ -288,6 +297,18 @@ export default {
 
     const { pathname } = url;
 
+    // 分域名站点：XRST 统一授权（auth.xrst.uk）与 67GOD视频网（67god.top）
+    const host = url.hostname.toLowerCase();
+    if (host === "auth.xrst.uk" || host === "67god.top" || host === "www.67god.top") {
+      try {
+        return host === "auth.xrst.uk"
+          ? await handleAuthHost(request, env, url)
+          : await handleGod67(request, env, url);
+      } catch {
+        return new Response("Internal Error", { status: 500, headers: { "Strict-Transport-Security": HSTS_VALUE } });
+      }
+    }
+
     // 聊天室 WebSocket：必须原样透传升级请求，且不能走下面的 Response 重建（会破坏 101）
     if (pathname === "/api/chat/ws") {
       const stub = env.COLLAB_DO.get(env.COLLAB_DO.idFromName("chat"));
@@ -297,6 +318,11 @@ export default {
     // 回声洞投稿页（PCL.Mac XE）
     if (pathname === "/hsd" || pathname === "/hsd/") {
       return handleHsdPage(request, env);
+    }
+
+    // 授权快捷登录桥：主站已登录 → 补发 Domain Cookie 弹回 auth.xrst.uk；未登录 → 回主站登录
+    if (pathname === "/auth-bridge" && request.method === "GET") {
+      return handleAuthBridge(request, env, url);
     }
 
     if (pathname.startsWith("/api/")) {
@@ -506,6 +532,12 @@ async function handleApi(request, env, pathname) {
     const user = await ensureUserFields(env, key, JSON.parse(raw));
     // VIP 刚过期：本次读取时把专属装扮卸下并落盘（"过期后换回"）
     if (normalizeVip(user)) await env.AUTH_KV.put(key, JSON.stringify(user));
+    // 老会话是 host-only Cookie，子域（auth.xrst.uk）读不到；/api/me 每页都打，
+    // 顺手重发 Domain=.xrst.uk 版本并清掉 host-only 旧值，完成无感迁移
+    const meToken = readCookie(request, SESSION_COOKIE);
+    if (meToken) {
+      return jsonCookies(meView(user), 200, [sessionCookie(meToken, SESSION_TTL), clearHostCookie()]);
+    }
     return json(meView(user), 200);
   }
 
@@ -930,6 +962,7 @@ async function handleApi(request, env, pathname) {
         const listing = {
           id, type, owner: meLower, item, want, desc, price,
           status: "open", taker: null, buyer: null, seller: null, held: 0,
+          buyerOk: false, sellerOk: false, doneAt: null,
           createdAt: Date.now(), takenAt: null, expireAt: null,
         };
         list.push(listing);
@@ -958,17 +991,44 @@ async function handleApi(request, env, pathname) {
         return json({ ok: true, listing: r.listing }, 200);
       }
 
-      /* 完成：金币结算给卖家，帖子与聊天永久删除（MC 物品在游戏内交割，网站不管）*/
-      if (action === "complete") {
+      /* 确认完成：双方都确认后才结算金币、标记完成，聊天记录保留 24 小时 */
+      if (action === "confirm") {
         if (listing.status !== "taken") return json({ ok: false, error: "交易不在进行中" }, 400);
         if (meLower !== listing.owner && meLower !== listing.taker) {
           return json({ ok: false, error: "只有交易双方能操作" }, 403);
         }
-        if (listing.held > 0 && listing.seller) await adjustUserCoins(env, listing.seller, listing.held, false, { type: "market_sold", memo: "二手交易完成，担保金币到账" });
-        list.splice(list.indexOf(listing), 1);
+        const isBuyer = meLower === listing.buyer;
+        const isSeller = meLower === listing.seller;
+        if (isBuyer) listing.buyerOk = true;
+        if (isSeller) listing.sellerOk = true;
+        if (listing.type === "barter") {
+          if (meLower === listing.owner) listing.sellerOk = true;
+          if (meLower === listing.taker) listing.buyerOk = true;
+        }
+        const bothOk = listing.buyerOk && listing.sellerOk;
+        if (bothOk) {
+          if (listing.held > 0 && listing.seller) {
+            await adjustUserCoins(env, listing.seller, listing.held, false, { type: "market_sold", memo: "二手交易完成，担保金币到账" });
+          }
+          listing.status = "done";
+          listing.doneAt = Date.now();
+          // 聊天记录再留 24 小时，追加系统提示
+          const cKey = marketChatKey(id);
+          try {
+            const raw = await env.AUTH_KV.get(cKey);
+            let chat = { msgs: [] };
+            if (raw) { try { const c = JSON.parse(raw); if (Array.isArray(c.msgs)) chat = c; } catch { /* 覆盖损坏 */ } }
+            chat.msgs.push({ f: "SYSTEM", t: Date.now(), x: "✅ 交易已完成，金币已结算给卖家。聊天记录将在 24 小时后自动清除。" });
+            if (chat.msgs.length > MARKET_MSG_CAP) chat.msgs = chat.msgs.slice(-MARKET_MSG_CAP);
+            await env.AUTH_KV.put(cKey, JSON.stringify(chat), {
+              expiration: Math.ceil((Date.now() + 86400000) / 1000),
+            });
+          } catch { /* 聊天写失败也不影响结算 */ }
+          await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
+          return json({ ok: true, id, settled: true, listing: marketView(listing) }, 200);
+        }
         await env.AUTH_KV.put(MARKET_KEY, JSON.stringify(list));
-        try { await env.AUTH_KV.delete(marketChatKey(id)); } catch { /* 已被 KV 清掉也无妨 */ }
-        return json({ ok: true, id }, 200);
+        return json({ ok: true, id, settled: false, listing: marketView(listing) }, 200);
       }
 
       return json({ ok: false, error: "操作错误" }, 400);
@@ -1000,6 +1060,9 @@ async function handleApi(request, env, pathname) {
     }
 
     if (method === "POST") {
+      if (listing.status === "done") {
+        return json({ ok: false, error: "交易已完成，聊天记录只读" }, 403);
+      }
       const body = await request.json().catch(() => ({}));
       const text = String(body.text || "").trim().slice(0, MARKET_MSG_MAX);
       if (!text) return json({ ok: false, error: "消息不能为空" }, 400);
@@ -1043,7 +1106,7 @@ async function handleApi(request, env, pathname) {
 
   if (pathname === "/api/logout" && method === "POST") {
     await destroySession(request, env);
-    return json({ ok: true }, 200, authHeaders(clearCookie()));
+    return jsonCookies({ ok: true }, 200, clearCookies());
   }
 
   if (pathname === "/api/register" && method === "POST") {
@@ -1077,7 +1140,7 @@ async function handleApi(request, env, pathname) {
     await env.AUTH_KV.put(`uid:${uid}`, key); // UID → 用户 key 反查索引
 
     const cookie = await createSession(env, username);
-    return json({ ok: true, username, uid }, 200, authHeaders(cookie));
+    return jsonCookies({ ok: true, username, uid }, 200, [cookie, clearHostCookie()]);
   }
 
   if (pathname === "/api/profile") {
@@ -1158,6 +1221,24 @@ async function handleApi(request, env, pathname) {
     if (!key) return null;
     const raw = await env.AUTH_KV.get(key);
     return raw ? JSON.parse(raw) : null;
+  }
+
+  // 列出全部用户记录。兑换码没有全局索引，反查时直接全站扫一遍即可
+  // （本站规模小；KV list 单页上限 1000，翻页兜底，最多 10 页防止异常时无限循环）
+  async function listAllUsers() {
+    const out = [];
+    let cursor;
+    for (let i = 0; i < 10; i++) {
+      const page = await env.AUTH_KV.list({ prefix: "user:", cursor });
+      const raws = await Promise.all(page.keys.map(k => env.AUTH_KV.get(k.name)));
+      for (const raw of raws) {
+        if (!raw) continue;
+        try { out.push(JSON.parse(raw)); } catch { /* 坏记录跳过 */ }
+      }
+      if (page.list_complete) break;
+      cursor = page.cursor;
+    }
+    return out;
   }
 
   const ADMIN_COIN_LOG_KEY = "admin:coinlog";
@@ -1244,6 +1325,70 @@ async function handleApi(request, env, pathname) {
     let log = [];
     try { log = JSON.parse((await env.AUTH_KV.get(ADMIN_COIN_LOG_KEY)) || "[]"); } catch { log = []; }
     return json({ ok: true, log: Array.isArray(log) ? log.slice(0, 100) : [] });
+  }
+
+  /* ---------- 管理员：兑换码查询（仅 AaronXie） ----------
+     ?code=6位码 → 反查这个码属于谁、什么奖品；?u=用户名/UID → 列出该用户全部奖品 */
+  if (pathname === "/api/admin/lottery" && method === "GET") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) return json({ ok: false, error: "没有管理员权限" }, 403);
+
+    const sp = new URL(request.url).searchParams;
+    const code = (sp.get("code") || "").trim().toLowerCase();
+    if (code) {
+      if (!/^[0-9a-f]{6}$/.test(code)) {
+        return json({ ok: false, error: "兑换码应为 6 位十六进制，例如 a3f9c2" }, 400);
+      }
+      for (const u of await listAllUsers()) {
+        const list = Array.isArray(u.lotteryPrizes) ? u.lotteryPrizes : [];
+        const hit = list.find(p => p && p.code === code);
+        if (hit) {
+          return json({ ok: true, username: u.name, uid: u.uid || null, prize: hit, prizes: list }, 200);
+        }
+      }
+      return json({ ok: false, error: "没找到这个兑换码：可能填错了，或者不是本站发出的码。" }, 404);
+    }
+
+    const q = (sp.get("u") || "").trim();
+    if (!q) return json({ ok: false, error: "请输入兑换码或用户名" }, 400);
+    const u = await resolveAdminUser(q);
+    if (!u) return json({ ok: false, error: "用户不存在（可用用户名或 12 位 UID）" }, 404);
+    return json({
+      ok: true,
+      username: u.name,
+      uid: u.uid || null,
+      prizes: Array.isArray(u.lotteryPrizes) ? u.lotteryPrizes : [],
+    }, 200);
+  }
+
+  // 标记兑换码已领取：POST { code, u? }。不删记录、只打标记，方便日后对账
+  if (pathname === "/api/admin/lottery/claim" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    if (me.toLowerCase() !== ADMIN_USER.toLowerCase()) return json({ ok: false, error: "没有管理员权限" }, 403);
+
+    const body = await request.json().catch(() => ({}));
+    const code = String(body.code || "").trim().toLowerCase();
+    if (!/^[0-9a-f]{6}$/.test(code)) {
+      return json({ ok: false, error: "兑换码应为 6 位十六进制，例如 a3f9c2" }, 400);
+    }
+    const q = String(body.u || "").trim();
+    const target = q
+      ? await resolveAdminUser(q)
+      : (await listAllUsers()).find(u =>
+          (Array.isArray(u.lotteryPrizes) ? u.lotteryPrizes : []).some(p => p && p.code === code)) || null;
+    if (!target) return json({ ok: false, error: "没找到这个兑换码" }, 404);
+
+    const p = (Array.isArray(target.lotteryPrizes) ? target.lotteryPrizes : []).find(x => x && x.code === code);
+    if (!p) return json({ ok: false, error: "该用户没有这个兑换码" }, 404);
+    if (p.claimed) return json({ ok: true, username: target.name, prize: p, already: true }, 200);
+
+    p.claimed = true;
+    p.claimedAt = Date.now();
+    p.claimedBy = me;
+    await env.AUTH_KV.put(userKey(target.name), JSON.stringify(target));
+    return json({ ok: true, username: target.name, prize: p }, 200);
   }
 
   /* ---------- 金币抽奖：100 金币一次，服务端开奖防伪造 ---------- */
@@ -1863,7 +2008,7 @@ async function handleApi(request, env, pathname) {
     if (hash !== user.hash) return json({ ok: false, error: "密码错误" }, 401);
 
     const cookie = await createSession(env, user.name);
-    return json({ ok: true, username: user.name }, 200, authHeaders(cookie));
+    return jsonCookies({ ok: true, username: user.name }, 200, [cookie, clearHostCookie()]);
   }
 
   // ============「偷还是分？」双人金币博弈（匹配大厅 + 单局 DO）============
@@ -2298,16 +2443,30 @@ function readCookie(request, name) {
   return m ? m[1] : null;
 }
 
+/* 会话 Cookie 挂到 .xrst.uk 全域：auth.xrst.uk（统一授权）才能读到登录态 */
 function sessionCookie(token, maxAge) {
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+  return `${SESSION_COOKIE}=${token}; Domain=.xrst.uk; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
-function clearCookie() {
+/* 清全域 Cookie + 清遗留的 host-only Cookie（Domain 改造前的老会话） */
+function clearCookies() {
+  return [
+    `${SESSION_COOKIE}=; Domain=.xrst.uk; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+  ];
+}
+function clearHostCookie() {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
-function authHeaders(cookie) {
-  return { "Set-Cookie": cookie };
+/* 多 Set-Cookie 的 JSON 响应（普通 object 头装不下同名头） */
+function jsonCookies(data, status, cookies) {
+  const h = new Headers({
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+  });
+  for (const c of cookies) h.append("Set-Cookie", c);
+  return new Response(JSON.stringify(data), { status, headers: h });
 }
 
 // === 回声洞 Helper (PCL.Mac XE) ===
@@ -2456,4 +2615,776 @@ init();
 </body>
 </html>`;
   return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Strict-Transport-Security": HSTS_VALUE } });
+}
+
+// =====================================================================
+// XRST 统一授权（auth.xrst.uk，xrst.uk 风格）+ 67GOD视频网（67god.top，粗糙黑客风）
+// 流程：67god.top 点登录 → /auth/login → auth.xrst.uk/authorize 授权
+//   → 回 67god.top/auth/callback?code=... → 换会话（oauth:code 一次性，5 分钟有效）
+// 片源：GitHub Release 直链存 KV（g67:video:<id>），/media/<id> 服务端反代，
+//   VIP/金币门在反代前校验，直链不外泄；Range 透传支持拖动进度条。
+// =====================================================================
+
+const OAUTH_CLIENTS = {
+  "67god": {
+    name: "67GOD视频网",
+    redirects: ["https://67god.top/auth/callback", "https://www.67god.top/auth/callback"],
+  },
+};
+
+const G67_COOKIE = "g67_session";
+const G67_ADMIN = "aaronxie";
+const G67_INDEX = "g67:index";
+
+/* 快捷登录桥（挂在主站 xrst.uk 上） */
+async function handleAuthBridge(request, env, url) {
+  const back = url.searchParams.get("back") || "";
+  // 只允许弹回 auth.xrst.uk，防开放跳转被滥用
+  if (!back.startsWith("https://auth.xrst.uk/")) {
+    return Response.redirect("https://auth.xrst.uk/", 302);
+  }
+  const username = await getSessionUser(request, env);
+  if (!username) {
+    // 主站也没登录：回主站登录（登录成功后 Cookie 本来就是 Domain=.xrst.uk）
+    return Response.redirect("https://xrst.uk/", 302);
+  }
+  // 主站已登录：补发 Domain Cookie + 清 host-only 旧值，弹回授权页即已登录
+  const headers = new Headers({ Location: back, "Strict-Transport-Security": HSTS_VALUE });
+  const token = readCookie(request, SESSION_COOKIE);
+  if (token) {
+    headers.append("Set-Cookie", sessionCookie(token, SESSION_TTL));
+    headers.append("Set-Cookie", clearHostCookie());
+  }
+  return new Response(null, { status: 302, headers });
+}
+
+/* ---------------- auth.xrst.uk ---------------- */
+
+function oauthClientOf(url) {
+  const clientId = url.searchParams.get("client_id") || "";
+  const redirectUri = url.searchParams.get("redirect_uri") || "";
+  const state = url.searchParams.get("state") || "";
+  const client = OAUTH_CLIENTS[clientId];
+  if (!client || !client.redirects.includes(redirectUri)) return null;
+  return { clientId, redirectUri, state, name: client.name };
+}
+
+async function handleAuthHost(request, env, url) {
+  const { pathname } = url;
+  const method = request.method;
+
+  if (pathname === "/authorize" && method === "GET") {
+    const ctx = oauthClientOf(url);
+    if (!ctx) return authPage("参数错误", "<p>client_id 或 redirect_uri 不对，打回重造。</p>");
+    const me = await getSessionUser(request, env);
+    return authAuthorizePage(ctx, me);
+  }
+
+  if (pathname === "/api/oauth/login" && method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const loginId = (body.username || "").trim();
+    const password = body.password || "";
+    let key = userKey(loginId);
+    if (/^\d{12}$/.test(loginId)) {
+      const mapped = await env.AUTH_KV.get(`uid:${loginId}`);
+      if (mapped) key = mapped;
+    }
+    const raw = await env.AUTH_KV.get(key);
+    if (!raw) return json({ ok: false, error: "用户不存在，请先注册" }, 401);
+    const user = JSON.parse(raw);
+    if (user.disabled === true) return json({ ok: false, error: "用户名不合法，已注销" }, 403);
+    const hash = await hashPassword(password, user.salt);
+    if (hash !== user.hash) return json({ ok: false, error: "密码错误" }, 401);
+    const cookie = await createSession(env, user.name);
+    return jsonCookies({ ok: true, username: user.name }, 200, [cookie, clearHostCookie()]);
+  }
+
+  if (pathname === "/api/oauth/authorize" && method === "POST") {
+    const me = await getSessionUser(request, env);
+    if (!me) return json({ ok: false, error: "请先登录" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const client = OAUTH_CLIENTS[body.client_id];
+    if (!client || !client.redirects.includes(body.redirect_uri)) {
+      return json({ ok: false, error: "client 校验失败" }, 400);
+    }
+    const code = randomHex(24);
+    await env.AUTH_KV.put(`oauth:code:${code}`, JSON.stringify({ u: me, r: body.redirect_uri }), { expirationTtl: 300 });
+    const sep = body.redirect_uri.includes("?") ? "&" : "?";
+    const redirect = body.redirect_uri + sep + "code=" + code + "&state=" + encodeURIComponent(body.state || "");
+    return json({ ok: true, redirect });
+  }
+
+  if (pathname === "/" && method === "GET") {
+    return authPage("XRST.Uk 统一授权", "<p>这里是 XRST.Uk 的统一授权登录入口。</p><p>第三方站点会把你跳到这里，用你的 XRST.Uk 账号授权登录。</p>");
+  }
+
+  return authPage("404", "<p>没有这个页面。</p>", 404);
+}
+
+/* xrst.uk 风格底子（与回声洞同一套：深色 slate + 蓝 + 圆角） */
+function authPage(title, inner, status = 200) {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} - XRST.Uk 授权</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#0f172a; color:#e2e8f0; min-height:100vh; padding:40px 20px; }
+  .container { max-width:420px; margin:0 auto; }
+  h1 { font-size:24px; margin-bottom:6px; }
+  .subtitle { color:#94a3b8; margin-bottom:24px; font-size:14px; }
+  .card { background:#1e293b; border-radius:14px; padding:22px; margin-bottom:18px; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .btn { display:block; width:100%; padding:12px; border:none; border-radius:9px; font-size:15px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; }
+  .btn-primary { background:#3b82f6; color:#fff; margin-top:14px; }
+  .btn-primary:hover { background:#2563eb; }
+  .btn-ghost { background:transparent; color:#94a3b8; margin-top:10px; padding:8px; font-weight:400; }
+  .btn-ghost:hover { color:#e2e8f0; }
+  input { width:100%; padding:11px 12px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-size:15px; margin-bottom:12px; }
+  input:focus { outline:none; border-color:#3b82f6; }
+  .msg { margin-top:10px; font-size:14px; text-align:center; min-height:18px; }
+  .msg.err { color:#f87171; }
+  .user { font-weight:600; color:#93c5fd; }
+  .scope { color:#94a3b8; font-size:13px; margin:12px 0 0 18px; line-height:1.9; }
+  .appname { color:#fbbf24; font-weight:700; }
+  .home { display:inline-block; margin-top:10px; color:#64748b; font-size:13px; text-decoration:none; }
+  .home:hover { color:#94a3b8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>${title}</h1>
+  <p class="subtitle">XRST.Uk 统一授权登录</p>
+  ${inner}
+  <a class="home" href="https://xrst.uk">← 返回 XRST.Uk</a>
+</div>
+</body>
+</html>`;
+  return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Strict-Transport-Security": HSTS_VALUE, "Cache-Control": "no-store" } });
+}
+
+function authAuthorizePage(ctx, me) {
+  const params = JSON.stringify({ client_id: ctx.clientId, redirect_uri: ctx.redirectUri, state: ctx.state });
+  const denyUrl = ctx.redirectUri + (ctx.redirectUri.includes("?") ? "&" : "?") + "error=access_denied&state=" + encodeURIComponent(ctx.state);
+  // 快捷登录：经主站 /auth-bridge 补发 Domain Cookie 后弹回本页
+  const selfUrl = "https://auth.xrst.uk/authorize?client_id=" + encodeURIComponent(ctx.clientId) +
+    "&redirect_uri=" + encodeURIComponent(ctx.redirectUri) + "&state=" + encodeURIComponent(ctx.state);
+  const bridgeUrl = "https://xrst.uk/auth-bridge?back=" + encodeURIComponent(selfUrl);
+  const inner = me
+    ? `<div class="card">
+    <p><span class="appname">${ctx.name}</span> 想要获得你的授权：</p>
+    <ul class="scope">
+      <li>读取你的用户名、UID</li>
+      <li>读取金币余额、VIP 状态</li>
+      <li>在你确认消费时代扣金币</li>
+    </ul>
+    <p style="margin-top:14px">当前账号：<span class="user" id="uname"></span></p>
+    <button class="btn btn-primary" id="okBtn" onclick="agree()">同意授权</button>
+    <a class="btn btn-ghost" href="${denyUrl}">拒绝，返回 ${ctx.name}</a>
+    <a class="btn btn-ghost" href="#" onclick="showLogin();return false">不是本人？换个账号</a>
+    <div id="status" class="msg"></div>
+  </div>
+  <div class="card" id="loginCard" style="display:none">
+    <input id="loginId" placeholder="用户名 或 12 位 XRSTUID" autocomplete="username">
+    <input id="loginPw" type="password" placeholder="密码" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">登录并继续授权</button>
+    <a class="btn btn-ghost" href="https://xrst.uk" target="_blank">没有账号？去 XRST.Uk 注册</a>
+    <div id="loginMsg" class="msg"></div>
+  </div>`
+    : `<div class="card" id="loginCard">
+    <p style="margin-bottom:14px">授权 <span class="appname">${ctx.name}</span> 前，先登录你的 XRST.Uk 账号：</p>
+    <a class="btn btn-primary" style="margin-top:0" href="${bridgeUrl}">已在 XRST.Uk 登录？点我快捷登录</a>
+    <p style="text-align:center;color:#64748b;font-size:12px;margin:14px 0 10px">—— 或手动输入 ——</p>
+    <input id="loginId" placeholder="用户名 或 12 位 XRSTUID" autocomplete="username">
+    <input id="loginPw" type="password" placeholder="密码" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">登录并继续</button>
+    <a class="btn btn-ghost" href="https://xrst.uk" target="_blank">没有账号？去 XRST.Uk 注册</a>
+    <a class="btn btn-ghost" href="${denyUrl}">取消，返回 ${ctx.name}</a>
+    <div id="loginMsg" class="msg"></div>
+  </div>`;
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>授权登录 - XRST.Uk</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#0f172a; color:#e2e8f0; min-height:100vh; padding:40px 20px; }
+  .container { max-width:420px; margin:0 auto; }
+  h1 { font-size:24px; margin-bottom:6px; }
+  .subtitle { color:#94a3b8; margin-bottom:24px; font-size:14px; }
+  .card { background:#1e293b; border-radius:14px; padding:22px; margin-bottom:18px; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .btn { display:block; width:100%; padding:12px; border:none; border-radius:9px; font-size:15px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; }
+  .btn-primary { background:#3b82f6; color:#fff; margin-top:14px; }
+  .btn-primary:hover { background:#2563eb; }
+  .btn-ghost { background:transparent; color:#94a3b8; margin-top:10px; padding:8px; font-weight:400; }
+  .btn-ghost:hover { color:#e2e8f0; }
+  input { width:100%; padding:11px 12px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-size:15px; margin-bottom:12px; }
+  input:focus { outline:none; border-color:#3b82f6; }
+  .msg { margin-top:10px; font-size:14px; text-align:center; min-height:18px; }
+  .msg.err { color:#f87171; }
+  .user { font-weight:600; color:#93c5fd; }
+  .scope { color:#94a3b8; font-size:13px; margin:12px 0 0 18px; line-height:1.9; }
+  .appname { color:#fbbf24; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>授权登录</h1>
+  <p class="subtitle">XRST.Uk 统一授权登录</p>
+  ${inner}
+</div>
+<script>
+var PARAMS = ${params};
+var ME = ${me ? JSON.stringify(me) : "null"};
+if (ME) { var u = document.getElementById('uname'); if (u) u.textContent = ME; }
+function showLogin(){ document.getElementById('loginCard').style.display='block'; }
+async function doLogin(){
+  var msg = document.getElementById('loginMsg');
+  msg.className='msg'; msg.textContent='登录中……';
+  try {
+    var r = await fetch('/api/oauth/login', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username: document.getElementById('loginId').value.trim(), password: document.getElementById('loginPw').value }) });
+    var d = await r.json();
+    if (d.ok) { location.reload(); } else { msg.className='msg err'; msg.textContent = d.error || '登录失败'; }
+  } catch(e) { msg.className='msg err'; msg.textContent='网络错误'; }
+}
+async function agree(){
+  var btn = document.getElementById('okBtn'), st = document.getElementById('status');
+  btn.disabled = true; st.textContent = '授权中……';
+  try {
+    var r = await fetch('/api/oauth/authorize', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(PARAMS) });
+    var d = await r.json();
+    if (d.ok && d.redirect) { location.href = d.redirect; return; }
+    st.className='msg err'; st.textContent = d.error || '授权失败';
+  } catch(e) { st.className='msg err'; st.textContent='网络错误'; }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>`;
+  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Strict-Transport-Security": HSTS_VALUE, "Cache-Control": "no-store" } });
+}
+
+/* ---------------- 67god.top ---------------- */
+
+async function g67User(request, env) {
+  const token = readCookie(request, G67_COOKIE);
+  if (!token) return null;
+  return (await env.AUTH_KV.get(`g67:sess:${token}`)) || null;
+}
+
+async function g67Unlocklist(env, username) {
+  try {
+    const arr = JSON.parse((await env.AUTH_KV.get(`g67:unlocklist:${username.toLowerCase()}`)) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function g67Html(body, status = 200) {
+  return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Strict-Transport-Security": HSTS_VALUE, "Cache-Control": "no-store" } });
+}
+
+function g67ErrPage(text, status = 400) {
+  return g67Html(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>67GOD视频网</title></head>
+<body style="background:#000;color:#0f0;font-family:'Zpix','Courier New',monospace;padding:30px">
+<pre style="border:2px solid #0f0;padding:14px;display:inline-block">${text}</pre>
+<p><a href="/" style="color:#ff0">&lt;&lt; 回首页</a></p>
+</body></html>`, status);
+}
+
+async function handleGod67(request, env, url) {
+  const { pathname } = url;
+  const method = request.method;
+
+  if (pathname === "/" && method === "GET") return g67HomePage();
+
+  /* 登录入口：生成 state，跳 auth.xrst.uk 授权 */
+  if (pathname === "/auth/login" && method === "GET") {
+    const state = randomHex(16);
+    await env.AUTH_KV.put(`g67:state:${state}`, "1", { expirationTtl: 600 });
+    const redirectUri = `https://${url.host}/auth/callback`;
+    const target = `https://auth.xrst.uk/authorize?client_id=67god&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+    return Response.redirect(target, 302);
+  }
+
+  /* 授权回调：state + code 都是一次性，验过即销 */
+  if (pathname === "/auth/callback" && method === "GET") {
+    const code = url.searchParams.get("code") || "";
+    const state = url.searchParams.get("state") || "";
+    if (url.searchParams.get("error")) return g67ErrPage("你拒绝了授权，啥也看不了", 403);
+    const stateKey = `g67:state:${state}`;
+    if (!state || !(await env.AUTH_KV.get(stateKey))) return g67ErrPage("state 不对或已过期，重新登录", 403);
+    try { await env.AUTH_KV.delete(stateKey); } catch { /* 忽略 */ }
+    const codeKey = `oauth:code:${code}`;
+    const raw = await env.AUTH_KV.get(codeKey);
+    if (!raw) return g67ErrPage("授权码不对或已过期，重新登录", 403);
+    try { await env.AUTH_KV.delete(codeKey); } catch { /* 忽略 */ }
+    let name = null;
+    try { name = JSON.parse(raw).u; } catch { /* 忽略 */ }
+    if (!name) return g67ErrPage("授权码数据坏了，重新登录", 500);
+    const token = randomHex(32);
+    await env.AUTH_KV.put(`g67:sess:${token}`, name, { expirationTtl: SESSION_TTL });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/",
+        "Set-Cookie": `${G67_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}`,
+        "Strict-Transport-Security": HSTS_VALUE,
+      },
+    });
+  }
+
+  if (pathname === "/api/g67/logout" && method === "POST") {
+    const token = readCookie(request, G67_COOKIE);
+    if (token) { try { await env.AUTH_KV.delete(`g67:sess:${token}`); } catch { /* 忽略 */ } }
+    return json({ ok: true }, 200, { "Set-Cookie": `${G67_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0` });
+  }
+
+  if (pathname === "/api/g67/me" && method === "GET") {
+    const name = await g67User(request, env);
+    if (!name) return json({ ok: true, username: null });
+    const raw = await env.AUTH_KV.get(userKey(name));
+    const u = raw ? JSON.parse(raw) : null;
+    if (!u || u.disabled === true) return json({ ok: true, username: null });
+    const unlocked = await g67Unlocklist(env, name);
+    return json({
+      ok: true, username: u.name, coins: u.coins || 0,
+      vip: isVipActive(u), vipUntil: typeof u.vipUntil === "number" ? u.vipUntil : null,
+      unlocked, admin: u.name.toLowerCase() === G67_ADMIN,
+    });
+  }
+
+  if (pathname === "/api/g67/videos" && method === "GET") {
+    let ids = [];
+    try { ids = JSON.parse((await env.AUTH_KV.get(G67_INDEX)) || "[]"); } catch { ids = []; }
+    if (!Array.isArray(ids)) ids = [];
+    const raws = await Promise.all(ids.map(id => env.AUTH_KV.get(`g67:video:${id}`)));
+    const videos = [];
+    for (const r of raws) {
+      if (!r) continue;
+      try {
+        const v = JSON.parse(r);
+        videos.push({ id: v.id, title: v.title, tier: v.tier, price: v.price || 0, ts: v.ts });
+      } catch { /* 忽略坏数据 */ }
+    }
+    return json({ ok: true, videos });
+  }
+
+  /* 金币兑换：扣 XRST.Uk 金币（记账单），解锁记录写 KV */
+  if (pathname === "/api/g67/unlock" && method === "POST") {
+    const name = await g67User(request, env);
+    if (!name) return json({ ok: false, error: "先登录（右上角，用 XRST.Uk 登录）" }, 401);
+    const body = await request.json().catch(() => ({}));
+    const raw = await env.AUTH_KV.get(`g67:video:${body.id}`);
+    if (!raw) return json({ ok: false, error: "没这个视频" }, 404);
+    const v = JSON.parse(raw);
+    if (v.tier !== "coin") return json({ ok: false, error: "这个视频不用兑换" }, 400);
+    const unlocked = await g67Unlocklist(env, name);
+    if (unlocked.includes(v.id)) return json({ ok: true, already: true });
+
+    const key = userKey(name);
+    const uraw = await env.AUTH_KV.get(key);
+    if (!uraw) return json({ ok: false, error: "用户不存在" }, 401);
+    const user = JSON.parse(uraw);
+    if ((user.coins || 0) < v.price) {
+      return json({ ok: false, error: `金币不够！要 ${v.price} 枚，你只有 ${user.coins || 0} 枚。去 XRST.Uk 签到/玩游戏白嫖吧`, coins: user.coins || 0 }, 400);
+    }
+    user.coins -= v.price;
+    await env.AUTH_KV.put(key, JSON.stringify(user));
+    await addCoinLedger(env, name, { delta: -v.price, balance: user.coins, type: "67god", memo: `67GOD视频网兑换《${v.title}》` });
+    unlocked.push(v.id);
+    await env.AUTH_KV.put(`g67:unlocklist:${name.toLowerCase()}`, JSON.stringify(unlocked));
+    return json({ ok: true, coins: user.coins });
+  }
+
+  /* 管理员发布/删除视频（片源 = GitHub Release 直链） */
+  if (pathname === "/api/g67/add" && method === "POST") {
+    const name = await g67User(request, env);
+    if (!name || name.toLowerCase() !== G67_ADMIN) return json({ ok: false, error: "你不是管理员" }, 403);
+    const body = await request.json().catch(() => ({}));
+    const title = String(body.title || "").trim();
+    const tier = String(body.tier || "");
+    const vurl = String(body.url || "").trim();
+    const price = Number(body.price);
+    if (!title || title.length > 60) return json({ ok: false, error: "标题 1-60 字" }, 400);
+    if (!["free", "vip", "coin"].includes(tier)) return json({ ok: false, error: "分区不对" }, 400);
+    if (tier === "coin" && (!Number.isInteger(price) || price < 1 || price > 100000)) {
+      return json({ ok: false, error: "金币价格要是 1-100000 的整数" }, 400);
+    }
+    if (!/^https:\/\/.{1,480}$/.test(vurl)) return json({ ok: false, error: "片源地址必须是 https 直链" }, 400);
+    const id = randomHex(8);
+    await env.AUTH_KV.put(`g67:video:${id}`, JSON.stringify({ id, title, tier, price: tier === "coin" ? price : 0, url: vurl, ts: Date.now() }));
+    let ids = [];
+    try { ids = JSON.parse((await env.AUTH_KV.get(G67_INDEX)) || "[]"); } catch { ids = []; }
+    if (!Array.isArray(ids)) ids = [];
+    ids.unshift(id);
+    await env.AUTH_KV.put(G67_INDEX, JSON.stringify(ids.slice(0, 500)));
+    return json({ ok: true, id });
+  }
+
+  if (pathname === "/api/g67/del" && method === "POST") {
+    const name = await g67User(request, env);
+    if (!name || name.toLowerCase() !== G67_ADMIN) return json({ ok: false, error: "你不是管理员" }, 403);
+    const body = await request.json().catch(() => ({}));
+    try { await env.AUTH_KV.delete(`g67:video:${body.id}`); } catch { /* 忽略 */ }
+    let ids = [];
+    try { ids = JSON.parse((await env.AUTH_KV.get(G67_INDEX)) || "[]"); } catch { ids = []; }
+    if (!Array.isArray(ids)) ids = [];
+    await env.AUTH_KV.put(G67_INDEX, JSON.stringify(ids.filter(x => x !== body.id)));
+    return json({ ok: true });
+  }
+
+  /* 媒体反代：先过分区权限门，再带 Range 回源 GitHub Release */
+  if (pathname.startsWith("/media/") && method === "GET") {
+    const id = pathname.slice(7);
+    if (!/^[a-f0-9]{16}$/.test(id)) return g67ErrPage("地址不对", 404);
+    return g67Media(request, env, id);
+  }
+
+  /* 站点 logo 等静态文件：只放行白名单路径，不透出主站其它资产 */
+  if (method === "GET" && (pathname === "/67god.png" || pathname === "/favicon.ico")) {
+    const res = await env.ASSETS.fetch(new Request("https://assets.internal/67god.png", request));
+    const h = new Headers(res.headers);
+    h.set("Strict-Transport-Security", HSTS_VALUE);
+    h.set("Cache-Control", "public, max-age=86400");
+    return new Response(res.body, { status: res.status, headers: h });
+  }
+
+  return g67ErrPage("404：这儿啥也没有", 404);
+}
+
+async function g67Media(request, env, id) {
+  const raw = await env.AUTH_KV.get(`g67:video:${id}`);
+  if (!raw) return g67ErrPage("没这个视频", 404);
+  const v = JSON.parse(raw);
+
+  if (v.tier !== "free") {
+    const name = await g67User(request, env);
+    if (!name) return g67ErrPage("先登录再来看（右上角，用 XRST.Uk 登录）", 401);
+    const uraw = await env.AUTH_KV.get(userKey(name));
+    const u = uraw ? JSON.parse(uraw) : null;
+    if (!u) return g67ErrPage("账号不存在", 401);
+    if (v.tier === "vip" && !isVipActive(u)) {
+      return g67ErrPage("这是 VIP 视频。去 XRST.Uk 开个 VIP（250 金币/月）再来", 403);
+    }
+    if (v.tier === "coin") {
+      const unlocked = await g67Unlocklist(env, name);
+      if (!unlocked.includes(id)) return g67ErrPage("这是金币视频，先回列表页用金币兑换", 403);
+    }
+  }
+
+  const headers = {};
+  const range = request.headers.get("Range");
+  if (range) headers["Range"] = range;
+  const up = await fetch(v.url, { headers, redirect: "follow" }).catch(() => null);
+  if (!up || up.status >= 400) return g67ErrPage("片源挂了，过会儿再来", 502);
+
+  let ct = "video/mp4";
+  if (/\.webm($|\?)/i.test(v.url)) ct = "video/webm";
+  else if (/\.mkv($|\?)/i.test(v.url)) ct = "video/x-matroska";
+  const h = new Headers({ "Content-Type": ct, "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=3600", "Strict-Transport-Security": HSTS_VALUE });
+  for (const k of ["Content-Length", "Content-Range"]) {
+    const val = up.headers.get(k);
+    if (val) h.set(k, val);
+  }
+  return new Response(up.body, { status: up.status, headers: h });
+}
+
+/* 首页：黑底方角，越粗糙越好；广告位塞满 */
+function g67HomePage() {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>67GOD视频网</title>
+<link rel="icon" type="image/png" href="/67god.png">
+<style>
+  /* 像素体：Zpix（12px 网格，像素颗粒稍细） */
+  @font-face {
+    font-family: "Zpix";
+    src: url("https://cdn.jsdelivr.net/gh/SolidZORO/zpix-pixel-font/dist/Zpix.ttf") format("truetype");
+    font-display: swap;
+  }
+  * { box-sizing:border-box; }
+  body { background:#000; color:#0f0; font-family:"Zpix","Courier New",monospace; margin:0; padding:8px;
+         background-image:repeating-linear-gradient(0deg,#000 0 2px,#020a02 2px 4px); }
+  a { color:#ff0; }
+  .box { border:2px solid #0f0; padding:6px; margin:6px 0; }
+  .hdr { border:3px solid #0f0; padding:8px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; }
+  .ad { border:2px dashed #f00; color:#ff0; padding:5px; margin:5px 0; background:#111; font-size:14px; }
+  .ad a { color:#ff0; font-weight:bold; }
+  .adw { border-color:#0ff; }
+  .adw a { color:#0ff; }
+  .blinker { animation:bl 1s steps(2,start) infinite; }
+  @keyframes bl { 50% { opacity:0; } }
+  /* 逐字滚动条：steps() 一次跳一个字符宽，终端味 */
+  .tick { overflow:hidden; white-space:nowrap; }
+  .tickin { display:inline-block; white-space:nowrap; animation:tickmove 10s steps(100) infinite; }
+  .tick.rev .tickin { animation-direction:reverse; }
+  @keyframes tickmove { to { transform:translateX(var(--tickw,-50%)); } }
+  button { background:#222; color:#0f0; border:2px outset #0f0; font-family:inherit; font-size:14px; padding:2px 10px; cursor:pointer; }
+  button:active { border-style:inset; }
+  input,select { background:#000; color:#0f0; border:2px inset #0f0; font-family:inherit; font-size:14px; padding:3px; }
+  .sec { border:2px solid #0f0; margin:10px 0; padding:6px; }
+  .sec h2 { margin:0 0 4px 0; font-size:18px; }
+  .secvip { border-color:#ff0; } .secvip h2 { color:#ff0; }
+  .seccoin { border-color:#f80; } .seccoin h2 { color:#f80; }
+  .secfree { border-color:#0f0; }
+  .card { border:2px solid #0f0; margin:4px; padding:6px; display:inline-block; width:230px; vertical-align:top; background:#050505; min-height:86px; }
+  .card.vip { border-color:#ff0; }
+  .card.coin { border-color:#f80; }
+  .tag { font-size:12px; padding:0 4px; border:1px solid currentColor; }
+  .tag.vip { color:#ff0; } .tag.coin { color:#f80; }
+  .vt { font-size:15px; word-break:break-all; }
+  .price { color:#f80; font-weight:bold; }
+  .gray { color:#666; }
+  #playerBox { border:3px solid #0f0; margin:10px 0; padding:6px; display:none; }
+  video { width:100%; max-width:960px; border:2px solid #0f0; background:#000; display:block; }
+  #loginMask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:9; }
+  #loginPanel { width:320px; margin:16vh auto 0; background:#000; border:3px solid #0f0; padding:16px; text-align:center; }
+  .foot { color:#0a0; font-size:12px; margin-top:14px; }
+  .err { color:#f00; }
+  pre.ascii { font-size:11px; line-height:1.1; margin:0; color:#0f0; }
+  #admBox input, #admBox select { margin:2px 0; width:100%; }
+  .rowline { border-top:1px dashed #060; margin:8px 0; }
+</style>
+</head>
+<body>
+
+<div class="tick" data-speed="0.09" style="border:2px solid #f00;color:#ff0;background:#111;padding:3px">
+<span class="tickin"><span class="blinker">★</span> <a href="https://xrst.uk" target="_blank">XRST.Uk</a> 签到就白送金币，每天最多 40 枚！
+&nbsp;&nbsp;●&nbsp;&nbsp; <a href="https://xrst.uk/games/" target="_blank">wkw 游戏中心</a>：消消乐 / 斗地主掼蛋 / 合成大西瓜，好玩到跺脚！
+&nbsp;&nbsp;●&nbsp;&nbsp; 金币不够？上 <a href="https://xrst.uk" target="_blank">XRST.Uk</a> 玩小游戏边玩边赚！
+&nbsp;&nbsp;●&nbsp;&nbsp; </span>
+</div>
+
+<div class="hdr">
+  <div>
+    <img src="/67god.png" alt="67GOD" style="image-rendering:pixelated;width:126px;height:90px;border:2px solid #0f0;float:left;margin-right:10px">
+    <b style="font-size:22px">67GOD视频网</b> <span class="gray">(全网最粗糙的视频站)</span>
+    <div class="gray" style="font-size:12px">root@67god:~# ./start.sh --mode=ugly</div>
+  </div>
+  <div id="userBar" style="text-align:right;border:2px solid #0f0;padding:6px">加载中……</div>
+</div>
+
+<div class="ad"><span class="blinker">▶广告</span> <a href="https://xrst.uk" target="_blank">XRST.Uk 抽奖机上线！100 金币搏 12 个月 VIP，搏一搏单车变摩托！</a></div>
+<div class="ad adw"><span class="blinker">▶广告</span> <a href="https://xrst.uk/games/" target="_blank">wkw 游戏中心 —— 摸鱼圣地，老板看了都沉默</a></div>
+
+<div id="playerBox">
+  <b id="playerTitle"></b>
+  <button onclick="closePlayer()" style="float:right">[X] 关掉</button>
+  <div id="playerErr" class="err"></div>
+  <video id="player" controls></video>
+</div>
+
+<div class="sec secvip">
+  <h2>█ VIP 专区 █</h2>
+  <div class="gray" style="font-size:12px">XRST.Uk VIP 随便看（250 金币/月，<a href="https://xrst.uk" target="_blank">点我去开</a>）</div>
+  <div id="listVip"></div>
+</div>
+
+<div class="ad"><span class="blinker">▶广告</span> <a href="https://xrst.uk" target="_blank">XRST.Uk —— PCL.Mac XE 官方老家，玩 MC 的都来了！</a></div>
+
+<div class="sec seccoin">
+  <h2>█ 金币兑换区 █</h2>
+  <div class="gray" style="font-size:12px">花 XRST.Uk 金币兑换观看权，一次兑换永久有效。金币去 <a href="https://xrst.uk" target="_blank">XRST.Uk</a> 签到/玩游戏白嫖！</div>
+  <div id="listCoin"></div>
+</div>
+
+<div class="ad adw"><span class="blinker">▶广告</span> <a href="https://xrst.uk/games/" target="_blank">wkw 游戏中心新游戏上架，白嫖金币两不误！</a></div>
+
+<div class="sec secfree">
+  <h2>█ 免费观看区 █</h2>
+  <div class="gray" style="font-size:12px">白嫖就完事了</div>
+  <div id="listFree"></div>
+</div>
+
+<div class="ad"><span class="blinker">▶广告</span> <a href="https://xrst.uk" target="_blank">XRST.Uk 兑换商店：头像框、聊天气泡，金币换着花！</a></div>
+<div class="ad adw"><span class="blinker">▶广告</span> <a href="https://xrst.uk/games/" target="_blank">wkw 游戏中心：没有充值入口，只有快乐！</a></div>
+<div class="ad"><span class="blinker">▶广告</span> <a href="https://xrst.uk" target="_blank">XRST.Uk 站队投票：粽子蘸什么？甜党咸党来战！</a></div>
+
+<div id="admBox" class="sec" style="display:none;border-color:#f00">
+  <h2 style="color:#f00">█ 管理员 · 上传视频 █</h2>
+  <div class="gray" style="font-size:12px">片源填 GitHub Release 直链（releases/download/.../xxx.mp4）</div>
+  <input id="admTitle" placeholder="视频标题（1-60字）">
+  <select id="admTier">
+    <option value="free">免费观看区</option>
+    <option value="vip">VIP 专区</option>
+    <option value="coin">金币兑换区</option>
+  </select>
+  <input id="admPrice" placeholder="金币价格（选金币区才填）" type="number" min="1" max="100000">
+  <input id="admUrl" placeholder="https://github.com/.../releases/download/.../xxx.mp4">
+  <button onclick="admAdd()">[发布]</button>
+  <span id="admMsg"></span>
+  <div class="rowline"></div>
+  <div id="admList"></div>
+</div>
+
+<div class="tick rev" data-speed="0.15" style="border:2px solid #0ff;color:#0ff;background:#111;padding:3px">
+<span class="tickin">广告位招租（并不会租出去） &nbsp;●&nbsp; <a href="https://xrst.uk" target="_blank">XRST.Uk</a> &nbsp;●&nbsp; <a href="https://xrst.uk/games/" target="_blank">wkw 游戏中心</a> &nbsp;●&nbsp; 67GOD视频网，粗到极致就是潮 &nbsp;●&nbsp; </span>
+</div>
+
+<div class="foot">
+  ================================================<br>
+  67GOD视频网 · 黑底方角 · 拒绝美工 · <a href="https://xrst.uk" target="_blank">XRST.Uk</a> 赞助播出 · <a href="https://xrst.uk/games/" target="_blank">wkw 游戏中心</a> 联合不呈现<br>
+  本站金币 = XRST.Uk 金币，账号互通（授权登录）<br>
+  ==================================================
+</div>
+
+<div id="loginMask">
+  <div id="loginPanel">
+    <p style="margin:0 0 10px 0">选择登录方式<span class="gray">（就一种，别挑了）</span></p>
+    <button onclick="location='/auth/login'" style="font-size:18px;padding:10px 18px">通过 XRST.Uk 登录</button>
+    <p class="gray" style="font-size:12px;margin:10px 0 0 0">会跳到 auth.xrst.uk 授权，登录态在 XRST.Uk 那边，本站不存密码</p>
+    <p style="margin:10px 0 0 0"><a href="#" onclick="document.getElementById('loginMask').style.display='none';return false">[算了不登了]</a></p>
+  </div>
+</div>
+
+<script>
+var ME = null, VIDEOS = [];
+function esc(s){ var d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
+function $(id){ return document.getElementById(id); }
+
+async function boot(){
+  try { var r = await fetch('/api/g67/me'); var d = await r.json(); if (d && d.ok) ME = d; } catch(e) {}
+  try { var r2 = await fetch('/api/g67/videos'); var d2 = await r2.json(); if (d2 && d2.ok) VIDEOS = d2.videos || []; } catch(e) {}
+  renderUser(); renderLists();
+  if (ME && ME.admin) renderAdmin();
+}
+
+function renderUser(){
+  var h;
+  if (ME && ME.username) {
+    h = '<b>' + esc(ME.username) + '</b>' + (ME.vip ? ' <span class="tag vip">VIP</span>' : '') +
+        '<br>金币：<span class="price">' + (ME.coins||0) + '</span> <a href="https://xrst.uk" target="_blank">[去赚]</a>' +
+        '<br><button onclick="logout()">[退出登录]</button>';
+  } else {
+    h = '游客<br><button onclick="showLogin()" style="font-size:16px">[登 录]</button>';
+  }
+  $('userBar').innerHTML = h;
+}
+function showLogin(){ $('loginMask').style.display='block'; }
+
+async function logout(){
+  await fetch('/api/g67/logout', { method:'POST' });
+  location.reload();
+}
+
+function unlocked(id){ return ME && ME.unlocked && ME.unlocked.indexOf(id) >= 0; }
+
+function cardHtml(v){
+  var h = '<div class="card ' + v.tier + '">';
+  if (v.tier === 'vip') h += '<span class="tag vip">VIP</span> ';
+  else if (v.tier === 'coin') h += '<span class="tag coin">金币</span> ';
+  else h += '<span class="tag">免费</span> ';
+  h += '<span class="vt">' + esc(v.title) + '</span><br>';
+  if (v.tier === 'free') {
+    h += '<button onclick="play(\\'' + v.id + '\\')">[▶ 播放]</button>';
+  } else if (v.tier === 'vip') {
+    if (ME && ME.vip) h += '<button onclick="play(\\'' + v.id + '\\')">[▶ VIP播放]</button>';
+    else h += '<span class="gray">VIP 专享</span> <a href="https://xrst.uk" target="_blank">[去开]</a>';
+  } else {
+    if (unlocked(v.id)) h += '<button onclick="play(\\'' + v.id + '\\')">[▶ 已兑换·播放]</button>';
+    else h += '<span class="price">' + v.price + ' 金币</span> <button onclick="unlock(\\'' + v.id + '\\',this)">[兑换]</button>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderLists(){
+  var vip='', coin='', free='';
+  for (var i=0;i<VIDEOS.length;i++){
+    var v = VIDEOS[i], h = cardHtml(v);
+    if (v.tier==='vip') vip+=h; else if (v.tier==='coin') coin+=h; else free+=h;
+  }
+  $('listVip').innerHTML = vip || '<span class="gray">还没货</span>';
+  $('listCoin').innerHTML = coin || '<span class="gray">还没货</span>';
+  $('listFree').innerHTML = free || '<span class="gray">还没货</span>';
+}
+
+function play(id, title){
+  var v = null;
+  for (var i=0;i<VIDEOS.length;i++) if (VIDEOS[i].id===id) { v=VIDEOS[i]; break; }
+  $('playerBox').style.display='block';
+  $('playerTitle').textContent = '▶ ' + (v ? v.title : '');
+  $('playerErr').textContent = '';
+  var p = $('player');
+  p.src = '/media/' + id;
+  p.play().catch(function(){});
+  p.onerror = function(){ $('playerErr').textContent = '播放失败：可能没权限，或者片源挂了'; };
+  location.hash = 'playerBox';
+}
+function closePlayer(){ var p=$('player'); p.pause(); p.removeAttribute('src'); p.load(); $('playerBox').style.display='none'; }
+
+async function unlock(id, btn){
+  if (!ME || !ME.username) { $('loginMask').style.display='block'; return; }
+  btn.disabled = true; btn.textContent = '[兑换中……]';
+  try {
+    var r = await fetch('/api/g67/unlock', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: id }) });
+    var d = await r.json();
+    if (d.ok) { ME.unlocked.push(id); ME.coins = d.coins; renderUser(); renderLists(); alert('兑换成功！已扣金币'); }
+    else { alert(d.error || '兑换失败'); btn.disabled = false; btn.textContent = '[兑换]'; }
+  } catch(e) { alert('网络错误'); btn.disabled = false; btn.textContent = '[兑换]'; }
+}
+
+/* -------- 管理员 -------- */
+function renderAdmin(){
+  $('admBox').style.display = 'block';
+  var h = '';
+  for (var i=0;i<VIDEOS.length;i++){
+    var v = VIDEOS[i];
+    h += '<div>' + esc(v.title) + ' <span class="gray">(' + v.tier + (v.tier==='coin'?'/'+v.price+'金币':'') + ')</span> <button onclick="admDel(\\'' + v.id + '\\')">[删]</button></div>';
+  }
+  $('admList').innerHTML = h || '<span class="gray">暂无视频</span>';
+}
+async function admAdd(){
+  var msg = $('admMsg');
+  msg.textContent = ' 发布中……';
+  try {
+    var r = await fetch('/api/g67/add', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ title: $('admTitle').value, tier: $('admTier').value, price: Number($('admPrice').value), url: $('admUrl').value }) });
+    var d = await r.json();
+    if (d.ok) { msg.textContent = ' 已发布！'; location.reload(); }
+    else msg.textContent = ' ' + (d.error || '失败');
+  } catch(e) { msg.textContent = ' 网络错误'; }
+}
+async function admDel(id){
+  if (!confirm('真删？')) return;
+  await fetch('/api/g67/del', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: id }) });
+  location.reload();
+}
+
+/* 逐字滚动条：内容复制一份拼成环，steps 数 = 半程像素 / 单字符宽 */
+function initTicks(){
+  var ts = document.querySelectorAll('.tick');
+  for (var i=0;i<ts.length;i++){
+    (function(w){
+      var inner = w.querySelector('.tickin');
+      if (!inner || inner.dataset.done) return;
+      inner.dataset.done = '1';
+      inner.innerHTML += inner.innerHTML;
+      var probe = document.createElement('span');
+      probe.textContent = '0'; probe.style.visibility = 'hidden';
+      inner.appendChild(probe);
+      var cw = probe.getBoundingClientRect().width || 12;
+      inner.removeChild(probe);
+      var half = inner.scrollWidth / 2;
+      var steps = Math.max(1, Math.round(half / cw));
+      var speed = parseFloat(w.getAttribute('data-speed')) || 0.1;
+      inner.style.setProperty('--tickw', (-half) + 'px');
+      inner.style.animation = 'tickmove ' + (steps * speed).toFixed(2) + 's steps(' + steps + ') infinite';
+    })(ts[i]);
+  }
+}
+if (document.fonts && document.fonts.ready) { document.fonts.ready.then(initTicks); } else { initTicks(); }
+
+boot();
+</script>
+</body>
+</html>`;
+  return g67Html(html);
 }

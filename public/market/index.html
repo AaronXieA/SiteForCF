@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="market.pageTitle">二手交易 · XRST.Uk</title>
   <meta name="description" content="MC 服务器物品自由交易：卖装备、收材料、以物易物，网站金币担保交易，拍下自动开 7 天临时聊天。" />
-  <link rel="stylesheet" href="../css/style.css?v=26" />
+  <link rel="stylesheet" href="../css/style.css?v=34" />
 </head>
 <body>
 
@@ -27,7 +27,7 @@
   <main class="mk-main">
     <p class="wb-eyebrow" data-i18n="market.eyebrow">集市</p>
     <h1 class="wb-title" data-i18n="market.title">🛍️ 二手交易</h1>
-    <p class="wb-sub" data-i18n="market.sub">MC 服务器内物品自由交易：卖装备、收材料、以物易物。拍下后自动开一个临时聊天：谈拢就点「完成交易」，金币担保结算；7 天没完成聊天自动销毁、金币退回买家。</p>
+    <p class="wb-sub" data-i18n="market.sub">MC 服务器内物品自由交易：卖装备、收材料、以物易物。拍下后自动开一个临时聊天：双方都点「确认完成」后金币才结算给卖家；7 天没完成聊天自动销毁、金币退回买家。交易完成后聊天记录保留 24 小时。</p>
 
     <div class="mk-toolbar">
       <button type="button" class="btn btn-solid" id="mkPostBtn" data-i18n="market.postBtn">＋ 发布新帖</button>
@@ -98,7 +98,7 @@
           <h2 id="chatTitle" data-i18n="market.chatTitle">交易聊天</h2>
           <p id="chatMeta"></p>
         </div>
-        <button type="button" class="btn btn-small btn-complete" id="chatComplete" data-i18n="market.complete">✅ 完成交易</button>
+        <button type="button" class="btn btn-small btn-complete" id="chatComplete" data-i18n="market.confirm">✅ 确认完成</button>
       </div>
       <div class="mk-chat-msgs" id="chatMsgs"></div>
       <form class="mk-chat-input" id="chatForm">
@@ -165,9 +165,9 @@
 
   <div class="toast-box" id="toastBox"></div>
 
-  <script src="/js/i18n.js?v=6"></script>
+  <script src="/js/i18n.js?v=7"></script>
   <script src="../js/auth.js?v=5"></script>
   <script src="../js/main.js?v=18"></script>
-  <script src="../js/market.js?v=6"></script>
+  <script src="../js/market.js?v=7"></script>
 </body>
 </html>

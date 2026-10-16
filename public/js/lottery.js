@@ -7,7 +7,7 @@
 
   const COST = 100;
 
-  // 普通奖池（展示顺序，隐藏大奖只显示神秘卡位）
+  // 奖池（展示顺序）
   const POOL = [
     { icon: "🍎", label: "附魔金苹果 ×1" },
     { icon: "🍎", label: "附魔金苹果 ×3" },
@@ -44,14 +44,7 @@
         <span class="lot-prize-icon">${p.icon}</span>
         <span class="lot-prize-label">${p.label}</span>
       </div>`).join("");
-    // 两个神秘卡位：不透露具体奖品，只标隐藏大奖概率
-    const mystery = [0, 1].map(() => `
-      <div class="lot-prize lot-mystery">
-        <span class="lot-prize-icon">❓</span>
-        <span class="lot-prize-label lot-mystery-label">${I18n.t("lottery.mysteryLabel")}</span>
-        <span class="lot-mystery-rate">${I18n.t("lottery.mysteryRate")}</span>
-      </div>`).join("");
-    poolEl.innerHTML = normal + mystery;
+    poolEl.innerHTML = normal;
   }
 
   /* ---------- 登录态 / 金币 ---------- */
@@ -115,9 +108,10 @@
       return;
     }
     prizesEl.innerHTML = list.map(p => `
-      <div class="lot-prize-row">
+      <div class="lot-prize-row${p.claimed ? " is-claimed" : ""}">
         <span class="lot-row-date">${fmtDate(p.ts)}</span>
         <span class="lot-row-label">${p.label}</span>
+        ${p.claimed ? `<span class="lot-row-claimed">${I18n.t("lottery.claimed")}</span>` : ""}
         <button class="lot-code" type="button" data-code="${p.code}" title="点击复制兑换码">${p.code}</button>
       </div>`).join("");
   }

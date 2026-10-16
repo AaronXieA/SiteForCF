@@ -82,6 +82,22 @@
     return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
 
+  /* 确认状态：我方是否已确认、对方是否已确认。
+     sell: taker=buyer→buyerOk, owner=seller→sellerOk
+     buy:  owner=buyer→buyerOk, taker=seller→sellerOk
+     barter: owner→sellerOk, taker→buyerOk（后端约定） */
+  function confState(l) {
+    if (l.type === "barter") {
+      return me === l.owner
+        ? { mineOk: l.sellerOk, otherOk: l.buyerOk }
+        : { mineOk: l.buyerOk, otherOk: l.sellerOk };
+    }
+    const isBuyer = me === l.buyer;
+    return isBuyer
+      ? { mineOk: l.buyerOk, otherOk: l.sellerOk }
+      : { mineOk: l.sellerOk, otherOk: l.buyerOk };
+  }
+
   async function api(url, opts) {
     const res = await fetch(url, Object.assign({
       credentials: "same-origin",
@@ -132,10 +148,18 @@
     if (zone === "mine") {
       if (l.status === "taken") {
         const other = me === l.owner ? l.taker : l.owner;
-        stateLine = `<span class="mk-badge mk-badge-taken">交易中 · 对方 ${esc(other)} · ${remainText(l.expireAt)}</span>`;
+        const cs = confState(l);
+        const confBadge = cs.mineOk
+          ? (cs.otherOk ? "双方已确认" : "我已确认 · 等待对方")
+          : (cs.otherOk ? "对方已确认 · 待我确认" : "双方待确认");
+        stateLine = `<span class="mk-badge mk-badge-taken">交易中 · 对方 ${esc(other)} · ${remainText(l.expireAt)}</span>
+          <span class="mk-badge mk-badge-conf">${confBadge}</span>`;
         actions = `
           <button type="button" class="btn btn-solid btn-small mk-act" data-act="chat">💬 打开聊天</button>
-          <button type="button" class="btn btn-ghost btn-small mk-act" data-act="complete">完成交易</button>`;
+          <button type="button" class="btn btn-ghost btn-small mk-act" data-act="confirm" ${cs.mineOk ? "disabled" : ""}>${cs.mineOk ? "已确认" : "确认完成"}</button>`;
+      } else if (l.status === "done") {
+        stateLine = '<span class="mk-badge mk-badge-done">✅ 已完成 · 聊天保留 24h</span>';
+        actions = '<button type="button" class="btn btn-solid btn-small mk-act" data-act="chat">💬 查看聊天</button>';
       } else {
         stateLine = '<span class="mk-badge mk-badge-open">在架中</span>';
         actions = '<button type="button" class="btn btn-ghost btn-small mk-act" data-act="cancel">下架</button>';
@@ -165,15 +189,18 @@
       ? `栏位 ${slots.used}/${slots.max}${slots.vip ? "（VIP）" : ""}（每完成或下架一帖就空出一个）`
       : "登录后即可发布和交易";
 
-    const trading = mine.filter(l => l.status === "taken");
+    const trading = mine.filter(l => l.status === "taken" || l.status === "done");
     chatsEl.hidden = trading.length === 0;
     chatListEl.innerHTML = trading.length ? trading.map(l => {
       const other = me === l.owner ? l.taker : l.owner;
+      const metaTxt = l.status === "done"
+        ? `对方 @${esc(other)} · 已完成`
+        : `对方 @${esc(other)} · ${remainText(l.expireAt)}`;
       return `
         <div class="mk-chat-row" data-id="${l.id}">
           <div class="mk-chat-row-main">
             <span class="mk-chat-row-title">${esc(cardTitle(l))}</span>
-            <span class="mk-chat-row-meta">对方 @${esc(other)} · ${remainText(l.expireAt)}</span>
+            <span class="mk-chat-row-meta">${metaTxt}</span>
           </div>
           <button type="button" class="btn btn-solid btn-small mk-act" data-act="chat">💬 聊天</button>
         </div>`;
@@ -228,10 +255,10 @@
               ? I18n.t("market.takeSellFree", { item })
               : I18n.t("market.takeSell", { item, price: l.price }));
       if (!window.confirm(tip)) return;
-    } else if (act === "complete") {
+    } else if (act === "confirm") {
       const tip = l.type === "barter"
-        ? I18n.t("market.completeBarter")
-        : I18n.t("market.completeOther");
+        ? I18n.t("market.confirmBarter")
+        : I18n.t("market.confirmOther");
       if (!window.confirm(tip)) return;
     }
 
@@ -245,9 +272,12 @@
         await loadAll(true);
         const fresh = mine.find(x => x.id === id);
         if (fresh) openChat(fresh);
-      } else if (act === "complete") {
-        showToast(I18n.t("market.completeOk"));
-        closeChat(true);
+      } else if (act === "confirm") {
+        if (r.data.settled) {
+          showToast(I18n.t("market.confirmBothOk"));
+        } else {
+          showToast(I18n.t("market.confirmWait"));
+        }
       } else if (act === "cancel") {
         showToast(I18n.t("market.cancelOk"));
       }
@@ -373,6 +403,26 @@
     const priceTxt = l.type === "barter"
       ? I18n.t("market.barter")
       : I18n.t("market.escrow", { n: l.price.toLocaleString("zh-CN") });
+    if (l.status === "done") {
+      chatMetaEl.textContent = `对方 @${other} · ${priceTxt} · 交易已完成 · 聊天记录保留至 24 小时后清除`;
+      chatCompleteBtn.hidden = true;
+      chatTextEl.disabled = true;
+      chatTextEl.placeholder = "交易已完成，聊天记录只读";
+      chatForm.querySelector('button[type="submit"]').disabled = true;
+      return;
+    }
+    chatCompleteBtn.hidden = false;
+    chatTextEl.disabled = false;
+    chatTextEl.placeholder = I18n.t("market.chatPlaceholder");
+    chatForm.querySelector('button[type="submit"]').disabled = false;
+    const cs = confState(l);
+    if (cs.mineOk) {
+      chatCompleteBtn.disabled = true;
+      chatCompleteBtn.textContent = "已确认 · 等待对方";
+    } else {
+      chatCompleteBtn.disabled = false;
+      chatCompleteBtn.textContent = cs.otherOk ? "对方已确认 · 我也确认" : "✅ 确认完成";
+    }
     chatMetaEl.textContent = I18n.t("market.chatMeta", { other, price: priceTxt, remain: remainText(l.expireAt) });
   }
 
@@ -405,10 +455,12 @@
       }
       return;
     }
+    if (r.data.listing) renderChatHead(r.data.listing);
     const msgs = r.data.msgs || [];
     if (msgs.length !== chatSeen || scrollHint) {
       chatSeen = msgs.length;
-      chatMsgsEl.innerHTML = msgs.length ? msgs.map(m => `
+      chatMsgsEl.innerHTML = msgs.length ? msgs.map(m => m.f === "SYSTEM" ? `
+        <div class="mk-msg mk-msg-sys"><span class="mk-msg-bubble"></span></div>` : `
         <div class="mk-msg ${m.f === me ? "is-me" : ""}">
           <span class="mk-msg-name">${esc(m.f === me ? "我" : m.f)}</span>
           <span class="mk-msg-bubble"></span>
@@ -440,7 +492,7 @@
   });
 
   chatCompleteBtn?.addEventListener("click", () => {
-    if (chatLid) postAction(chatLid, "complete");
+    if (chatLid) postAction(chatLid, "confirm");
   });
 
   window.addEventListener("auth-user", async e => {

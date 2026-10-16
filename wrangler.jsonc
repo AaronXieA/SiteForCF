@@ -17,6 +17,16 @@
       "id": "115ddb34bc304a28bf2f7db2248ba3f0"
     }
   ],
+  // 自定义域：xrst.uk 主站 + auth.xrst.uk（统一授权）+ 67god.top（67GOD视频网）
+  // 同一个 worker 按 hostname 分发；67god.top 挂上来后 Cloudflare 自动补 DNS/证书
+  // （配了 routes 后 workers.dev 默认会被关掉，显式保留）
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "xrst.uk", "zone_name": "xrst.uk", "custom_domain": true },
+    { "pattern": "auth.xrst.uk", "zone_name": "xrst.uk", "custom_domain": true },
+    { "pattern": "67god.top", "zone_name": "67god.top", "custom_domain": true },
+    { "pattern": "www.67god.top", "zone_name": "67god.top", "custom_domain": true }
+  ],
   // 高频协作内容走 Durable Objects（免费版只能用 SQLite 后端）：
   // COLLAB_DO 承载聊天 / 像素画 / 文字画板（各一个具名实例）。
   // 在线心跳刻意不进 DO（全站每页面都发，太耗 DO 请求额度），留在 KV。
